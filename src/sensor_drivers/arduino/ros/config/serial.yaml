@@ -1,0 +1,3 @@
+# ROS 제어용 아두이노 포트. CAN 로거와 다른 장치를 지정하세요.
+port: /dev/ttyUSB1
+baud: 57600

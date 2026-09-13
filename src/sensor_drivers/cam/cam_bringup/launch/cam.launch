@@ -1,0 +1,30 @@
+<launch>
+  <arg name="device" default="/dev/cam" />
+  <arg name="frame_id" default="camera_link" />
+  <arg name="image_width" default="640" />
+  <arg name="image_height" default="360" />
+  <arg name="pixel_format" default="yuyv" />
+  <arg name="framerate" default="30" />
+  <arg name="apply_hardware_setup" default="true" />
+
+  <node name="usb_cam"
+        pkg="usb_cam"
+        type="usb_cam_node"
+        output="screen"
+        respawn="true"
+        respawn_delay="5">
+    <param name="video_device" value="$(arg device)" />
+    <param name="image_width" value="$(arg image_width)" />
+    <param name="image_height" value="$(arg image_height)" />
+    <param name="pixel_format" value="$(arg pixel_format)" />
+    <param name="framerate" value="$(arg framerate)" />
+    <param name="camera_frame_id" value="$(arg frame_id)" />
+  </node>
+
+  <node if="$(arg apply_hardware_setup)"
+        name="kiyo_pro_setup"
+        pkg="cam_bringup"
+        type="kiyo_setup.sh"
+        args="$(arg device)"
+        output="screen" />
+</launch>

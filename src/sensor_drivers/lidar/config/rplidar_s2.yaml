@@ -1,0 +1,6 @@
+serial_port: /dev/lidar
+serial_baudrate: 1000000
+inverted: false
+angle_compensate: true
+scan_frequency: 10.0
+initial_reset: true

@@ -1,0 +1,39 @@
+<launch>
+  <arg name="device" default="/dev/imu" />
+  <arg name="baudrate" default="115200" />
+  <arg name="frame_id" default="imu_link" />
+  <arg name="raw_topic" default="/imu/data_raw" />
+  <arg name="output_topic" default="/imu/data" />
+  <arg name="apply_measured_covariance" default="true" />
+  <arg name="device_config"
+       default="$(find xsens_mti_driver)/param/xsens_mti_node.yaml" />
+  <arg name="covariance_config"
+       default="$(find imu_bringup)/config/imu_covariance.yaml" />
+
+  <node name="xsens_mti_node"
+        pkg="xsens_mti_driver"
+        type="xsens_mti_node"
+        output="screen">
+    <rosparam command="load" file="$(arg device_config)" />
+    <param name="scan_for_devices" value="false" />
+    <param name="port" value="$(arg device)" />
+    <param name="baudrate" value="$(arg baudrate)" />
+    <param name="frame_id" value="$(arg frame_id)" />
+    <!-- README TF tree is owned outside the sensor driver. Avoid world -> imu_link. -->
+    <param name="pub_transform" value="false" />
+    <!-- 원본 Xsens 메시지는 covariance가 모두 0이므로 별도 토픽으로 격리한다. -->
+    <remap from="imu/data" to="$(arg raw_topic)" />
+  </node>
+
+  <node if="$(arg apply_measured_covariance)"
+        name="imu_covariance_override"
+        pkg="imu_bringup"
+        type="imu_covariance_override_node"
+        output="screen"
+        clear_params="true"
+        required="true">
+    <rosparam command="load" file="$(arg covariance_config)" />
+    <param name="input_topic" value="$(arg raw_topic)" />
+    <param name="output_topic" value="$(arg output_topic)" />
+  </node>
+</launch>

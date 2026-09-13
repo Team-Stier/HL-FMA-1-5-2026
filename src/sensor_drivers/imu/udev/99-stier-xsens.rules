@@ -1,0 +1,2 @@
+# Xsens MTi-3-0L-DK
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="2639", ATTRS{idProduct}=="0300", ATTRS{serial}=="DB8GG04M", SYMLINK+="imu", MODE="0666"

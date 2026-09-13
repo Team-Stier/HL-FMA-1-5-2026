@@ -1,0 +1,7 @@
+<launch>
+    <!-- South Korea: UTM zone 52 North -->
+    <param name="utm_zone" type="int" value="52" />
+    <param name="hemisphere" type="string" value="North" />
+    <node type="utm_lla_converter" pkg="utm_lla" name="utm_lla_converter" output="screen">
+    </node>
+</launch>

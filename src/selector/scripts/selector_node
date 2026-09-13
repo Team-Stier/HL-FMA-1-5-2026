@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+
+import rospy
+from nav_msgs.msg import Path
+
+
+def main():
+    rospy.init_node("selector_node")
+    publisher = rospy.Publisher("/path/final", Path, queue_size=1)
+    rospy.Subscriber("/path/lidar", Path, publisher.publish, queue_size=1)
+    rospy.spin()
+
+
+if __name__ == "__main__":
+    main()

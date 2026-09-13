@@ -1,0 +1,5 @@
+<launch>
+  <arg name="config" default="$(find can_logger)/config/logger.yaml" />
+  <node pkg="can_logger" type="can_csv_logger" name="can_csv_logger"
+        args="--config &quot;$(arg config)&quot;" output="screen" />
+</launch>

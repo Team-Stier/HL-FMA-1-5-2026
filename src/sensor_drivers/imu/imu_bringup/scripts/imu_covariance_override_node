@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Fill all-zero Xsens Imu covariance arrays with measured stationary noise."""
+
+import copy
+import math
+
+import rospy
+from sensor_msgs.msg import Imu
+
+
+DIAGONAL_INDICES = (0, 4, 8)
+
+
+def variances_from_stddev(values, parameter_name):
+    if len(values) != 3:
+        raise ValueError("{} must contain exactly three values".format(parameter_name))
+    stddevs = [float(value) for value in values]
+    if not all(math.isfinite(value) and value > 0.0 for value in stddevs):
+        raise ValueError("{} values must be finite and positive".format(parameter_name))
+    return tuple(value * value for value in stddevs)
+
+
+def replace_all_zero_covariance(covariance, variances, replace_only_all_zero=True):
+    if len(covariance) != 9:
+        raise ValueError("sensor_msgs/Imu covariance must contain nine values")
+    output = list(covariance)
+    if replace_only_all_zero and not all(value == 0.0 for value in output):
+        return output, False
+    for index, variance in zip(DIAGONAL_INDICES, variances):
+        output[index] = variance
+    return output, True
+
+
+class ImuCovarianceOverrideNode:
+    def __init__(self):
+        self._input_topic = rospy.get_param("~input_topic")
+        self._output_topic = rospy.get_param("~output_topic")
+        self._replace_only_all_zero = bool(
+            rospy.get_param("~covariance_override/replace_only_all_zero")
+        )
+        if self._input_topic == self._output_topic:
+            raise ValueError("input_topic and output_topic must differ")
+
+        self._linear_acceleration_variances = variances_from_stddev(
+            rospy.get_param(
+                "~covariance_override/linear_acceleration_stddev_mps2"
+            ),
+            "linear_acceleration_stddev_mps2",
+        )
+        self._angular_velocity_variances = variances_from_stddev(
+            rospy.get_param("~covariance_override/angular_velocity_stddev_radps"),
+            "angular_velocity_stddev_radps",
+        )
+        self._orientation_variances = variances_from_stddev(
+            rospy.get_param("~covariance_override/orientation_stddev_rad"),
+            "orientation_stddev_rad",
+        )
+
+        self._publisher = rospy.Publisher(self._output_topic, Imu, queue_size=100)
+        self._subscriber = rospy.Subscriber(
+            self._input_topic, Imu, self._callback, queue_size=100
+        )
+        rospy.loginfo(
+            "IMU measured covariance override: %s -> %s",
+            self._input_topic,
+            self._output_topic,
+        )
+
+    def _callback(self, message):
+        output = copy.deepcopy(message)
+        output.orientation_covariance, _ = replace_all_zero_covariance(
+            output.orientation_covariance,
+            self._orientation_variances,
+            self._replace_only_all_zero,
+        )
+        output.angular_velocity_covariance, _ = replace_all_zero_covariance(
+            output.angular_velocity_covariance,
+            self._angular_velocity_variances,
+            self._replace_only_all_zero,
+        )
+        output.linear_acceleration_covariance, _ = replace_all_zero_covariance(
+            output.linear_acceleration_covariance,
+            self._linear_acceleration_variances,
+            self._replace_only_all_zero,
+        )
+        self._publisher.publish(output)
+
+
+def main():
+    rospy.init_node("imu_covariance_override")
+    try:
+        ImuCovarianceOverrideNode()
+    except (KeyError, TypeError, ValueError) as error:
+        rospy.logfatal("IMU covariance override 설정 실패: %s", error)
+        raise
+    rospy.spin()
+
+
+if __name__ == "__main__":
+    main()

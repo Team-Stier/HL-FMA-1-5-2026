@@ -1,0 +1,111 @@
+# REAL SENSOR TEST ONLY: 실센서를 읽지만 제어용 /current_pos와 운영 TF를 점유하지 않는다.
+topics:
+  gps_fix: /ublox_position_receiver/fix
+  gps_status: /gps/status
+  imu: /imu/data
+  encoder: /erp42_serial/feedback
+  current_pose: /localization/live/current_pos
+  local_odometry: /localization/live/local_odometry
+  global_odometry: /localization/live/global_odometry
+  local_path: /localization/live/local_path
+  global_path: /localization/live/global_path
+  vehicle_marker: /localization/live/vehicle_marker
+  diagnostics: /localization/live/diagnostics
+  status_markers: /localization/live/status_markers
+
+frames:
+  gps: gps_link
+  imu: imu_link
+  output: map
+  odom: odom_live_test
+  base: base_link_live_test
+
+operation:
+  allow_unmeasured_test_mode: true
+
+reference:
+  mode: first_fix
+  measured: false
+  measured_at: ""
+  source: live_first_valid_fix
+  latitude_deg: 0.0
+  longitude_deg: 0.0
+  altitude_m: 0.0
+  map_x_m: 0.0
+  map_y_m: 0.0
+  map_z_m: 0.0
+  yaw_offset_rad: 0.0
+
+extrinsics:
+  gps_translation_base_m: [0.0, 0.0, 0.0]
+  imu_yaw_offset_rad: 0.0
+  calibration_state: unmeasured
+
+quality:
+  gps_fix_max_age_sec: 1.0
+  gps_status_timeout_sec: 1.0
+  imu_timeout_sec: 0.20
+  max_future_stamp_sec: 0.10
+  max_status_fix_skew_sec: 0.50
+  max_imu_fix_skew_sec: 0.20
+  quaternion_norm_tolerance: 0.05
+  max_imu_orientation_variance_rad2: 1.0
+  # imu_bringup이 2026-08-31 정지 측정 covariance를 주입하므로 unknown은 거부한다.
+  allow_unknown_imu_orientation_covariance: false
+  allowed_solutions: [2, 3, 4, 5, 7]
+  allowed_fix_types: [3, 4]
+  require_nav_status: true
+  allowed_spoofing_states: [1]
+  min_satellites_used: 6
+  max_horizontal_accuracy_m: 5.0
+  max_vertical_accuracy_m: 10.0
+  max_navsat_horizontal_variance_m2: 25.0
+  required_consecutive_fixes: 3
+  max_step_distance_m: 50.0
+  reset_gap_sec: 2.0
+
+motion:
+  feedback_timeout_sec: 0.50
+  # 2026-09-02 사용자 승인 1회전 측정: +45 ticks. 둘레 0.84823 m 기준.
+  encoder_calibrated: true
+  encoder_calibration_state: provisional_user_accepted_single_turn
+  encoder_counts_per_revolution: 45
+  encoder_wheel_circumference_m: 0.84823
+  encoder_meters_per_tick: 0.0188495555556
+  encoder_sign: 1.0
+  # BROON_T870 Uno /erp42_serial/feedback.encoder는 최근 100 ms delta다.
+  encoder_value_mode: window_delta
+  encoder_modulus: 0
+  encoder_direction_mode: signed_ticks
+  forward_gear_values: [0]
+  reverse_gear_values: [2]
+  neutral_gear_values: [1]
+  max_encoder_delta_ticks: 100000
+  min_feedback_dt_sec: 0.001
+  max_feedback_dt_sec: 0.50
+  max_encoder_speed_mps: 20.0
+  max_gps_local_sync_sec: 0.30
+  local_history_duration_sec: 5.0
+  max_global_dead_reckoning_sec: 2.0
+  publish_tf: true
+  local_position_variance_m2: 0.25
+  global_position_variance_m2: 4.0
+
+output:
+  planar_mode: true
+  path_max_poses: 2000
+
+visualization:
+  vehicle_length_m: 1.35
+  vehicle_width_m: 0.85
+  vehicle_outline_width_m: 0.05
+  status_rate_hz: 5.0
+  status_frame: map
+  output_timeout_sec: 1.0
+  marker_x_m: -6.0
+  marker_y_m: 5.0
+  marker_z_m: 0.5
+  marker_line_spacing_m: 0.7
+  marker_text_height_m: 0.45
+  marker_lifetime_sec: 0.6
+  banner: REAL SENSOR TEST - OUTPUTS ISOLATED

@@ -1,0 +1,40 @@
+# Catkin workspace outputs
+/build/
+/devel/
+/install/
+/log/
+/logs/
+/.catkin_tools/
+/.catkin_workspace
+
+# ROS runtime data
+/.ros/
+*.bag
+*.bag.active
+
+# Local tooling and Docker data
+/Dockerfile
+/.dockerignore
+/graphify-out/
+/.graphify_*
+/.docker/
+/docker-data/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Xsens upstream ExternalProject builds its SDK in the vendored source tree.
+/src/sensor_drivers/imu/xsens_ros_mti_driver/lib/xspublic/**/*.o
+/src/sensor_drivers/imu/xsens_ros_mti_driver/lib/xspublic/**/*.d
+/src/sensor_drivers/imu/xsens_ros_mti_driver/lib/xspublic/**/*.dpp
+/src/sensor_drivers/imu/xsens_ros_mti_driver/lib/xspublic/**/*.a
+/src/sensor_drivers/imu/xsens_ros_mti_driver/lib/xspublic/xstypes/buildversion.h
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+*~

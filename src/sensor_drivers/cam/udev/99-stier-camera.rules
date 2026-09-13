@@ -1,0 +1,5 @@
+# Razer Kiyo Pro (the reference rule does not include a serial match)
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0e05", ENV{ID_V4L_CAPABILITIES}==":capture:", SYMLINK+="cam", MODE="0666"
+
+# Logitech C922, registered spare camera
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="085c", ATTRS{serial}=="8F25D8AF", ENV{ID_V4L_CAPABILITIES}==":capture:", SYMLINK+="cam", MODE="0666"

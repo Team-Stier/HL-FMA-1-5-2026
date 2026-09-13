@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+"""Capture-only adaptation of Team-Stier/Mando logger; see ../README.md."""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import pathlib
+import re
+import sys
+import time
+
+
+SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+CONTROLLER_DIR = SCRIPT_DIR.parent
+DEFAULT_RUN_ROOT = CONTROLLER_DIR / "runs"
+RAW_CAN_PREFIX = "@CAN"
+CAN_FRAMES_HEADER = "host_time_iso,logger_ms,can_id,dlc,data_hex"
+LOGGER_HEADER = (
+    "logger_ms,complete,seq,protocol,state,fault,mode,status_flags,"
+    "uptime_s,drive_req_pwm,front_pwm,rear_pwm,steer_target_adc,"
+    "steer_actual_adc,steer_pwm,speed_kph,encoder_delta,encoder_corrected,"
+    "rc_steer_us,rc_throttle_us,rc_aux_us,rc_flags,rc_read_us,tx_dropped,"
+    "can_eflg,can_tec,can_rec"
+)
+LOGGER_COLUMN_COUNT = len(LOGGER_HEADER.split(","))
+
+
+def parse_raw_can_line(line: str) -> tuple[str, str, str, str] | None:
+    """Validate one logger @CAN line and return normalized CSV fields."""
+    fields = line.split(",")
+    if len(fields) != 5 or fields[0] != RAW_CAN_PREFIX:
+        return None
+
+    try:
+        logger_ms = int(fields[1], 10)
+        frame_id = int(fields[2], 0)
+        dlc = int(fields[3], 10)
+    except ValueError:
+        return None
+
+    data_hex = fields[4].strip().upper()
+    if logger_ms < 0 or not 0 <= frame_id <= 0x7FF or not 0 <= dlc <= 8:
+        return None
+    if len(data_hex) != dlc * 2 or re.fullmatch(r"[0-9A-F]*", data_hex) is None:
+        return None
+
+    return str(logger_ms), f"0x{frame_id:03X}", str(dlc), data_hex
+
+
+def safe_name(value: str) -> str:
+    cleaned = re.sub(r"[^0-9A-Za-z가-힣._-]+", "_", value.strip())
+    return cleaned.strip("._-") or "run"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Capture T870CanCsvLogger serial data as CSV."
+        )
+    )
+    parser.add_argument("--port", required=True, help="Logger Uno port, e.g. COM7 or /dev/ttyACM0")
+    parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--name", default="t870_run", help="Short test condition name")
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=0.0,
+        help="Capture seconds; 0 means run until Ctrl+C",
+    )
+    parser.add_argument(
+        "--output-root",
+        type=pathlib.Path,
+        default=DEFAULT_RUN_ROOT,
+        help="Directory that receives timestamped run folders",
+    )
+    return parser.parse_args()
+
+
+def write_metadata(path: pathlib.Path, metadata: dict[str, object]) -> None:
+    path.write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def main() -> int:
+    args = parse_args()
+    if args.duration < 0:
+        print("--duration must be 0 or greater", file=sys.stderr)
+        return 2
+
+    try:
+        import serial
+    except ImportError:
+        print(
+            "pyserial is required. Install it with: "
+            "python3 -m pip install -r logger/requirements.txt",
+            file=sys.stderr,
+        )
+        return 3
+
+    stamp = dt.datetime.now().astimezone().strftime("%Y%m%d_%H%M%S_%f")
+    run_dir = args.output_root.resolve() / f"{stamp}_{safe_name(args.name)}"
+    csv_path = run_dir / "raw_can.csv"
+    can_frames_path = run_dir / "can_frames.csv"
+    metadata_path = run_dir / "run_metadata.json"
+    run_dir.mkdir(parents=True, exist_ok=False)
+
+    started_at = dt.datetime.now().astimezone()
+    started_monotonic = time.monotonic()
+    header_written = False
+    row_count = 0
+    complete_row_count = 0
+    last_sequence: int | None = None
+    stop_reason = "capture_error"
+    capture_error = ""
+    discarded_count = 0
+    can_frame_count = 0
+    invalid_can_frame_line_count = 0
+    can_frame_counts_by_id: dict[str, int] = {}
+
+    print(f"run directory : {run_dir}")
+    print(f"logger port   : {args.port} @ {args.baud}")
+    if args.duration > 0:
+        print(f"capture       : {args.duration:g} seconds")
+    else:
+        print("capture       : until Ctrl+C")
+    print("waiting for logger CSV header...")
+
+    try:
+        # Configure DTR/RTS before opening the port. The logger may already be
+        # receiving CAN correctly, and a normal pyserial open can pulse DTR and
+        # reset an Uno. A capture program must observe it without changing its
+        # running state.
+        connection = serial.Serial()
+        connection.port = args.port
+        connection.baudrate = args.baud
+        connection.timeout = 1
+        connection.exclusive = True
+        connection.dtr = False
+        connection.rts = False
+        connection.open()
+        with connection, \
+                csv_path.open("w", encoding="utf-8", newline="") as output, \
+                can_frames_path.open("w", encoding="utf-8", newline="") as can_output:
+            can_output.write(CAN_FRAMES_HEADER + "\n")
+            can_output.flush()
+            try:
+                while True:
+                    if args.duration > 0 and time.monotonic() - started_monotonic >= args.duration:
+                        stop_reason = "duration_elapsed"
+                        break
+
+                    raw = connection.readline()
+                    if not raw:
+                        continue
+                    line = raw.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    if line.startswith(RAW_CAN_PREFIX + ","):
+                        parsed_frame = parse_raw_can_line(line)
+                        if parsed_frame is None:
+                            invalid_can_frame_line_count += 1
+                            if invalid_can_frame_line_count <= 3:
+                                print(f"invalid raw CAN line: {line}", file=sys.stderr)
+                            continue
+                        host_time = dt.datetime.now().astimezone().isoformat(timespec="milliseconds")
+                        logger_ms, can_id, dlc, data_hex = parsed_frame
+                        can_output.write(
+                            f"{host_time},{logger_ms},{can_id},{dlc},{data_hex}\n"
+                        )
+                        can_output.flush()
+                        can_frame_count += 1
+                        can_frame_counts_by_id[can_id] = can_frame_counts_by_id.get(can_id, 0) + 1
+                        continue
+                    if line.startswith("#"):
+                        print(f"logger: {line}", file=sys.stderr)
+                        continue
+                    if line == LOGGER_HEADER:
+                        if not header_written:
+                            output.write("host_time_iso," + line + "\n")
+                            output.flush()
+                            header_written = True
+                            print("CSV header received; recording rows.")
+                        continue
+                    fields = line.split(",")
+                    valid_data_row = len(fields) == LOGGER_COLUMN_COUNT
+                    if valid_data_row:
+                        try:
+                            int(fields[0])
+                            int(fields[1])
+                            int(fields[2])
+                        except ValueError:
+                            valid_data_row = False
+                    if not header_written and valid_data_row:
+                        output.write("host_time_iso," + LOGGER_HEADER + "\n")
+                        output.flush()
+                        header_written = True
+                        print("valid CSV row received; recording rows with the known logger header.")
+                    if not header_written:
+                        discarded_count += 1
+                        if discarded_count <= 3:
+                            preview = line if len(line) <= 160 else line[:157] + "..."
+                            print(f"discarded before header: {preview}", file=sys.stderr)
+                        elif discarded_count == 4:
+                            print(
+                                "additional invalid startup lines are being suppressed.",
+                                file=sys.stderr,
+                            )
+                        continue
+                    if not valid_data_row:
+                        continue
+
+                    host_time = dt.datetime.now().astimezone().isoformat(timespec="milliseconds")
+                    output.write(host_time + "," + line + "\n")
+                    output.flush()
+                    row_count += 1
+
+                    if len(fields) > 2:
+                        if fields[1] == "1":
+                            complete_row_count += 1
+                        try:
+                            last_sequence = int(fields[2])
+                        except ValueError:
+                            pass
+
+                    if row_count == 1 or row_count % 100 == 0:
+                        print(
+                            f"captured rows={row_count}, complete={complete_row_count}, "
+                            f"last_seq={last_sequence}, raw_frames={can_frame_count}"
+                        )
+            except KeyboardInterrupt:
+                stop_reason = "user_ctrl_c"
+                print("\ncapture stopped; saving metadata.")
+    except (OSError, serial.SerialException) as error:
+        capture_error = str(error)
+        print(f"serial capture failed: {error}", file=sys.stderr)
+        if "PermissionError" in repr(error) or "Access is denied" in str(error):
+            print(
+                "close Arduino Serial Monitor/Plotter and any program using this port, "
+                "then run the command again.",
+                file=sys.stderr,
+            )
+
+    ended_at = dt.datetime.now().astimezone()
+    metadata: dict[str, object] = {
+        "test_name": args.name,
+        "logger_port": args.port,
+        "baud": args.baud,
+        "started_at": started_at.isoformat(timespec="milliseconds"),
+        "ended_at": ended_at.isoformat(timespec="milliseconds"),
+        "duration_s": round(time.monotonic() - started_monotonic, 3),
+        "stop_reason": stop_reason,
+        "csv_file": str(csv_path),
+        "can_frames_file": str(can_frames_path),
+        "header_received": header_written,
+        "row_count": row_count,
+        "complete_row_count": complete_row_count,
+        "can_frame_count": can_frame_count,
+        "can_frame_counts_by_id": can_frame_counts_by_id,
+        "invalid_can_frame_line_count": invalid_can_frame_line_count,
+        "last_sequence": last_sequence,
+        "capture_error": capture_error,
+        "diagnosis_exit_code": None,
+        "dbc_decode_exit_code": None,
+    }
+
+    if capture_error or not header_written or row_count == 0:
+        write_metadata(metadata_path, metadata)
+        print(f"no usable CSV rows were captured; see {metadata_path}", file=sys.stderr)
+        return 4
+
+    write_metadata(metadata_path, metadata)
+    print(f"telemetry CSV  : {csv_path}")
+    print(f"raw CAN frames : {can_frames_path} ({can_frame_count} frames)")
+    print(f"metadata saved : {metadata_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

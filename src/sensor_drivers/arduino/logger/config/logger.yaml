@@ -1,0 +1,6 @@
+# CAN 로거 아두이노의 포트 번호. 재연결 후 필요하면 수정하세요.
+port: /dev/ttyUSB0
+baud: 115200
+# 매 실행마다 날짜_시간_이름 하위 폴더가 생성됩니다.
+output_root: ~/bags/can
+name: sensors

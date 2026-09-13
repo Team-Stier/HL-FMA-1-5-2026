@@ -1,0 +1,128 @@
+# HL-FMA2026 README의 공개 ROS 계약을 한 곳에서 관리한다.
+topics:
+  gps_fix: /ublox_position_receiver/fix
+  gps_status: /gps/status
+  imu: /imu/data
+  encoder: /erp42_serial/feedback
+  current_pose: /current_pos
+  local_odometry: /localization/local/odometry
+  global_odometry: /localization/global/odometry
+  local_path: /localization/local/path
+  global_path: /localization/global/path
+  vehicle_marker: /localization/vehicle_marker
+  diagnostics: /localization/diagnostics
+  status_markers: /localization/status_markers
+
+frames:
+  gps: gps_link
+  imu: imu_link
+  output: map
+  odom: odom
+  base: base_link
+
+operation:
+  # 운영 경로에서는 미측정 datum/extrinsic으로 pose를 발행하지 않는다.
+  allow_unmeasured_test_mode: false
+
+reference:
+  # 아래 측량 metadata를 모두 채우기 전에는 노드가 fail-closed로 종료한다.
+  mode: manual_datum
+  measured: false
+  measured_at: ""
+  source: ""
+  latitude_deg: 0.0
+  longitude_deg: 0.0
+  altitude_m: 0.0
+  map_x_m: 0.0
+  map_y_m: 0.0
+  map_z_m: 0.0
+  # map_xy = R(yaw_offset_rad) * ENU_xy, yaw_map = yaw_enu + yaw_offset_rad
+  yaw_offset_rad: 0.0
+
+extrinsics:
+  # base_link 원점에서 GPS 안테나까지의 [x, y, z] [m]. 아직 실측하지 않았다.
+  gps_translation_base_m: [0.0, 0.0, 0.0]
+  # planar 전용: imu_yaw_offset = yaw_base - yaw_imu. roll/pitch 장착 보정은 미지원.
+  imu_yaw_offset_rad: 0.0
+  calibration_state: unmeasured
+
+quality:
+  gps_fix_max_age_sec: 1.0
+  gps_status_timeout_sec: 1.0
+  imu_timeout_sec: 0.20
+  max_future_stamp_sec: 0.10
+  max_status_fix_skew_sec: 0.50
+  max_imu_fix_skew_sec: 0.20
+  quaternion_norm_tolerance: 0.05
+  # 0/음수/비유한 covariance는 unknown으로 거부한다. 상한은 운영 전 재측정한다.
+  max_imu_orientation_variance_rad2: 1.0
+  allow_unknown_imu_orientation_covariance: false
+
+  # GpsStatus: 3D, DGNSS, RTK Float, RTK Fixed, GNSS+DR만 허용한다.
+  allowed_solutions: [2, 3, 4, 5, 7]
+  # NavPVT fixType은 3D(3) 또는 GNSS+DR(4)여야 한다. 2D+RTK도 거부한다.
+  allowed_fix_types: [3, 4]
+  require_nav_status: true
+  # UNKNOWN이나 미래 enum도 fail-closed로 거부하고 SPOOF_NONE(1)만 허용한다.
+  allowed_spoofing_states: [1]
+  min_satellites_used: 6
+  # 아래 accuracy 경계는 수신기 예상 정확도이며 실측 오차가 아니다.
+  max_horizontal_accuracy_m: 5.0
+  max_vertical_accuracy_m: 10.0
+  max_navsat_horizontal_variance_m2: 25.0
+
+  required_consecutive_fixes: 3
+  # 마지막 발행 위치로부터 이 거리보다 먼 cluster는 자동 reanchor하지 않는다.
+  max_step_distance_m: 50.0
+  reset_gap_sec: 2.0
+
+motion:
+  # SerialFeedBack에는 Header가 없으므로 callback 수신 시각을 사용한다.
+  feedback_timeout_sec: 0.50
+  # 2026-09-02 사용자 승인 1회전 측정: +45 ticks. 둘레 0.84823 m 기준.
+  # 실제 노면 rollout 전까지 거리 정확도는 provisional이다.
+  encoder_calibrated: true
+  encoder_calibration_state: provisional_user_accepted_single_turn
+  encoder_counts_per_revolution: 45
+  encoder_wheel_circumference_m: 0.84823
+  encoder_meters_per_tick: 0.0188495555556
+  encoder_sign: 1.0
+  # Arduino RosBridge는 누적 count가 아니라 최근 100 ms의 deltaCount를 발행한다.
+  encoder_value_mode: window_delta
+  encoder_modulus: 0
+  # signed_ticks: encoder count 부호를 사용, gear: Gear 값으로 방향을 결정한다.
+  encoder_direction_mode: signed_ticks
+  forward_gear_values: [0]
+  reverse_gear_values: [2]
+  neutral_gear_values: [1]
+  max_encoder_delta_ticks: 100000
+  min_feedback_dt_sec: 0.001
+  max_feedback_dt_sec: 0.50
+  max_encoder_speed_mps: 20.0
+  max_gps_local_sync_sec: 0.30
+  local_history_duration_sec: 5.0
+  max_global_dead_reckoning_sec: 2.0
+  publish_tf: true
+  # 아래 covariance는 운영 전 실측으로 교체할 초기 gate 값이다.
+  local_position_variance_m2: 0.25
+  global_position_variance_m2: 4.0
+
+output:
+  planar_mode: true
+  path_max_poses: 2000
+
+visualization:
+  # base_link를 중심으로 +x가 길이 방향, +y가 폭 방향인 실차 외곽선.
+  vehicle_length_m: 1.35
+  vehicle_width_m: 0.85
+  vehicle_outline_width_m: 0.05
+  status_rate_hz: 5.0
+  status_frame: map
+  output_timeout_sec: 1.0
+  marker_x_m: -6.0
+  marker_y_m: 5.0
+  marker_z_m: 0.5
+  marker_line_spacing_m: 0.7
+  marker_text_height_m: 0.45
+  marker_lifetime_sec: 0.6
+  banner: PRODUCTION LOCALIZATION

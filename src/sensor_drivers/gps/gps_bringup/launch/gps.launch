@@ -1,0 +1,28 @@
+<launch>
+  <arg name="ntrip_username" default="$(optenv STIER_NTRIP_USERNAME)" />
+  <arg name="ntrip_password" default="$(optenv STIER_NTRIP_PASSWORD)" />
+  <arg name="nav_status_timeout" default="0.5" />
+  <arg name="max_nav_status_itow_skew_ms" default="500" />
+
+  <include file="$(find ublox_utils)/launch/ublox.launch">
+    <arg name="device_position_receiver" value="/dev/gps" />
+    <arg name="frame_id_position_receiver" value="gps_link" />
+    <arg name="ntrip_host" value="RTS1.ngii.go.kr" />
+    <arg name="ntrip_mountpoint" value="VRS-RTCM31" />
+    <arg name="use_ntrip" value="true" />
+    <arg name="ntrip_username" value="$(arg ntrip_username)" />
+    <arg name="ntrip_password" value="$(arg ntrip_password)" />
+  </include>
+
+  <include file="$(find utm_lla)/launch/coordinate_convertion.launch" />
+
+  <node name="gps_status"
+        pkg="gps_bringup"
+        type="gps_status_node.py"
+        output="screen">
+    <param name="frame_id" value="gps_link" />
+    <param name="nav_status_timeout" value="$(arg nav_status_timeout)" />
+    <param name="max_nav_status_itow_skew_ms"
+           value="$(arg max_nav_status_itow_skew_ms)" />
+  </node>
+</launch>

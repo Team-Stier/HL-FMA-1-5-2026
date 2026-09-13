@@ -1,0 +1,555 @@
+#!/usr/bin/env python3
+"""Publish live Localization sensor health as diagnostics and RViz text markers."""
+
+import copy
+import math
+import threading
+
+import rospy
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
+from erp42_msgs.msg import SerialFeedBack
+from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
+from sensor_interfaces.msg import GpsStatus
+from sensor_msgs.msg import Imu, NavSatFix, NavSatStatus
+from visualization_msgs.msg import Marker, MarkerArray
+
+
+def quaternion_norm(quaternion):
+    return math.sqrt(
+        quaternion.x * quaternion.x
+        + quaternion.y * quaternion.y
+        + quaternion.z * quaternion.z
+        + quaternion.w * quaternion.w
+    )
+
+
+def quaternion_yaw(quaternion):
+    return math.atan2(
+        2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y),
+        1.0 - 2.0 * (quaternion.y * quaternion.y + quaternion.z * quaternion.z),
+    )
+
+
+class Health:
+    def __init__(self, name, level, summary, values=None):
+        self.name = name
+        self.level = level
+        self.summary = summary
+        self.values = values or {}
+
+
+class LocalizationSensorStatusNode:
+    """Observe raw sensors and localization outputs without modifying fusion state."""
+
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._load_parameters()
+        self._messages = {
+            "gps_fix": None,
+            "gps_status": None,
+            "imu": None,
+            "encoder": None,
+            "current_pose": None,
+            "local_odometry": None,
+            "global_odometry": None,
+        }
+        self._receipts = {key: rospy.Time() for key in self._messages}
+        self._last_encoder_value = None
+        self._last_encoder_delta = None
+
+        self._diagnostics_publisher = rospy.Publisher(
+            self._diagnostics_topic, DiagnosticArray, queue_size=5
+        )
+        self._markers_publisher = rospy.Publisher(
+            self._status_markers_topic, MarkerArray, queue_size=5
+        )
+        self._subscribers = (
+            rospy.Subscriber(
+                self._gps_fix_topic,
+                NavSatFix,
+                self._callback,
+                callback_args="gps_fix",
+                queue_size=30,
+            ),
+            rospy.Subscriber(
+                self._gps_status_topic,
+                GpsStatus,
+                self._callback,
+                callback_args="gps_status",
+                queue_size=30,
+            ),
+            rospy.Subscriber(
+                self._imu_topic,
+                Imu,
+                self._callback,
+                callback_args="imu",
+                queue_size=100,
+            ),
+            rospy.Subscriber(
+                self._encoder_topic,
+                SerialFeedBack,
+                self._encoder_callback,
+                queue_size=100,
+            ),
+            rospy.Subscriber(
+                self._current_pose_topic,
+                PoseStamped,
+                self._callback,
+                callback_args="current_pose",
+                queue_size=30,
+            ),
+            rospy.Subscriber(
+                self._local_odometry_topic,
+                Odometry,
+                self._callback,
+                callback_args="local_odometry",
+                queue_size=30,
+            ),
+            rospy.Subscriber(
+                self._global_odometry_topic,
+                Odometry,
+                self._callback,
+                callback_args="global_odometry",
+                queue_size=30,
+            ),
+        )
+        self._timer = rospy.Timer(
+            rospy.Duration(1.0 / self._status_rate), self._publish_status
+        )
+        rospy.on_shutdown(self._timer.shutdown)
+        rospy.loginfo(
+            "Localization sensor status: diagnostics=%s markers=%s",
+            self._diagnostics_topic,
+            self._status_markers_topic,
+        )
+
+    @staticmethod
+    def _required(name):
+        return rospy.get_param("~" + name)
+
+    def _load_parameters(self):
+        self._gps_fix_topic = self._required("topics/gps_fix")
+        self._gps_status_topic = self._required("topics/gps_status")
+        self._imu_topic = self._required("topics/imu")
+        self._encoder_topic = self._required("topics/encoder")
+        self._current_pose_topic = self._required("topics/current_pose")
+        self._local_odometry_topic = self._required("topics/local_odometry")
+        self._global_odometry_topic = self._required("topics/global_odometry")
+        self._diagnostics_topic = self._required("topics/diagnostics")
+        self._status_markers_topic = self._required("topics/status_markers")
+
+        self._gps_frame = self._required("frames/gps")
+        self._imu_frame = self._required("frames/imu")
+        self._map_frame = self._required("frames/output")
+        self._odom_frame = self._required("frames/odom")
+
+        self._fix_timeout = float(self._required("quality/gps_fix_max_age_sec"))
+        self._status_timeout = float(
+            self._required("quality/gps_status_timeout_sec")
+        )
+        self._imu_timeout = float(self._required("quality/imu_timeout_sec"))
+        self._feedback_timeout = float(
+            self._required("motion/feedback_timeout_sec")
+        )
+        self._output_timeout = float(
+            self._required("visualization/output_timeout_sec")
+        )
+        self._max_future_stamp = float(
+            self._required("quality/max_future_stamp_sec")
+        )
+        self._max_status_fix_skew = float(
+            self._required("quality/max_status_fix_skew_sec")
+        )
+        self._quaternion_tolerance = float(
+            self._required("quality/quaternion_norm_tolerance")
+        )
+        self._max_imu_variance = float(
+            self._required("quality/max_imu_orientation_variance_rad2")
+        )
+        self._allow_unknown_imu_covariance = bool(
+            self._required("quality/allow_unknown_imu_orientation_covariance")
+        )
+        self._allowed_solutions = set(
+            int(value) for value in self._required("quality/allowed_solutions")
+        )
+        self._allowed_fix_types = set(
+            int(value) for value in self._required("quality/allowed_fix_types")
+        )
+        self._require_nav_status = bool(
+            self._required("quality/require_nav_status")
+        )
+        self._allowed_spoofing = set(
+            int(value) for value in self._required("quality/allowed_spoofing_states")
+        )
+        self._min_satellites = int(
+            self._required("quality/min_satellites_used")
+        )
+        self._max_horizontal_accuracy = float(
+            self._required("quality/max_horizontal_accuracy_m")
+        )
+        self._max_vertical_accuracy = float(
+            self._required("quality/max_vertical_accuracy_m")
+        )
+        self._max_navsat_variance = float(
+            self._required("quality/max_navsat_horizontal_variance_m2")
+        )
+        self._encoder_calibrated = bool(
+            self._required("motion/encoder_calibrated")
+        )
+        self._meters_per_tick = float(
+            self._required("motion/encoder_meters_per_tick")
+        )
+        self._encoder_value_mode = self._required("motion/encoder_value_mode")
+        if self._encoder_value_mode not in ("window_delta", "cumulative_count"):
+            raise ValueError(
+                "encoder_value_mode must be window_delta or cumulative_count"
+            )
+
+        self._status_rate = float(self._required("visualization/status_rate_hz"))
+        self._status_frame = self._required("visualization/status_frame")
+        self._marker_x = float(self._required("visualization/marker_x_m"))
+        self._marker_y = float(self._required("visualization/marker_y_m"))
+        self._marker_z = float(self._required("visualization/marker_z_m"))
+        self._line_spacing = float(
+            self._required("visualization/marker_line_spacing_m")
+        )
+        self._text_height = float(
+            self._required("visualization/marker_text_height_m")
+        )
+        self._marker_lifetime = float(
+            self._required("visualization/marker_lifetime_sec")
+        )
+        self._banner = str(self._required("visualization/banner"))
+
+        topics = (
+            self._gps_fix_topic,
+            self._gps_status_topic,
+            self._imu_topic,
+            self._encoder_topic,
+            self._current_pose_topic,
+            self._local_odometry_topic,
+            self._global_odometry_topic,
+            self._diagnostics_topic,
+            self._status_markers_topic,
+        )
+        if not all(rospy.names.is_global(topic) for topic in topics):
+            raise ValueError("all status topics must be absolute ROS names")
+        if not self._status_frame or self._status_frame.startswith("/"):
+            raise ValueError("status_frame must be a relative frame ID")
+        positive = (
+            self._fix_timeout,
+            self._status_timeout,
+            self._imu_timeout,
+            self._feedback_timeout,
+            self._output_timeout,
+            self._quaternion_tolerance,
+            self._max_imu_variance,
+            self._max_horizontal_accuracy,
+            self._max_vertical_accuracy,
+            self._max_navsat_variance,
+            self._status_rate,
+            self._line_spacing,
+            self._text_height,
+            self._marker_lifetime,
+        )
+        if not all(math.isfinite(value) and value > 0.0 for value in positive):
+            raise ValueError("status limits must be finite and positive")
+
+    def _callback(self, message, key):
+        with self._lock:
+            self._messages[key] = copy.deepcopy(message)
+            self._receipts[key] = rospy.Time.now()
+
+    def _encoder_callback(self, message):
+        with self._lock:
+            current = int(message.encoder)
+            if self._encoder_value_mode == "window_delta":
+                self._last_encoder_delta = current
+            elif self._last_encoder_value is not None:
+                self._last_encoder_delta = current - self._last_encoder_value
+            self._last_encoder_value = current
+            self._messages["encoder"] = copy.deepcopy(message)
+            self._receipts["encoder"] = rospy.Time.now()
+
+    @staticmethod
+    def _age(now, receipt):
+        if receipt.is_zero():
+            return math.inf
+        return (now - receipt).to_sec()
+
+    @staticmethod
+    def _format_age(age):
+        return "never" if not math.isfinite(age) else "{:.2f}s".format(age)
+
+    def _gps_fix_health(self, now):
+        message = self._messages["gps_fix"]
+        receipt_age = self._age(now, self._receipts["gps_fix"])
+        values = {"receipt_age_sec": self._format_age(receipt_age)}
+        if message is None:
+            return Health("GPS FIX", DiagnosticStatus.ERROR, "MISSING", values)
+        values.update(
+            latitude="{:.9f}".format(message.latitude),
+            longitude="{:.9f}".format(message.longitude),
+            frame=message.header.frame_id,
+        )
+        if receipt_age < 0.0 or receipt_age > self._fix_timeout:
+            return Health("GPS FIX", DiagnosticStatus.ERROR, "STALE", values)
+        if message.header.stamp.is_zero() or message.header.frame_id != self._gps_frame:
+            return Health("GPS FIX", DiagnosticStatus.ERROR, "BAD HEADER", values)
+        stamp_age = (now - message.header.stamp).to_sec()
+        values["stamp_age_sec"] = "{:.3f}".format(stamp_age)
+        if stamp_age > self._fix_timeout or stamp_age < -self._max_future_stamp:
+            return Health("GPS FIX", DiagnosticStatus.ERROR, "BAD STAMP", values)
+        if message.status.status < NavSatStatus.STATUS_FIX:
+            return Health("GPS FIX", DiagnosticStatus.ERROR, "NO FIX", values)
+        if not (
+            math.isfinite(message.latitude)
+            and math.isfinite(message.longitude)
+            and math.isfinite(message.altitude)
+            and -90.0 <= message.latitude <= 90.0
+            and -180.0 <= message.longitude <= 180.0
+        ):
+            return Health("GPS FIX", DiagnosticStatus.ERROR, "BAD LLH", values)
+        variances = (message.position_covariance[0], message.position_covariance[4])
+        values["horizontal_variance_m2"] = "{:.3f}/{:.3f}".format(*variances)
+        if message.position_covariance_type != NavSatFix.COVARIANCE_TYPE_UNKNOWN:
+            if not all(
+                math.isfinite(value)
+                and 0.0 <= value <= self._max_navsat_variance
+                for value in variances
+            ):
+                return Health("GPS FIX", DiagnosticStatus.ERROR, "BAD COV", values)
+        return Health("GPS FIX", DiagnosticStatus.OK, "OK", values)
+
+    def _gps_status_health(self, now):
+        message = self._messages["gps_status"]
+        receipt_age = self._age(now, self._receipts["gps_status"])
+        values = {"receipt_age_sec": self._format_age(receipt_age)}
+        if message is None:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "MISSING", values)
+        values.update(
+            solution=str(message.solution),
+            status_text=message.status_text,
+            fix_type=str(message.fix_type),
+            differential_solution=str(message.differential_solution),
+            carrier_solution=str(message.carrier_solution),
+            satellites=str(message.satellites_used),
+            horizontal_accuracy_m="{:.3f}".format(message.horizontal_accuracy_m),
+            vertical_accuracy_m="{:.3f}".format(message.vertical_accuracy_m),
+            spoofing_state=str(message.spoofing_state),
+        )
+        if receipt_age < 0.0 or receipt_age > self._status_timeout:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "STALE", values)
+        if message.header.stamp.is_zero() or message.header.frame_id != self._gps_frame:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "BAD HEADER", values)
+        fix = self._messages["gps_fix"]
+        if fix is not None and not fix.header.stamp.is_zero():
+            skew = abs((message.header.stamp - fix.header.stamp).to_sec())
+            values["fix_skew_sec"] = "{:.3f}".format(skew)
+            if skew > self._max_status_fix_skew:
+                return Health("GPS QUALITY", DiagnosticStatus.ERROR, "FIX SKEW", values)
+        if not message.fix_ok or message.solution not in self._allowed_solutions:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "NO SOLUTION", values)
+        if message.fix_type not in self._allowed_fix_types:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "BAD FIX TYPE", values)
+        if self._require_nav_status and not message.nav_status_available:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "NO NAVSTATUS", values)
+        if message.spoofing_state not in self._allowed_spoofing:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "SPOOF REJECT", values)
+        if message.satellites_used < self._min_satellites:
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "LOW SATS", values)
+        if (
+            not math.isfinite(message.horizontal_accuracy_m)
+            or not math.isfinite(message.vertical_accuracy_m)
+            or message.horizontal_accuracy_m > self._max_horizontal_accuracy
+            or message.vertical_accuracy_m > self._max_vertical_accuracy
+        ):
+            return Health("GPS QUALITY", DiagnosticStatus.ERROR, "LOW ACCURACY", values)
+        return Health("GPS QUALITY", DiagnosticStatus.OK, "OK", values)
+
+    def _imu_health(self, now):
+        message = self._messages["imu"]
+        receipt_age = self._age(now, self._receipts["imu"])
+        values = {"receipt_age_sec": self._format_age(receipt_age)}
+        if message is None:
+            return Health("IMU", DiagnosticStatus.ERROR, "MISSING", values)
+        values["frame"] = message.header.frame_id
+        if receipt_age < 0.0 or receipt_age > self._imu_timeout:
+            return Health("IMU", DiagnosticStatus.ERROR, "STALE", values)
+        if message.header.stamp.is_zero() or message.header.frame_id != self._imu_frame:
+            return Health("IMU", DiagnosticStatus.ERROR, "BAD HEADER", values)
+        norm = quaternion_norm(message.orientation)
+        values["quaternion_norm"] = "{:.5f}".format(norm)
+        if not math.isfinite(norm) or abs(norm - 1.0) > self._quaternion_tolerance:
+            return Health("IMU", DiagnosticStatus.ERROR, "BAD QUATERNION", values)
+        variances = (
+            message.orientation_covariance[0],
+            message.orientation_covariance[4],
+            message.orientation_covariance[8],
+        )
+        values["orientation_variance"] = "{:.4g}/{:.4g}/{:.4g}".format(*variances)
+        values["yaw_deg"] = "{:.2f}".format(math.degrees(quaternion_yaw(message.orientation)))
+        unknown = all(value == 0.0 for value in variances)
+        valid = all(
+            math.isfinite(value) and 0.0 < value <= self._max_imu_variance
+            for value in variances
+        )
+        if not valid:
+            if unknown and self._allow_unknown_imu_covariance:
+                return Health("IMU", DiagnosticStatus.WARN, "COV UNKNOWN (TEST)", values)
+            return Health("IMU", DiagnosticStatus.ERROR, "BAD COV", values)
+        return Health("IMU", DiagnosticStatus.OK, "OK", values)
+
+    def _encoder_health(self, now):
+        message = self._messages["encoder"]
+        receipt_age = self._age(now, self._receipts["encoder"])
+        values = {"receipt_age_sec": self._format_age(receipt_age)}
+        if message is None:
+            return Health("ENCODER", DiagnosticStatus.ERROR, "MISSING", values)
+        values.update(
+            count=str(message.encoder),
+            delta="n/a" if self._last_encoder_delta is None else str(self._last_encoder_delta),
+            speed_raw="{:.3f}".format(message.speed),
+            gear=str(message.Gear),
+            alive=str(message.alive),
+            meters_per_tick="{:.9g}".format(self._meters_per_tick),
+            value_mode=self._encoder_value_mode,
+        )
+        if receipt_age < 0.0 or receipt_age > self._feedback_timeout:
+            return Health("ENCODER", DiagnosticStatus.ERROR, "STALE", values)
+        if not math.isfinite(message.speed) or not math.isfinite(message.steer):
+            return Health("ENCODER", DiagnosticStatus.ERROR, "NON-FINITE", values)
+        if not self._encoder_calibrated or self._meters_per_tick <= 0.0:
+            return Health("ENCODER", DiagnosticStatus.WARN, "CALIBRATION REQUIRED", values)
+        return Health("ENCODER", DiagnosticStatus.OK, "OK", values)
+
+    def _output_health(self, now, key, name, expected_frame, timeout):
+        message = self._messages[key]
+        receipt_age = self._age(now, self._receipts[key])
+        values = {"receipt_age_sec": self._format_age(receipt_age)}
+        if message is None:
+            return Health(name, DiagnosticStatus.ERROR, "NO OUTPUT", values)
+        values["frame"] = message.header.frame_id
+        if receipt_age < 0.0 or receipt_age > timeout:
+            return Health(name, DiagnosticStatus.ERROR, "STALE", values)
+        if message.header.frame_id != expected_frame or message.header.stamp.is_zero():
+            return Health(name, DiagnosticStatus.ERROR, "BAD HEADER", values)
+        pose = message.pose if isinstance(message, PoseStamped) else message.pose.pose
+        values["xy_m"] = "{:.2f}, {:.2f}".format(pose.position.x, pose.position.y)
+        return Health(name, DiagnosticStatus.OK, "OK", values)
+
+    def _health_snapshot(self, now):
+        return [
+            self._gps_fix_health(now),
+            self._gps_status_health(now),
+            self._imu_health(now),
+            self._encoder_health(now),
+            self._output_health(
+                now, "current_pose", "GPS POSE", self._map_frame, self._output_timeout
+            ),
+            self._output_health(
+                now,
+                "local_odometry",
+                "LOCAL ODOM",
+                self._odom_frame,
+                self._feedback_timeout,
+            ),
+            self._output_health(
+                now,
+                "global_odometry",
+                "GLOBAL ODOM",
+                self._map_frame,
+                self._output_timeout,
+            ),
+        ]
+
+    @staticmethod
+    def _diagnostic_message(health):
+        output = DiagnosticStatus()
+        output.level = health.level
+        output.name = "localization/" + health.name.lower().replace(" ", "_")
+        output.hardware_id = "HL-FMA2026"
+        output.message = health.summary
+        output.values = [
+            KeyValue(key=str(key), value=str(value))
+            for key, value in sorted(health.values.items())
+        ]
+        return output
+
+    @staticmethod
+    def _set_marker_color(marker, level):
+        marker.color.a = 1.0
+        if level == DiagnosticStatus.OK:
+            marker.color.r = 0.15
+            marker.color.g = 1.0
+            marker.color.b = 0.25
+        elif level == DiagnosticStatus.WARN:
+            marker.color.r = 1.0
+            marker.color.g = 0.75
+            marker.color.b = 0.05
+        else:
+            marker.color.r = 1.0
+            marker.color.g = 0.15
+            marker.color.b = 0.10
+
+    def _text_marker(self, marker_id, text, level, y, now):
+        marker = Marker()
+        marker.header.stamp = now
+        marker.header.frame_id = self._status_frame
+        marker.ns = "localization_sensor_health"
+        marker.id = marker_id
+        marker.type = Marker.TEXT_VIEW_FACING
+        marker.action = Marker.ADD
+        marker.pose.position.x = self._marker_x
+        marker.pose.position.y = y
+        marker.pose.position.z = self._marker_z
+        marker.pose.orientation.w = 1.0
+        marker.scale.z = self._text_height
+        marker.text = text
+        marker.lifetime = rospy.Duration(self._marker_lifetime)
+        self._set_marker_color(marker, level)
+        return marker
+
+    def _publish_status(self, _event):
+        with self._lock:
+            now = rospy.Time.now()
+            health = self._health_snapshot(now)
+
+        diagnostics = DiagnosticArray()
+        diagnostics.header.stamp = now
+        diagnostics.status = [self._diagnostic_message(item) for item in health]
+        self._diagnostics_publisher.publish(diagnostics)
+
+        overall_level = max(item.level for item in health)
+        markers = MarkerArray()
+        markers.markers.append(
+            self._text_marker(
+                0,
+                self._banner,
+                overall_level,
+                self._marker_y,
+                now,
+            )
+        )
+        for index, item in enumerate(health, start=1):
+            markers.markers.append(
+                self._text_marker(
+                    index,
+                    "{}: {}".format(item.name, item.summary),
+                    item.level,
+                    self._marker_y - index * self._line_spacing,
+                    now,
+                )
+            )
+        self._markers_publisher.publish(markers)
+
+
+if __name__ == "__main__":
+    rospy.init_node("localization_sensor_status")
+    try:
+        LocalizationSensorStatusNode()
+        rospy.spin()
+    except (KeyError, TypeError, ValueError, rospy.ROSException) as error:
+        rospy.logfatal("Localization sensor status 설정 실패: %s", error)
+        raise

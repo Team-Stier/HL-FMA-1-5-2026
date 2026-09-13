@@ -1,0 +1,3 @@
+# Arduino CH340 (1a86:7523), no unique USB serial number.
+# Registered on this vehicle PC's USB port 9. Keep the same port/hub topology.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ENV{ID_PATH}=="pci-0000:00:14.0-usb-0:9:1.0", SYMLINK+="arduino", MODE="0666"

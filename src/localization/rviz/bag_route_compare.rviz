@@ -1,0 +1,64 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz/Grid
+      Name: Local East North Grid
+      Enabled: true
+      Cell Size: 5
+      Plane Cell Count: 40
+      Reference Frame: route_map
+      Color: 95; 95; 100
+      Alpha: 0.5
+      Value: true
+    - Class: rviz/MarkerArray
+      Name: Manual Routes - Separate Pieces
+      Enabled: true
+      Marker Topic: /localization/replay/manual_routes
+      Namespaces:
+        manual_routes: true
+        manual_labels: false
+      Queue Size: 5
+      Value: true
+    - Class: rviz/MarkerArray
+      Name: Recorded GPS Quality Track
+      Enabled: true
+      Marker Topic: /localization/replay/gps_track
+      Namespaces:
+        gps_quality: true
+        gps_segments: true
+      Queue Size: 5
+      Value: true
+    - Class: rviz/MarkerArray
+      Name: GPS Position and Receiver Status
+      Enabled: true
+      Marker Topic: /localization/replay/current
+      Queue Size: 5
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 28; 30; 33
+    Fixed Frame: route_map
+    Frame Rate: 20
+  Name: root
+  Tools:
+    - Class: rviz/MoveCamera
+    - Class: rviz/Interact
+    - Class: rviz/Select
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: East Right North Up
+      Angle: 0
+      Scale: 6
+      Target Frame: route_map
+      X: -11
+      Y: 2
+    Saved: ~
+Window Geometry:
+  Height: 850
+  Width: 1100
+  X: 25
+  Y: 40

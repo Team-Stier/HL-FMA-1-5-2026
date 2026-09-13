@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>traffic_light</name>
+  <version>0.0.0</version>
+  <description>Traffic-light recognition package.</description>
+
+  <maintainer email="user@todo.todo">user</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+</package>

@@ -1,0 +1,120 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.6
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 100; 100; 105
+      Enabled: true
+      Name: ENU Grid
+      Plane: XY
+      Plane Cell Count: 40
+      Reference Frame: odom
+      Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.08
+      Class: rviz/Pose
+      Color: 255; 80; 200
+      Enabled: true
+      Head Length: 0.3
+      Head Radius: 0.12
+      Name: Current Position
+      Shaft Length: 0.8
+      Shaft Radius: 0.06
+      Shape: Arrow
+      Topic: /current_pos
+      Value: true
+    - Angle Tolerance: 0.02
+      Class: rviz/Odometry
+      Enabled: true
+      Keep: 1
+      Name: Local Wheel IMU Odometry
+      Position Tolerance: 0.02
+      Shape:
+        Alpha: 1
+        Color: 60; 160; 255
+        Value: Arrow
+      Topic: /localization/local/odometry
+      Value: true
+    - Angle Tolerance: 0.02
+      Class: rviz/Odometry
+      Enabled: true
+      Keep: 1
+      Name: GPS Corrected Global Odometry
+      Position Tolerance: 0.02
+      Shape:
+        Alpha: 1
+        Color: 255; 70; 200
+        Value: Arrow
+      Topic: /localization/global/odometry
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 60; 160; 255
+      Enabled: true
+      Line Style: Lines
+      Line Width: 0.05
+      Name: Local Path
+      Pose Style: None
+      Topic: /localization/local/path
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 255; 70; 200
+      Enabled: true
+      Line Style: Lines
+      Line Width: 0.05
+      Name: Global Path
+      Pose Style: None
+      Topic: /localization/global/path
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /localization/vehicle_marker
+      Name: Vehicle Footprint 1.35 x 0.85 m
+      Namespaces:
+        vehicle_footprint: true
+      Queue Size: 10
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /localization/status_markers
+      Name: Sensor Status
+      Namespaces:
+        localization_sensor_health: true
+      Queue Size: 10
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 33
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/MoveCamera
+    - Class: rviz/Interact
+    - Class: rviz/Select
+  Value: true
+  Views:
+    Current:
+      Angle: -1.57079637
+      Class: rviz/TopDownOrtho
+      Name: Top Down
+      Scale: 20
+      Target Frame: odom
+      X: 0
+      Y: 0
+    Saved: ~
+Window Geometry:
+  Height: 820
+  Width: 1280
+  X: 80
+  Y: 40

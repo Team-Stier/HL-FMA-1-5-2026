@@ -1,0 +1,55 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz/Grid
+      Name: Laser Sensor Frame Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 30
+      Reference Frame: laser
+      Color: 90; 90; 95
+      Alpha: 0.5
+      Value: true
+    - Class: rviz/LaserScan
+      Name: Recorded Scan - Sensor Coordinates Only
+      Enabled: true
+      Topic: /scan
+      Queue Size: 10
+      Style: Points
+      Size (Pixels): 3
+      Size (m): 0.03
+      Alpha: 1
+      Color Transformer: FlatColor
+      Color: 110; 235; 255
+      Decay Time: 0
+      Position Transformer: XYZ
+      Use Fixed Frame: true
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 28; 30; 33
+    Fixed Frame: laser
+    Frame Rate: 20
+  Name: root
+  Tools:
+    - Class: rviz/MoveCamera
+    - Class: rviz/Interact
+    - Class: rviz/Select
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Raw Laser Frame
+      Angle: 0
+      Scale: 12
+      Target Frame: laser
+      X: 0
+      Y: 0
+    Saved: ~
+Window Geometry:
+  Height: 750
+  Width: 900
+  X: 1150
+  Y: 40

@@ -1,0 +1,33 @@
+<launch>
+  <arg name="bag"/>
+  <arg name="route_file"/>
+  <arg name="rate" default="1.0"/>
+  <arg name="start" default="0.0"/>
+  <arg name="paused" default="true"/>
+  <arg name="loop" default="false"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="start_lidar_rviz" default="true"/>
+  <arg name="origin_latitude" default="37.288731"/>
+  <arg name="origin_longitude" default="127.1072336"/>
+  <arg name="max_points" default="20000"/>
+  <arg name="pause_flag" default="$(eval '--pause' if arg('paused') else '')"/>
+  <arg name="loop_flag" default="$(eval '--loop' if arg('loop') else '')"/>
+  <arg name="keep_alive_flag" default="$(eval '' if arg('loop') else '--keep-alive')"/>
+  <param name="/use_sim_time" value="true"/>
+
+  <!-- Diagnostic display only. No hardware, production localization, or TF broadcaster. -->
+  <node pkg="localization" type="bag_route_compare_node" name="bag_route_compare"
+        output="screen" required="true">
+    <param name="route_file" value="$(arg route_file)"/>
+    <param name="origin_latitude" value="$(arg origin_latitude)"/>
+    <param name="origin_longitude" value="$(arg origin_longitude)"/>
+    <param name="max_points" value="$(arg max_points)"/>
+  </node>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="bag_route_rviz"
+        args="-d $(find localization)/rviz/bag_route_compare.rviz" output="screen"/>
+  <!-- A second view keeps /scan in its actual sensor frame without a guessed map transform. -->
+  <node if="$(arg start_lidar_rviz)" pkg="rviz" type="rviz" name="bag_lidar_rviz"
+        args="-d $(find localization)/rviz/bag_lidar_sensor.rviz" output="screen"/>
+  <node pkg="rosbag" type="play" name="route_compare_play" output="screen"
+        args="--clock $(arg keep_alive_flag) $(arg pause_flag) $(arg loop_flag) --rate $(arg rate) --start $(arg start) &quot;$(arg bag)&quot;"/>
+</launch>

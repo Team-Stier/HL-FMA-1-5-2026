@@ -1,0 +1,30 @@
+<launch>
+  <arg name="device_config"
+       default="$(find lidar_bringup)/config/rplidar_s2.yaml" />
+  <arg name="node_name" default="rplidar_s2" />
+  <arg name="base_frame_id" default="base_link" />
+  <arg name="frame_id" default="laser" />
+  <arg name="scan_topic" default="/scan" />
+  <arg name="publish_static_tf" default="true" />
+  <arg name="laser_x" default="0.0" />
+  <arg name="laser_y" default="0.0" />
+  <arg name="laser_z" default="0.0" />
+  <arg name="laser_yaw" default="3.141592653589793" />
+  <arg name="laser_pitch" default="0.0" />
+  <arg name="laser_roll" default="0.0" />
+
+  <node if="$(arg publish_static_tf)"
+        name="$(arg node_name)_tf"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        args="$(arg laser_x) $(arg laser_y) $(arg laser_z) $(arg laser_yaw) $(arg laser_pitch) $(arg laser_roll) $(arg base_frame_id) $(arg frame_id)" />
+
+  <node name="$(arg node_name)"
+        pkg="rplidar_ros"
+        type="rplidarNode"
+        output="screen">
+    <rosparam command="load" file="$(arg device_config)" />
+    <param name="frame_id" value="$(arg frame_id)" />
+    <remap from="scan" to="$(arg scan_topic)" />
+  </node>
+</launch>

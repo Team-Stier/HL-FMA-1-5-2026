@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""Read-only manual-route/GNSS replay display. Never publishes TF or vehicle pose."""
+import os
+import threading
+
+import rospy
+from geometry_msgs.msg import Point
+from rosgraph_msgs.msg import Clock
+from std_msgs.msg import ColorRGBA
+from ublox_msgs.msg import NavPVT
+from visualization_msgs.msg import Marker, MarkerArray
+
+from localization_replay.core import DEFAULT_ORIGIN, GpsTrack, load_routes, project_point
+
+FRAME = 'route_map'
+COLORS = {
+    'RTK_FIXED': (64, 233, 154), 'RTK_FLOAT': (255, 195, 75),
+    'DGNSS': (82, 183, 255), '3D_FIX': (221, 149, 255),
+    '2D_FIX': (225, 155, 115), 'GNSS_DR': (205, 205, 110), 'UNKNOWN': (175, 175, 175),
+    'NO_FIX': (255, 90, 80),
+}
+
+
+def color(rgb, alpha=1.):
+    return ColorRGBA(rgb[0] / 255., rgb[1] / 255., rgb[2] / 255., alpha)
+
+
+def marker(namespace, identifier, kind, stamp=None):
+    message = Marker()
+    message.header.frame_id = FRAME
+    message.header.stamp = stamp if stamp is not None else rospy.Time(0)
+    message.ns, message.id, message.type = namespace, identifier, kind
+    message.action = Marker.ADD
+    message.pose.orientation.w = 1.
+    return message
+
+
+def clear_markers():
+    message = Marker()
+    message.action = Marker.DELETEALL
+    return [message]
+
+
+class BagRouteCompare:
+    def __init__(self):
+        filename = rospy.get_param('~route_file')
+        origin = (rospy.get_param('~origin_latitude', DEFAULT_ORIGIN[0]),
+                  rospy.get_param('~origin_longitude', DEFAULT_ORIGIN[1]))
+        self._project = load_routes(filename, origin)
+        self._track = GpsTrack(
+            self._project.origin, max_points=rospy.get_param('~max_points', 20000),
+            gap_seconds=rospy.get_param('~gap_seconds', 2.),
+            max_step_m=rospy.get_param('~max_step_m', 50.))
+        self._filename = os.path.basename(filename)
+        self._lock = threading.RLock()
+        self._last_clock_message = None
+        self._use_sim_time = rospy.get_param('/use_sim_time', False)
+        self._manual = rospy.Publisher('/localization/replay/manual_routes', MarkerArray, queue_size=1, latch=True)
+        self._gps = rospy.Publisher('/localization/replay/gps_track', MarkerArray, queue_size=1, latch=True)
+        self._current = rospy.Publisher('/localization/replay/current', MarkerArray, queue_size=1, latch=True)
+        self._publish_manual()
+        self._publish(None)
+        self._clock_sub = rospy.Subscriber('/clock', Clock, self._clock_callback, queue_size=100)
+        self._gps_sub = rospy.Subscriber(
+            rospy.get_param('~navpvt_topic', '/ublox_position_receiver/navpvt'),
+            NavPVT, self._gps_callback, queue_size=100)
+        self._timer = rospy.Timer(rospy.Duration(.2), self._publish, reset=True)
+        rospy.loginfo('Route comparison: %s, %d separate routes, WGS84 origin %.9f %.9f, frame=%s',
+                      filename, len(self._project.routes), *self._project.origin, FRAME)
+        rospy.loginfo('GPS antenna positions only; no heading, vehicle alignment, TF, or /current_pos is published.')
+
+    def _publish_manual(self):
+        output = MarkerArray()
+        output.markers = clear_markers()
+        palette = [(255, 244, 165), (110, 224, 255), (255, 150, 225), (190, 165, 255)]
+        for index, route in enumerate(self._project.routes):
+            if not route.points:
+                continue
+            xy = [project_point(*point, self._project.origin) for point in route.points]
+            if route.closed and len(xy) > 1 and xy[-1] != xy[0]:
+                xy.append(xy[0])
+            line = marker('manual_routes', index, Marker.LINE_STRIP if len(xy) > 1 else Marker.POINTS)
+            line.scale.x = .12 if len(xy) > 1 else .3
+            line.scale.y = .3
+            line.color = color(palette[index % len(palette)])
+            line.points = [Point(x, y, 0.) for x, y in xy]
+            output.markers.append(line)
+            label = marker('manual_labels', index, Marker.TEXT_VIEW_FACING)
+            label.pose.position = Point(xy[0][0], xy[0][1], .5)
+            label.scale.z = .7
+            label.color = line.color
+            label.text = route.name
+            output.markers.append(label)
+        self._manual.publish(output)
+
+    def _clock_callback(self, message):
+        with self._lock:
+            self._last_clock_message = message.clock.to_sec()
+            if self._use_sim_time and self._track.clock(self._last_clock_message):
+                self._publish(None)
+                rospy.loginfo('Bag clock moved backwards: GPS replay history cleared; route origin unchanged.')
+
+    def _gps_callback(self, message):
+        with self._lock:
+            if self._use_sim_time:
+                if self._last_clock_message is None:
+                    rospy.logwarn_throttle(5., 'Waiting for /clock before displaying recorded GPS.')
+                    return
+                # The same callback-owned clock is used by both paths. NavPVT has no Header,
+                # and an independent GPS header or global clock can lag/race this subscriber.
+                stamp = self._last_clock_message
+            else:
+                stamp = rospy.Time.now().to_sec()
+            self._track.add(message, stamp)
+
+    def _publish(self, _event):
+        with self._lock:
+            points = list(self._track.points)
+            sample = self._track.current
+            resets = self._track.reset_count
+        stamp = rospy.Time.now()
+        output = MarkerArray()
+        output.markers = clear_markers()
+        if points:
+            dots = marker('gps_quality', 0, Marker.POINTS, stamp)
+            dots.scale.x = dots.scale.y = .2
+            dots.points = [Point(point.x, point.y, .1) for point in points]
+            dots.colors = [color(COLORS[point.status]) for point in points]
+            dots.color.a = 1.
+            output.markers.append(dots)
+            lines = marker('gps_segments', 0, Marker.LINE_LIST, stamp)
+            lines.scale.x = .055
+            lines.color.a = 1.
+            for previous, point in zip(points, points[1:]):
+                if previous.segment != point.segment:
+                    continue
+                lines.points.extend([Point(previous.x, previous.y, .08), Point(point.x, point.y, .08)])
+                lines.colors.extend([color(COLORS[previous.status]), color(COLORS[point.status])])
+            if lines.points:
+                output.markers.append(lines)
+        self._gps.publish(output)
+        current = MarkerArray()
+        current.markers = clear_markers()
+        if sample is not None and sample.valid:
+            x, y = project_point(sample.lat, sample.lon, self._project.origin)
+            sphere = marker('gps_current', 0, Marker.SPHERE, stamp)
+            sphere.pose.position = Point(x, y, .3)
+            sphere.scale.x = sphere.scale.y = sphere.scale.z = .5
+            sphere.color = color(COLORS[sample.status])
+            current.markers.append(sphere)
+        else:
+            x, y = (points[-1].x, points[-1].y) if points else (0., 0.)
+        label = marker('gps_status', 0, Marker.TEXT_VIEW_FACING, stamp)
+        label.pose.position = Point(x, y + 1., 1.)
+        label.scale.z = .65
+        label.color = color(COLORS[sample.status] if sample else (240, 240, 240))
+        text = ['GPS ANTENNA POSITION ONLY - NO VEHICLE HEADING',
+                'RTK_FIXED green | RTK_FLOAT amber | DGNSS blue | 3D_FIX purple']
+        if sample is None:
+            text.append('Waiting for recorded NavPVT / resume paused playback')
+        else:
+            estimate = '{:.3f} m'.format(sample.hacc_m) if sample.hacc_m is not None else 'unknown'
+            text.append('{} | satellites={} | receiver hAcc estimate={}'.format(sample.status, sample.satellites, estimate))
+            if sample.valid:
+                text.append('lat={:.9f} lon={:.9f} | east={:.3f} north={:.3f} m'.format(sample.lat, sample.lon, x, y))
+            else:
+                text.append('No valid GPS position in this sample; no point added')
+        text.append('{} | retained points={} | time resets={}'.format(self._filename, len(points), resets))
+        label.text = '\n'.join(text)
+        current.markers.append(label)
+        self._current.publish(current)
+
+
+def main():
+    rospy.init_node('bag_route_compare')
+    try:
+        BagRouteCompare()
+    except (ValueError, KeyError, TypeError) as error:
+        rospy.logfatal('Unable to initialize route comparison: %s', error)
+        return 1
+    rospy.spin()
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

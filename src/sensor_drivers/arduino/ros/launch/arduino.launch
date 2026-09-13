@@ -1,0 +1,18 @@
+<launch>
+  <arg name="config" default="$(find vehicle_interface_bringup)/config/serial.yaml" />
+  <!-- Empty overrides use the YAML values. -->
+  <arg name="port" default="" />
+  <arg name="baud" default="" />
+  <arg name="respawn" default="true" />
+
+  <node name="arduino_serial"
+        pkg="rosserial_python"
+        type="serial_node.py"
+        output="screen"
+        respawn="$(arg respawn)"
+        respawn_delay="2.0">
+    <rosparam command="load" file="$(arg config)" />
+    <param if="$(eval arg('port') != '')" name="port" value="$(arg port)" />
+    <param if="$(eval arg('baud') != '')" name="baud" value="$(arg baud)" type="int" />
+  </node>
+</launch>

@@ -1,0 +1,17 @@
+# 2026-08-31 Xsens DB8GG04M 정지·모터 OFF 10분 bag에서 첫 60초를
+# 제외한 539.668초 구간의 sample standard deviation이다. 정지 noise
+# floor이며 주행 진동이나 절대 yaw 정확도를 뜻하지 않는다.
+measurement:
+  calibration_state: measured_stationary_noise_floor
+  measured_at: "2026-08-31T01:02:55+09:00/599.717s"
+  source: "/home/stier/Mando_1-5/localization/records/imu_stationary_20260831/imu_stationary.bag"
+  excluded_prefix_sec: 60.0
+  analyzed_duration_sec: 539.668
+
+# sensor_msgs/Imu covariance는 표준편차가 아니라 분산이므로 노드가
+# 아래 값을 제곱해 각 3x3 covariance 대각 원소에 넣는다.
+covariance_override:
+  replace_only_all_zero: true
+  linear_acceleration_stddev_mps2: [0.003685438, 0.003944295, 0.004177912]
+  angular_velocity_stddev_radps: [0.000319255, 0.000331483, 0.000300778]
+  orientation_stddev_rad: [0.000294491, 0.000363537, 0.000477059]

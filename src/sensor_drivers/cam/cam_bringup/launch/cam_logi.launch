@@ -1,0 +1,21 @@
+<launch>
+  <arg name="device" default="/dev/cam" />
+  <arg name="frame_id" default="camera_link" />
+  <arg name="apply_hardware_setup" default="true" />
+
+  <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen">
+    <param name="video_device" value="$(arg device)" />
+    <param name="image_width" value="640" />
+    <param name="image_height" value="360" />
+    <param name="pixel_format" value="yuyv" />
+    <param name="framerate" value="30" />
+    <param name="camera_frame_id" value="$(arg frame_id)" />
+  </node>
+
+  <node if="$(arg apply_hardware_setup)"
+        name="logi_setup"
+        pkg="cam_bringup"
+        type="logi_setup.sh"
+        args="$(arg device)"
+        output="screen" />
+</launch>
