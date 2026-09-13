@@ -1,16 +1,28 @@
 #!/usr/bin/env python3
-"""Convert a planar LaserScan to XYZ(/intensity) with a 180-degree X rotation."""
+"""Transform LaserScan into base_link, then mirror only its lateral Y coordinate."""
 import math
 
 import rospy
+import tf2_ros
+from tf.transformations import quaternion_matrix
 from sensor_msgs import point_cloud2
 from sensor_msgs.msg import LaserScan, PointCloud2, PointField
 from std_msgs.msg import Header
 
 
-def scan_to_cloud(scan, output_frame):
-    if not output_frame or output_frame == scan.header.frame_id:
-        raise ValueError('Rotated output requires a distinct, nonempty output_frame')
+BASE_FRAME = 'base_link'
+
+
+def scan_to_cloud(scan, transform):
+    if (transform.header.frame_id != BASE_FRAME or not scan.header.frame_id
+            or transform.child_frame_id != scan.header.frame_id):
+        raise ValueError('Expected a transform from the scan frame into base_link')
+    q = transform.transform.rotation
+    t = transform.transform.translation
+    values = (q.x, q.y, q.z, q.w, t.x, t.y, t.z)
+    if not all(math.isfinite(v) for v in values) or sum(v*v for v in values[:4]) < 1e-12:
+        raise ValueError('Invalid scan-to-base_link transform')
+    rotation = quaternion_matrix(values[:4])
     geometry = (scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max)
     if (not all(math.isfinite(value) for value in geometry)
             or scan.range_min < 0 or scan.range_max < scan.range_min
@@ -26,28 +38,38 @@ def scan_to_cloud(scan, output_frame):
         if not math.isfinite(distance) or not scan.range_min <= distance <= scan.range_max:
             continue
         angle = scan.angle_min + index * scan.angle_increment
-        # Rx(pi): (x, y, z) -> (x, -y, -z). A planar scan has z=0.
-        point = (distance * math.cos(angle), -distance * math.sin(angle), 0.)
+        x, y = distance * math.cos(angle), distance * math.sin(angle)
+        # Apply the complete mounting TF FIRST, including translation.
+        base_x = rotation[0, 0] * x + rotation[0, 1] * y + t.x
+        base_y = rotation[1, 0] * x + rotation[1, 1] * y + t.y
+        base_z = rotation[2, 0] * x + rotation[2, 1] * y + t.z
+        # Mirror left/right about the vehicle's center plane; preserve X and Z.
+        point = (base_x, -base_y, base_z)
         if has_intensity:
             point += (scan.intensities[index],)
         points.append(point)
-    header = Header(seq=scan.header.seq, stamp=scan.header.stamp, frame_id=output_frame)
+    header = Header(seq=scan.header.seq, stamp=scan.header.stamp, frame_id=BASE_FRAME)
     return point_cloud2.create_cloud(header, fields, points)
 
 
 class LidarPreprocessor:
     def __init__(self):
-        self.output_frame = rospy.get_param('~output_frame', 'lidar_preprocessed')
-        if not isinstance(self.output_frame, str) or not self.output_frame.strip():
-            raise ValueError('output_frame must be a nonempty string')
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         self.publisher = rospy.Publisher('lidar_preprocessed', PointCloud2, queue_size=1)
         self.subscriber = rospy.Subscriber('scan', LaserScan, self.callback, queue_size=1)
-        rospy.loginfo('LiDAR preprocessing: X-axis rotation 180 deg; %s -> %s; frame=%s',
-                      rospy.resolve_name('scan'), rospy.resolve_name('lidar_preprocessed'), self.output_frame)
+        rospy.loginfo('LiDAR preprocessing: transform to base_link, then Y -> -Y; %s -> %s',
+                      rospy.resolve_name('scan'), rospy.resolve_name('lidar_preprocessed'))
 
     def callback(self, scan):
         try:
-            cloud = scan_to_cloud(scan, self.output_frame)
+            transform = self.tf_buffer.lookup_transform(
+                BASE_FRAME, scan.header.frame_id, scan.header.stamp)
+            cloud = scan_to_cloud(scan, transform)
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException,
+                tf2_ros.ExtrapolationException) as error:
+            rospy.logwarn_throttle(5., 'Waiting for scan-to-base_link TF: %s', error)
+            return
         except ValueError as error:
             rospy.logwarn_throttle(5., 'Skipping invalid scan: %s', error)
             return

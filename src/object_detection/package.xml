@@ -11,6 +11,8 @@
   <depend>rospy</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>tf</depend>
+  <depend>tf2_ros</depend>
   <exec_depend>roslaunch</exec_depend>
   <test_depend>python3-nose</test_depend>
 </package>

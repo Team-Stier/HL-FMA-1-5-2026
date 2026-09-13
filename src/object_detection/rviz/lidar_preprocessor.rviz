@@ -11,7 +11,7 @@ Visualization Manager:
       Plane Cell Count: 50
       Value: true
     - Class: rviz/PointCloud2
-      Name: LiDAR - X rotation 180 degrees
+      Name: LiDAR - base_link left-right mirror
       Enabled: true
       Topic: /lidar_preprocessed
       Queue Size: 2
@@ -25,7 +25,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Fixed Frame: lidar_preprocessed
+    Fixed Frame: base_link
     Background Color: 28; 30; 33
     Frame Rate: 20
   Tools:
@@ -36,7 +36,7 @@ Visualization Manager:
       Class: rviz/TopDownOrtho
       Angle: 0
       Scale: 15
-      Target Frame: lidar_preprocessed
+      Target Frame: base_link
       X: 0
       Y: 0
 Window Geometry:

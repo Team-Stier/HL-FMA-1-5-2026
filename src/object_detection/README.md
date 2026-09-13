@@ -1,48 +1,50 @@
 # object_detection
 
-현재 단계는 라이다 전처리: `/scan` (`sensor_msgs/LaserScan`)을 받아 X축 기준
-180° 회전한 `/lidar_preprocessed` (`sensor_msgs/PointCloud2`)를 발행한다.
-노드 이름은 `lidar_preprocessor`다.
+`/scan` (`LaserScan`)을 기록된 TF로 **base_link에 먼저 변환**한 뒤,
+**base_link의 Y만 반전**하여 `/lidar_preprocessed` (`PointCloud2`)로 발행한다.
+X와 Z는 유지하며 출력 `header.frame_id`는 `base_link`다.
 
-`x = r cos(θ), y = -r sin(θ), z = 0`으로 계산한다. 전후는 유지하고 좌우가 뒤집힌다.
-유효 범위 밖의 거리와 NaN/Inf는 제외하며, 대응하는 intensity가 있으면 함께 보존한다.
-출력 timestamp는 원본 scan의 첫 빔 시각을 유지한다. 움직임에 의한 scan 왜곡 보정은 하지 않는다.
+```text
+p_base = R_base_scan × p_scan + t_base_scan
+p_output = (p_base.x, -p_base.y, p_base.z)
+```
+
+scan 시각의 TF를 사용한다. TF가 없으면 경고를 출력하고 해당 scan을 건너뛴다.
+범위 밖의 거리·NaN·Inf는 제외하고, 대응하는 intensity와 원본 timestamp는 보존한다.
+scan 중 차량 움직임에 대한 왜곡 보정은 하지 않는다.
 
 ## 실행
 
-각 터미널에서 먼저:
+각 터미널에서 워크스페이스를 source한다. 기본 ROS master를 사용한다.
+이전에 별도 포트를 설정한 터미널이면 `unset ROS_MASTER_URI ROS_IP ROS_HOSTNAME`으로 해제한다.
 
 ```bash
 source ~/HL-FMA2026-suhyeon/devel/setup.bash
-export ROS_MASTER_URI=http://127.0.0.1:11411
-export ROS_IP=127.0.0.1
-unset ROS_HOSTNAME
 ```
 
-터미널 1 — 전처리만 실행 (master도 자동 시작, RViz는 직접 실행):
+터미널 1 — 전처리만 실행 (RViz는 자동 실행하지 않음):
 
 ```bash
-roslaunch -p 11411 object_detection lidar_preprocessor.launch
+roslaunch object_detection lidar_preprocessor.launch
 ```
 
-터미널 2 — bag의 90초부터 반복 재생:
+터미널 2 — bag의 90초부터 반복 재생. 이미 bag이 재생 중이면 추가로 실행하지 않는다.
 
 ```bash
 rosparam set /use_sim_time true
 rosbag play --clock -l -s 90 /media/stier/Data/Ubuntu/rosbag_0906/2.bag
 ```
 
-터미널 3 — 출력 확인:
+`/scan`만 골라 재생하면 TF가 없어 변환할 수 없다. 토픽을 제한할 때는 `/tf_static`과
+기록에 포함된 `/tf`도 함께 재생한다.
+
+기존 RViz에서 **Fixed Frame: base_link**, **PointCloud2 Topic: /lidar_preprocessed**로 설정한다.
+같은 base_link 화면에 원본 `/scan`을 추가하면 좌우 반전을 비교할 수 있다.
 
 ```bash
 rostopic hz /lidar_preprocessed
 rostopic echo -n 1 /lidar_preprocessed/header
 ```
-
-RViz는 Fixed Frame `lidar_preprocessed`, PointCloud2 Topic `/lidar_preprocessed`로 본다.
-출력은 센서 원점을 기준으로 X축 회전만 적용한 별도 좌표계다. 차량 `base_link`로
-이동·정렬하거나 TF를 발행하지 않는다. 기존 라이다 장착 설정의 yaw 180°와 이번
-roll 180°는 다른 회전이며, 실제 장착 TF는 별도로 맞춰야 한다.
 
 입출력 토픽은 `input_topic:=/scan output_topic:=/lidar_preprocessed`로 바꿀 수 있다.
 
@@ -56,6 +58,3 @@ source devel/setup.bash
 catkin_make run_tests_object_detection
 catkin_test_results build/test_results/object_detection
 ```
-
-좌표 기준: [ROS REP-103](https://github.com/ros-infrastructure/rep/blob/master/rep-0103.rst),
-[LaserScan 정의](https://github.com/ros/common_msgs/blob/noetic-devel/sensor_msgs/msg/LaserScan.msg).
