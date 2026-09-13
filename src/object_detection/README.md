@@ -19,10 +19,10 @@ export ROS_IP=127.0.0.1
 unset ROS_HOSTNAME
 ```
 
-터미널 1 — 전처리와 RViz (master도 자동 시작):
+터미널 1 — 전처리만 실행 (master도 자동 시작, RViz는 직접 실행):
 
 ```bash
-roslaunch -p 11411 object_detection lidar_preprocessor.launch rviz:=true
+roslaunch -p 11411 object_detection lidar_preprocessor.launch
 ```
 
 터미널 2 — bag의 90초부터 반복 재생:
