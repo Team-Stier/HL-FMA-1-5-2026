@@ -31,12 +31,18 @@ roscore -p 11411
 
 ## 2. 수동 경로와 GPS를 함께 보기
 
-다른 터미널에서 HTML 편집기의 **작업 저장 JSON**과 bag을 지정한다. JSON을 사용하면 편집기에 저장된 경로와 좌표 원점을 함께 읽을 수 있다.
+사용자가 지정한 `~/path_yongin/yongin_routes.zip`에는 개별 경로 CSV 19개와 전체 작업 JSON이 있다. 현재 PC에서는 `~/path_yongin/yongin_routes`에 압축을 풀어 두었다. 다시 준비하려면 다음 명령을 사용한다.
+
+```bash
+unzip -n ~/path_yongin/yongin_routes.zip -d ~/path_yongin/yongin_routes
+```
+
+다른 터미널에서 ZIP 안의 **작업 저장 JSON**과 bag을 지정한다. JSON을 사용하면 편집기에 저장된 경로와 좌표 원점을 함께 읽을 수 있다.
 
 ```bash
 roslaunch localization bag_route_compare.launch \
   bag:=/media/stier/Data/Ubuntu/rosbag_0906/1.bag \
-  route_file:=/home/stier/다운로드/yongin_route_project.json \
+  route_file:=/home/stier/path_yongin/yongin_routes/yongin_route_project.json \
   rate:=0.5 paused:=true \
   start_rviz:=true start_lidar_rviz:=true
 ```
