@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Convert a planar LaserScan to XYZ(/intensity) with a 180-degree X rotation."""
+import math
+
+import rospy
+from sensor_msgs import point_cloud2
+from sensor_msgs.msg import LaserScan, PointCloud2, PointField
+from std_msgs.msg import Header
+
+
+def scan_to_cloud(scan, output_frame):
+    if not output_frame or output_frame == scan.header.frame_id:
+        raise ValueError('Rotated output requires a distinct, nonempty output_frame')
+    geometry = (scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max)
+    if (not all(math.isfinite(value) for value in geometry)
+            or scan.range_min < 0 or scan.range_max < scan.range_min
+            or (len(scan.ranges) > 1 and scan.angle_increment == 0)):
+        raise ValueError('Invalid LaserScan angle or range metadata')
+    fields = [PointField(name, offset, PointField.FLOAT32, 1)
+              for name, offset in [('x', 0), ('y', 4), ('z', 8)]]
+    has_intensity = bool(scan.intensities) and len(scan.intensities) == len(scan.ranges)
+    if has_intensity:
+        fields.append(PointField('intensity', 12, PointField.FLOAT32, 1))
+    points = []
+    for index, distance in enumerate(scan.ranges):
+        if not math.isfinite(distance) or not scan.range_min <= distance <= scan.range_max:
+            continue
+        angle = scan.angle_min + index * scan.angle_increment
+        # Rx(pi): (x, y, z) -> (x, -y, -z). A planar scan has z=0.
+        point = (distance * math.cos(angle), -distance * math.sin(angle), 0.)
+        if has_intensity:
+            point += (scan.intensities[index],)
+        points.append(point)
+    header = Header(seq=scan.header.seq, stamp=scan.header.stamp, frame_id=output_frame)
+    return point_cloud2.create_cloud(header, fields, points)
+
+
+class LidarPreprocessor:
+    def __init__(self):
+        self.output_frame = rospy.get_param('~output_frame', 'lidar_preprocessed')
+        if not isinstance(self.output_frame, str) or not self.output_frame.strip():
+            raise ValueError('output_frame must be a nonempty string')
+        self.publisher = rospy.Publisher('lidar_preprocessed', PointCloud2, queue_size=1)
+        self.subscriber = rospy.Subscriber('scan', LaserScan, self.callback, queue_size=1)
+        rospy.loginfo('LiDAR preprocessing: X-axis rotation 180 deg; %s -> %s; frame=%s',
+                      rospy.resolve_name('scan'), rospy.resolve_name('lidar_preprocessed'), self.output_frame)
+
+    def callback(self, scan):
+        try:
+            cloud = scan_to_cloud(scan, self.output_frame)
+        except ValueError as error:
+            rospy.logwarn_throttle(5., 'Skipping invalid scan: %s', error)
+            return
+        self.publisher.publish(cloud)
+
+
+if __name__ == '__main__':
+    rospy.init_node('lidar_preprocessor')
+    LidarPreprocessor()
+    rospy.spin()

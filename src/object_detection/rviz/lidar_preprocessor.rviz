@@ -1,0 +1,44 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 50
+      Value: true
+    - Class: rviz/PointCloud2
+      Name: LiDAR - X rotation 180 degrees
+      Enabled: true
+      Topic: /lidar_preprocessed
+      Queue Size: 2
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: FlatColor
+      Color: 80; 230; 160
+      Position Transformer: XYZ
+      Decay Time: 0
+      Alpha: 1
+      Value: true
+  Enabled: true
+  Global Options:
+    Fixed Frame: lidar_preprocessed
+    Background Color: 28; 30; 33
+    Frame Rate: 20
+  Tools:
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Angle: 0
+      Scale: 15
+      Target Frame: lidar_preprocessed
+      X: 0
+      Y: 0
+Window Geometry:
+  Width: 1100
+  Height: 850
