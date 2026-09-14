@@ -71,12 +71,15 @@ class RddfRoiCoreTest(unittest.TestCase):
         np.testing.assert_array_equal(
             rear_mask, (False, False, False, False, True, True))
 
-    def test_lidar_forward_mask_uses_lidar_x_and_includes_cutoff(self):
+    def test_lidar_forward_mask_uses_vehicle_front_from_lidar_origin(self):
+        lidar_origin_x = 1.05
+        minimum_forward = 0.05
+        cutoff = lidar_origin_x + minimum_forward
         points = np.asarray((
-            (-1.0, 0.0), (0.0, 10.0), (0.049, -2.0),
-            (0.05, 3.0), (2.0, -100.0),
+            (-1.0, 0.0), (1.05, 10.0), (cutoff - 0.001, -2.0),
+            (cutoff, 3.0), (2.0, -100.0),
         ))
-        mask = lidar_forward_mask(points, 0.05)
+        mask = lidar_forward_mask(points, lidar_origin_x, minimum_forward)
         np.testing.assert_array_equal(mask, (False, False, False, True, True))
 
     def test_vehicle_exclusion_uses_base_link_extents_and_removes_boundary(self):

@@ -23,11 +23,12 @@ max_successor_depth: 4
 # 용인 RDDF는 대부분 정확히 맞닿으므로 크게 올리면 잘못된 좌우 경로가 연결될 수 있다.
 connection_distance_m: 1.0
 
-# 원본 laser_link 좌표에서 전방 X 위치로 LiDAR 점을 거르는 ROI
+# LiDAR 장착 위치를 기준으로 차량 전방(base_link +X)만 남기는 ROI
+# laser_link가 yaw 180도로 장착되어도 TF를 적용한 차량 전방을 사용한다.
 lidar_forward_roi:
   enabled: true
-  # x가 이 값보다 작은 점은 제거한다. 0.05면 LiDAR 앞 5 cm부터 사용한다.
-  min_x_m: 0.05
+  # LiDAR 원점보다 차량 전방으로 이 거리보다 가까운 점은 제거한다.
+  min_forward_m: 0.1
 
 # base_link 기준으로 추가 각도 제한이 필요할 때 사용하는 ROI
 # 0도는 차량 전방(+X), +90도는 왼쪽(+Y), -90도는 오른쪽(-Y)이다.

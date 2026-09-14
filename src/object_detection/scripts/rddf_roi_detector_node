@@ -224,9 +224,9 @@ class RddfRoiDetector:
             "~roi/lidar_forward_roi/enabled")
         if not isinstance(self.lidar_forward_roi_enabled, bool):
             raise ValueError("lidar_forward_roi/enabled must be Boolean")
-        self.lidar_min_x = _positive(
-            "lidar_forward_roi/min_x_m",
-            rospy.get_param("~roi/lidar_forward_roi/min_x_m"), allow_zero=True)
+        self.lidar_min_forward = _positive(
+            "lidar_forward_roi/min_forward_m",
+            rospy.get_param("~roi/lidar_forward_roi/min_forward_m"), allow_zero=True)
         self.angular_roi_enabled = rospy.get_param("~roi/angular_roi/enabled")
         if not isinstance(self.angular_roi_enabled, bool):
             raise ValueError("angular_roi/enabled must be Boolean")
@@ -274,10 +274,10 @@ class RddfRoiDetector:
             topics["scan"], LaserScan, self.scan_callback, queue_size=1)
         rospy.loginfo(
             "RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f "
-            "lidar_x_roi=%s[%.2f, inf) angle_roi=%s[%.1f, %.1f] self_filter=%s "
+            "lidar_forward=%s[%.2f m] angle_roi=%s[%.1f, %.1f] self_filter=%s "
             "spatial=%s voxel=%.3f",
             topics["scan"], topics["current_rddf"], self.radius, self.lookahead,
-            self.lidar_forward_roi_enabled, self.lidar_min_x,
+            self.lidar_forward_roi_enabled, self.lidar_min_forward,
             self.angular_roi_enabled, self.angular_limits[0], self.angular_limits[1],
             self.self_filter_enabled, spatial_index_backend(), self.voxel_size)
         if spatial_index_backend() != "kd_tree":
@@ -337,15 +337,18 @@ class RddfRoiDetector:
             lidar_removed_count = 0
             removed_count = 0
             angle_removed_count = 0
-            if self.lidar_forward_roi_enabled:
-                lidar_keep = lidar_forward_mask(laser_xyz[:, :2], self.lidar_min_x)
-                lidar_removed_count = int(np.count_nonzero(~lidar_keep))
-                keep &= lidar_keep
-            if self.self_filter_enabled or self.angular_roi_enabled:
+            if (self.lidar_forward_roi_enabled or self.self_filter_enabled
+                    or self.angular_roi_enabled):
                 base_transform = self.tf_buffer.lookup_transform(
                     self.base_frame, scan.header.frame_id, scan.header.stamp,
                     rospy.Duration(0.05))
                 base_xyz = transform_points(laser_xyz, base_transform, scan.header.frame_id)
+                if self.lidar_forward_roi_enabled:
+                    lidar_origin_x = base_transform.transform.translation.x
+                    lidar_keep = lidar_forward_mask(
+                        base_xyz[:, :2], lidar_origin_x, self.lidar_min_forward)
+                    lidar_removed_count = int(np.count_nonzero(~lidar_keep))
+                    keep &= lidar_keep
                 if self.self_filter_enabled:
                     self_keep = vehicle_exclusion_mask(
                         base_xyz[:, :2], *self.vehicle_extents)
