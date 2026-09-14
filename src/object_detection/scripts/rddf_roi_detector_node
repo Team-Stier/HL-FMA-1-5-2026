@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Filter raw 2D LiDAR by the current/next RDDF corridor and run DBSCAN."""
+
+import colorsys
+import math
+import threading
+
+import numpy as np
+import rospy
+import tf2_ros
+from geometry_msgs.msg import Point
+from mando_localization.msg import RddfMatch
+from sensor_msgs import point_cloud2
+from sensor_msgs.msg import LaserScan, PointCloud2
+from std_msgs.msg import ColorRGBA, Header
+from tf.transformations import quaternion_matrix
+from visualization_msgs.msg import Marker, MarkerArray
+
+from object_detection_core import NOISE, dbscan
+from object_detection_core.rddf_roi import RddfRouteNetwork, circle_union_mask
+
+
+def _positive(name, value, allow_zero=False):
+    number = float(value)
+    if not math.isfinite(number) or (number < 0 if allow_zero else number <= 0):
+        raise ValueError(name + " must be " + ("nonnegative" if allow_zero else "positive"))
+    return number
+
+
+def scan_points_in_frame(scan, transform):
+    """Convert valid LaserScan rays using a target<-scan stamped transform."""
+    if (not scan.header.frame_id or transform.child_frame_id != scan.header.frame_id
+            or not transform.header.frame_id):
+        raise ValueError("scan transform frames do not match")
+    metadata = (scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max)
+    if (not all(math.isfinite(value) for value in metadata)
+            or scan.range_min < 0 or scan.range_max < scan.range_min
+            or (len(scan.ranges) > 1 and scan.angle_increment == 0)):
+        raise ValueError("invalid LaserScan metadata")
+    indices = np.arange(len(scan.ranges), dtype=float)
+    ranges = np.asarray(scan.ranges, dtype=float)
+    valid = np.isfinite(ranges) & (ranges >= scan.range_min) & (ranges <= scan.range_max)
+    angles = scan.angle_min + indices[valid] * scan.angle_increment
+    xyz = np.column_stack((ranges[valid] * np.cos(angles),
+                           ranges[valid] * np.sin(angles),
+                           np.zeros(np.count_nonzero(valid), dtype=float)))
+    rotation_value = transform.transform.rotation
+    quaternion = np.asarray((rotation_value.x, rotation_value.y,
+                             rotation_value.z, rotation_value.w), dtype=float)
+    translation_value = transform.transform.translation
+    translation = np.asarray((translation_value.x, translation_value.y,
+                              translation_value.z), dtype=float)
+    if (not np.isfinite(quaternion).all() or not np.isfinite(translation).all()
+            or np.linalg.norm(quaternion) < 1e-12):
+        raise ValueError("invalid scan transform")
+    rotation = quaternion_matrix(quaternion)[:3, :3]
+    return xyz @ rotation.T + translation
+
+
+def _color(cluster_id):
+    hue = (cluster_id * 0.61803398875) % 1.0
+    red, green, blue = colorsys.hsv_to_rgb(hue, 0.75, 1.0)
+    return ColorRGBA(red, green, blue, 1.0)
+
+
+def _clear_markers():
+    clear = Marker()
+    clear.action = Marker.DELETEALL
+    return MarkerArray([clear])
+
+
+def roi_markers(header, polylines, centers, radius):
+    output = _clear_markers()
+    circles = Marker()
+    circles.header = header
+    circles.ns = "rddf_roi_circles"
+    circles.id = 0
+    circles.type = Marker.SPHERE_LIST
+    circles.action = Marker.ADD
+    circles.pose.orientation.w = 1.0
+    circles.scale.x = circles.scale.y = radius * 2.0
+    circles.scale.z = 0.03
+    circles.color = ColorRGBA(0.1, 0.85, 1.0, 0.13)
+    circles.points = [Point(float(x), float(y), 0.03) for x, y in centers]
+    output.markers.append(circles)
+    for index, polyline in enumerate(polylines):
+        line = Marker()
+        line.header = header
+        line.ns = "rddf_roi_centerline"
+        line.id = index
+        line.type = Marker.LINE_STRIP
+        line.action = Marker.ADD
+        line.pose.orientation.w = 1.0
+        line.scale.x = 0.12
+        line.color = ColorRGBA(0.0, 1.0, 1.0, 0.95)
+        line.points = [Point(float(x), float(y), 0.08) for x, y in polyline]
+        output.markers.append(line)
+    return output
+
+
+def cluster_markers(header, xyz, labels, point_size):
+    output = _clear_markers()
+    for cluster_id in sorted(set(labels.tolist()) - {NOISE}):
+        marker = Marker()
+        marker.header = header
+        marker.ns = "dbscan_clusters"
+        marker.id = int(cluster_id)
+        marker.type = Marker.POINTS
+        marker.action = Marker.ADD
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = marker.scale.y = point_size
+        marker.color = _color(cluster_id)
+        marker.points = [Point(float(point[0]), float(point[1]), float(point[2]))
+                         for point, label in zip(xyz, labels) if label == cluster_id]
+        output.markers.append(marker)
+    noise = Marker()
+    noise.header = header
+    noise.ns = "dbscan_noise"
+    noise.id = 0
+    noise.type = Marker.POINTS
+    noise.action = Marker.ADD
+    noise.pose.orientation.w = 1.0
+    noise.scale.x = noise.scale.y = point_size * 0.65
+    noise.color = ColorRGBA(0.45, 0.45, 0.45, 0.65)
+    noise.points = [Point(float(point[0]), float(point[1]), float(point[2]))
+                    for point, label in zip(xyz, labels) if label == NOISE]
+    if noise.points:
+        output.markers.append(noise)
+    return output
+
+
+class RddfRoiDetector:
+    def __init__(self):
+        self.map_frame = rospy.get_param("~frames/map", "map").lstrip("/")
+        self.lidar_frame = rospy.get_param("~frames/lidar", "laser_link").lstrip("/")
+        self.radius = _positive("corridor_radius_m", rospy.get_param("~roi/corridor_radius_m"))
+        self.lookahead = _positive("lookahead_m", rospy.get_param("~roi/lookahead_m"))
+        self.lookbehind = _positive(
+            "lookbehind_m", rospy.get_param("~roi/lookbehind_m"), allow_zero=True)
+        self.hold = _positive("match_hold_sec", rospy.get_param("~roi/match_hold_sec"))
+        self.future_tolerance = _positive(
+            "future_tolerance_sec", rospy.get_param("~roi/future_tolerance_sec"), allow_zero=True)
+        self.max_depth = int(rospy.get_param("~roi/max_successor_depth"))
+        connection_distance = _positive(
+            "connection_distance_m", rospy.get_param("~roi/connection_distance_m"))
+        self.network = RddfRouteNetwork.from_directory(
+            rospy.get_param("~rddf_directory"), connection_distance)
+        self.eps = _positive("eps", rospy.get_param("~eps"))
+        self.min_samples = int(rospy.get_param("~min_samples"))
+        self.point_size = _positive("point_size", rospy.get_param("~point_size"))
+        dbscan([], self.eps, self.min_samples)
+        if self.max_depth < 0:
+            raise ValueError("max_successor_depth must be nonnegative")
+
+        topics = rospy.get_param("~topics")
+        self.roi_points_publisher = rospy.Publisher(
+            topics["roi_points"], PointCloud2, queue_size=1)
+        self.roi_marker_publisher = rospy.Publisher(
+            topics["roi_markers"], MarkerArray, queue_size=1)
+        self.cluster_publisher = rospy.Publisher(
+            topics["clusters"], MarkerArray, queue_size=1)
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        self.lock = threading.Lock()
+        self.match = None
+        self.last_scan_stamp = None
+        self.match_subscriber = rospy.Subscriber(
+            topics["current_rddf"], RddfMatch, self.match_callback, queue_size=1)
+        self.scan_subscriber = rospy.Subscriber(
+            topics["scan"], LaserScan, self.scan_callback, queue_size=1)
+        rospy.loginfo("RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f",
+                      topics["scan"], topics["current_rddf"], self.radius, self.lookahead)
+
+    def match_callback(self, message):
+        if (not message.matched or not message.has_nearest or not message.source_route_name
+                or message.source_route_name not in self.network.routes):
+            return
+        nearest = message.nearest
+        if nearest.source_route_name and nearest.source_route_name != message.source_route_name:
+            return
+        stamp = message.pose_stamp.to_sec()
+        if stamp <= 0 or not math.isfinite(stamp):
+            return
+        state = (message.source_route_name, int(message.segment_index),
+                 float(nearest.segment_fraction), stamp)
+        with self.lock:
+            self.match = state
+
+    def _clear_outputs(self, stamp):
+        header = Header(stamp=stamp, frame_id=self.map_frame)
+        self.roi_points_publisher.publish(point_cloud2.create_cloud_xyz32(header, []))
+        self.roi_marker_publisher.publish(_clear_markers())
+        self.cluster_publisher.publish(_clear_markers())
+
+    def scan_callback(self, scan):
+        stamp = scan.header.stamp.to_sec()
+        if scan.header.frame_id.lstrip("/") != self.lidar_frame or stamp <= 0:
+            rospy.logwarn_throttle(5.0, "RDDF ROI 생략: LiDAR frame 또는 timestamp 불일치")
+            return
+        with self.lock:
+            if self.last_scan_stamp is not None and stamp < self.last_scan_stamp - 1.0:
+                self.match = None
+            self.last_scan_stamp = stamp
+            match = self.match
+        if match is None:
+            self._clear_outputs(scan.header.stamp)
+            rospy.logwarn_throttle(5.0, "RDDF ROI 대기: 현재 RDDF match 없음")
+            return
+        source_route, segment_index, segment_fraction, match_stamp = match
+        age = stamp - match_stamp
+        if age < -self.future_tolerance or age > self.hold:
+            self._clear_outputs(scan.header.stamp)
+            rospy.logwarn_throttle(5.0, "RDDF ROI 대기: RDDF match가 오래되었거나 미래 시각임")
+            return
+        try:
+            polylines = self.network.corridor(
+                source_route, segment_index, segment_fraction,
+                self.lookahead, self.lookbehind, self.max_depth)
+            centers = np.unique(np.round(np.vstack(polylines), 6), axis=0)
+            transform = self.tf_buffer.lookup_transform(
+                self.map_frame, scan.header.frame_id, scan.header.stamp, rospy.Duration(0.05))
+            xyz = scan_points_in_frame(scan, transform)
+            mask = circle_union_mask(xyz[:, :2], centers, self.radius)
+            filtered = xyz[mask]
+            labels = dbscan(filtered[:, :2], self.eps, self.min_samples)
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException,
+                tf2_ros.ExtrapolationException, ValueError, IndexError) as error:
+            rospy.logwarn_throttle(5.0, "RDDF ROI 생략: %s", error)
+            return
+        header = Header(seq=scan.header.seq, stamp=scan.header.stamp, frame_id=self.map_frame)
+        self.roi_points_publisher.publish(
+            point_cloud2.create_cloud_xyz32(header, filtered.tolist()))
+        self.roi_marker_publisher.publish(
+            roi_markers(header, polylines, centers, self.radius))
+        self.cluster_publisher.publish(
+            cluster_markers(header, filtered, labels, self.point_size))
+        cluster_count = len(set(labels.tolist()) - {NOISE})
+        rospy.logdebug("RDDF ROI %s: %d/%d points, %d clusters",
+                       source_route, len(filtered), len(xyz), cluster_count)
+
+
+if __name__ == "__main__":
+    rospy.init_node("rddf_roi_detector")
+    RddfRoiDetector()
+    rospy.spin()

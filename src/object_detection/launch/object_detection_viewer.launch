@@ -1,0 +1,7 @@
+<launch>
+  <arg name="config" default="$(find mando_localization)/config/localization_viewer.yaml"/>
+  <arg name="rddf_directory" default="$(find mando_localization)/rddf"/>
+  <node pkg="object_detection" type="object_detection_viewer.py"
+        name="object_detection_rviz" output="screen" required="false"
+        args="--mode live --config &quot;$(arg config)&quot; --rddf-dir &quot;$(arg rddf_directory)&quot;"/>
+</launch>

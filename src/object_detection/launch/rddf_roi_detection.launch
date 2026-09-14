@@ -1,0 +1,27 @@
+<launch>
+  <arg name="scan_topic" default="/molit/sensors/lidar/scan"/>
+  <arg name="current_rddf_topic" default="/molit/localization/rddf/current"/>
+  <arg name="roi_points_topic" default="/object_detection/roi_points"/>
+  <arg name="roi_markers_topic" default="/object_detection/roi_markers"/>
+  <arg name="clusters_topic" default="/dbscan_clusters"/>
+  <arg name="roi_config" default="$(find object_detection)/config/rddf_roi.yaml"/>
+  <arg name="dbscan_config" default="$(find object_detection)/config/dbscan.yaml"/>
+  <arg name="rddf_directory" default="$(find mando_localization)/rddf"/>
+  <arg name="start_viewer" default="true"/>
+
+  <node pkg="object_detection" type="rddf_roi_detector_node"
+        name="rddf_roi_detector" output="screen" clear_params="true">
+    <rosparam command="load" file="$(arg roi_config)" ns="roi"/>
+    <rosparam command="load" file="$(arg dbscan_config)"/>
+    <param name="rddf_directory" value="$(arg rddf_directory)"/>
+    <param name="frames/map" value="map"/>
+    <param name="frames/lidar" value="laser_link"/>
+    <param name="topics/scan" value="$(arg scan_topic)"/>
+    <param name="topics/current_rddf" value="$(arg current_rddf_topic)"/>
+    <param name="topics/roi_points" value="$(arg roi_points_topic)"/>
+    <param name="topics/roi_markers" value="$(arg roi_markers_topic)"/>
+    <param name="topics/clusters" value="$(arg clusters_topic)"/>
+  </node>
+
+  <include if="$(arg start_viewer)" file="$(find object_detection)/launch/object_detection_viewer.launch"/>
+</launch>

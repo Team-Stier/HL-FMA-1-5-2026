@@ -1,68 +1,52 @@
 # object_detection
 
-`/scan` (`LaserScan`)을 기록된 TF로 **base_link에 먼저 변환**한 뒤,
-**base_link의 Y만 반전**하여 `/lidar_preprocessed` (`PointCloud2`)로 발행한다.
-X와 Z는 유지하며 출력 `header.frame_id`는 `base_link`다.
+팀 Localization 코드를 수정하지 않고 현재 RDDF와 연결된 다음 RDDF 주변의 2D LiDAR만
+DBSCAN으로 군집화한다. 원본 `/molit/sensors/lidar/scan`을 scan 시각의 팀 TF로 `map`에
+변환하므로 별도의 좌우 반전 전처리를 사용하지 않는다.
 
-```text
-p_base = R_base_scan × p_scan + t_base_scan
-p_output = (p_base.x, -p_base.y, p_base.z)
-```
+## RDDF ROI
 
-scan 시각의 TF를 사용한다. TF가 없으면 경고를 출력하고 해당 scan을 건너뛴다.
-범위 밖의 거리·NaN·Inf는 제외하고, 대응하는 intensity와 원본 timestamp는 보존한다.
-scan 중 차량 움직임에 대한 왜곡 보정은 하지 않는다.
+ROI는 현재 차량 위치의 뒤 2 m부터 진행 방향 앞 30 m까지 사용한다. 그 범위에 포함되는
+각 RDDF 점을 중심으로 **반경 2 m 원**을 만들고, 모든 원의 합집합 안에 있는 LiDAR 점만
+DBSCAN 입력으로 사용한다. 현재 RDDF 끝에 가까워지면 연결된 다음 번호 RDDF까지 미리
+이어 붙인다. 좌우 경로가 갈리는 지점에서는 아직 경로가 확정되지 않은 두 후보를 모두
+포함해 전환 순간에 ROI가 끊기지 않게 한다.
 
-## 실행
+파라미터와 한글 튜닝 설명은 `config/rddf_roi.yaml`과 `config/dbscan.yaml`에 있다.
+기본 출력은 다음과 같다.
 
-각 터미널에서 워크스페이스를 source한다. 기본 ROS master를 사용한다.
-이전에 별도 포트를 설정한 터미널이면 `unset ROS_MASTER_URI ROS_IP ROS_HOSTNAME`으로 해제한다.
+- `/object_detection/roi_markers`: RDDF 중심선과 반경 2 m 원
+- `/object_detection/roi_points`: ROI 안에 남은 LiDAR 점
+- `/dbscan_clusters`: ROI 점을 DBSCAN으로 군집화한 결과
 
-```bash
-source ~/HL-FMA2026-suhyeon/devel/setup.bash
-```
+## rosbag으로 실행
 
-터미널 1 — 전처리만 실행 (RViz는 자동 실행하지 않음):
-
-```bash
-roslaunch object_detection lidar_preprocessor.launch
-```
-
-터미널 2 — bag의 90초부터 반복 재생. 이미 bag이 재생 중이면 추가로 실행하지 않는다.
+터미널 1에서 팀 Localization을 실행한다. 팀 뷰어는 끄고 bag을 반복 재생한다.
 
 ```bash
-rosparam set /use_sim_time true
-rosbag play --clock -l -s 90 /media/stier/Data/Ubuntu/rosbag_0906/2.bag
+cd ~/HL-FMA2026-suhyeon
+source devel/setup.bash
+roslaunch mando_localization replay.launch \
+  bag:=/home/stier/bag/20260906_123929/2026-09-06_12-39-31__00h08m31.193s.bag \
+  loop:=true start_rviz:=false
 ```
 
-`/scan`만 골라 재생하면 TF가 없어 변환할 수 없다. 토픽을 제한할 때는 `/tf_static`과
-기록에 포함된 `/tf`도 함께 재생한다.
-
-기존 RViz에서 **Fixed Frame: base_link**, **PointCloud2 Topic: /lidar_preprocessed**로 설정한다.
-같은 base_link 화면에 원본 `/scan`을 추가하면 좌우 반전을 비교할 수 있다.
+터미널 2에서 ROI, DBSCAN, 복사한 뷰어를 함께 실행한다.
 
 ```bash
-rostopic hz /lidar_preprocessed
-rostopic echo -n 1 /lidar_preprocessed/header
+cd ~/HL-FMA2026-suhyeon
+source devel/setup.bash
+roslaunch object_detection rddf_roi_detection.launch
 ```
 
-입출력 토픽은 `input_topic:=/scan output_topic:=/lidar_preprocessed`로 바꿀 수 있다.
-
-## DBSCAN 시각화
-
-현재 단계에서는 ROI와 객체 메시지 없이 `/lidar_preprocessed`의 모든 XY 점을 DBSCAN으로
-군집화한다. `2.bag`의 angle-compensated scan을 기준으로 기본값은 `eps=0.1 m`,
-`min_samples=4`다. 파라미터는 `config/dbscan.yaml`에서 수정하며 RViz는 자동 실행하지 않는다.
+복사한 뷰어에는 팀 뷰어의 표시와 함께 청록색 ROI, ROI 내부 포인트, 클러스터가 추가된다.
+뷰어 없이 노드와 토픽만 확인하려면 `start_viewer:=false`를 붙인다.
 
 ```bash
-roslaunch object_detection dbscan_visualizer.launch
+rostopic hz /object_detection/roi_points
+rostopic echo -n 1 /object_detection/roi_points/header
+rostopic hz /dbscan_clusters
 ```
-
-RViz에서 Fixed Frame을 `base_link`로 놓고 **MarkerArray** display에
-`/dbscan_clusters`를 지정한다. 군집마다 다른 색이고 noise는 회색이다.
-
-설정 파일의 `eps`, `min_samples`, `point_size`를 저장하고 launch를 다시 실행하면 반영된다.
-다른 설정 파일을 시험할 때는 `config_file:=/절대/경로/dbscan.yaml`로 지정할 수 있다.
 
 ## 빌드·검사
 

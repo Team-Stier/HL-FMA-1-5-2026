@@ -1,8 +1,0 @@
-<launch>
-  <arg name="input_topic" default="/scan"/>
-  <arg name="output_topic" default="/lidar_preprocessed"/>
-  <node pkg="object_detection" type="lidar_preprocessor_node" name="lidar_preprocessor" output="screen">
-    <remap from="scan" to="$(arg input_topic)"/>
-    <remap from="lidar_preprocessed" to="$(arg output_topic)"/>
-  </node>
-</launch>
