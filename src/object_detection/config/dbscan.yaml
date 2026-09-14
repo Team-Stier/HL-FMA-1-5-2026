@@ -1,8 +1,16 @@
-# DBSCAN neighborhood radius in meters.
+# DBSCAN에서 한 점의 이웃으로 판단할 최대 거리 (단위: m)
+# - 값을 키우면 떨어진 점들도 같은 군집으로 합쳐진다.
+# - 값을 줄이면 가까운 물체를 분리하기 쉬워지지만 먼 물체가 여러 군집으로 쪼개질 수 있다.
+# - 2.bag에서는 0.1부터 시작하고 0.02씩 조정하는 것을 권장한다.
 eps: 0.1
 
-# A core point must have at least this many neighbors, including itself.
+# 핵심점으로 인정하는 최소 이웃 점 개수 (현재 점 자신 포함)
+# - 값을 키우면 작은 군집과 잡음이 줄지만 점이 적게 잡히는 먼 물체를 놓칠 수 있다.
+# - 값을 줄이면 작은 물체도 검출되지만 잡음 군집이 늘어난다.
+# - eps를 먼저 맞춘 다음 3~8 범위에서 조정하는 것을 권장한다.
 min_samples: 4
 
-# RViz Marker.POINTS width and height in meters.
+# RViz에 표시하는 점의 가로·세로 크기 (단위: m)
+# 시각화 크기만 바뀌며 DBSCAN 군집 결과에는 영향을 주지 않는다.
+# 점이 잘 안 보이면 키우고, 군집 형태가 뭉쳐 보이면 줄인다.
 point_size: 0.08
