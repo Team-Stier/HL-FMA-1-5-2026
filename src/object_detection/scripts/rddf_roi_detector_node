@@ -109,9 +109,11 @@ def roi_markers(header, polylines, centers, radius):
     return output
 
 
-def cluster_markers(header, xyz, labels, point_size):
+def cluster_markers(header, xyz, labels, point_size, centroid_size):
     output = _clear_markers()
     for cluster_id in sorted(set(labels.tolist()) - {NOISE}):
+        points = xyz[labels == cluster_id]
+        color = _color(cluster_id)
         marker = Marker()
         marker.header = header
         marker.ns = "dbscan_clusters"
@@ -120,10 +122,25 @@ def cluster_markers(header, xyz, labels, point_size):
         marker.action = Marker.ADD
         marker.pose.orientation.w = 1.0
         marker.scale.x = marker.scale.y = point_size
-        marker.color = _color(cluster_id)
+        marker.color = color
         marker.points = [Point(float(point[0]), float(point[1]), float(point[2]))
-                         for point, label in zip(xyz, labels) if label == cluster_id]
+                         for point in points]
         output.markers.append(marker)
+
+        centroid = np.mean(points, axis=0)
+        center = Marker()
+        center.header = header
+        center.ns = "dbscan_centroids"
+        center.id = int(cluster_id)
+        center.type = Marker.SPHERE
+        center.action = Marker.ADD
+        center.pose.position.x = float(centroid[0])
+        center.pose.position.y = float(centroid[1])
+        center.pose.position.z = float(centroid[2]) + centroid_size * 0.5
+        center.pose.orientation.w = 1.0
+        center.scale.x = center.scale.y = center.scale.z = centroid_size
+        center.color = color
+        output.markers.append(center)
     noise = Marker()
     noise.header = header
     noise.ns = "dbscan_noise"
@@ -162,6 +179,8 @@ class RddfRoiDetector:
         self.voxel_size = _positive(
             "voxel_size_m", rospy.get_param("~voxel_size_m"), allow_zero=True)
         self.point_size = _positive("point_size", rospy.get_param("~point_size"))
+        self.centroid_size = _positive(
+            "centroid_size", rospy.get_param("~centroid_size"))
         self.self_filter_enabled = rospy.get_param("~roi/self_filter/enabled")
         if not isinstance(self.self_filter_enabled, bool):
             raise ValueError("self_filter/enabled must be Boolean")
@@ -277,7 +296,8 @@ class RddfRoiDetector:
         self.roi_marker_publisher.publish(
             roi_markers(header, polylines, centers, self.radius))
         self.cluster_publisher.publish(
-            cluster_markers(header, clustered, labels, self.point_size))
+            cluster_markers(
+                header, clustered, labels, self.point_size, self.centroid_size))
         cluster_count = len(set(labels.tolist()) - {NOISE})
         rospy.logdebug(
             "RDDF ROI %s: roi=%d voxel=%d/%d points, self=%d removed, %d clusters",

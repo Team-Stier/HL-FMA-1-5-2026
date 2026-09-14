@@ -25,7 +25,7 @@ RDDF 원 판정과 DBSCAN 이웃 검색은 SciPy가 설치되어 있으면 KD-tr
 
 - `/object_detection/roi_markers`: RDDF 중심선과 반경 2 m 원
 - `/object_detection/roi_points`: ROI 안에 남은 LiDAR 점
-- `/dbscan_clusters`: ROI 점을 DBSCAN으로 군집화한 결과
+- `/dbscan_clusters`: ROI 점을 DBSCAN으로 군집화한 결과와 큰 장애물 중점
 
 ## rosbag으로 실행
 
