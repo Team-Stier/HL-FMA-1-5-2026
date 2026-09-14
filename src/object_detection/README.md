@@ -48,6 +48,23 @@ rostopic echo -n 1 /lidar_preprocessed/header
 
 입출력 토픽은 `input_topic:=/scan output_topic:=/lidar_preprocessed`로 바꿀 수 있다.
 
+## DBSCAN 시각화
+
+현재 단계에서는 ROI와 객체 메시지 없이 `/lidar_preprocessed`의 모든 XY 점을 DBSCAN으로
+군집화한다. `2.bag`의 angle-compensated scan을 기준으로 기본값은 `eps=0.1 m`,
+`min_samples=4`다. RViz는 자동 실행하지 않는다.
+
+```bash
+roslaunch object_detection dbscan_visualizer.launch
+```
+
+RViz에서 Fixed Frame을 `base_link`로 놓고 **MarkerArray** display에
+`/dbscan_clusters`를 지정한다. 군집마다 다른 색이고 noise는 회색이다.
+
+```bash
+roslaunch object_detection dbscan_visualizer.launch eps:=0.25 min_samples:=5
+```
+
 ## 빌드·검사
 
 ```bash
