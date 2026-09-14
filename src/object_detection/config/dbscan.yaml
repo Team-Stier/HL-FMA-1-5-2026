@@ -1,0 +1,8 @@
+# DBSCAN neighborhood radius in meters.
+eps: 0.1
+
+# A core point must have at least this many neighbors, including itself.
+min_samples: 4
+
+# RViz Marker.POINTS width and height in meters.
+point_size: 0.08

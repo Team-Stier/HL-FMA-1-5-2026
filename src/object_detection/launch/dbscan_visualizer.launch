@@ -1,14 +1,10 @@
 <launch>
   <arg name="input_topic" default="/lidar_preprocessed"/>
   <arg name="output_topic" default="/dbscan_clusters"/>
-  <arg name="eps" default="0.1"/>
-  <arg name="min_samples" default="4"/>
-  <arg name="point_size" default="0.08"/>
+  <arg name="config_file" default="$(find object_detection)/config/dbscan.yaml"/>
 
   <node pkg="object_detection" type="dbscan_visualizer_node" name="dbscan_visualizer" output="screen">
-    <param name="eps" value="$(arg eps)"/>
-    <param name="min_samples" value="$(arg min_samples)"/>
-    <param name="point_size" value="$(arg point_size)"/>
+    <rosparam command="load" file="$(arg config_file)"/>
     <remap from="lidar_preprocessed" to="$(arg input_topic)"/>
     <remap from="dbscan_clusters" to="$(arg output_topic)"/>
   </node>

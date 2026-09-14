@@ -9,7 +9,7 @@ catkin_install_python(PROGRAMS
   scripts/dbscan_visualizer_node
   scripts/lidar_preprocessor_node
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-install(DIRECTORY launch rviz
+install(DIRECTORY config launch rviz
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 if(CATKIN_ENABLE_TESTING)
