@@ -17,7 +17,11 @@ from tf.transformations import quaternion_matrix
 from visualization_msgs.msg import Marker, MarkerArray
 
 from object_detection_core import NOISE, dbscan
-from object_detection_core.rddf_roi import RddfRouteNetwork, circle_union_mask
+from object_detection_core.rddf_roi import (
+    RddfRouteNetwork,
+    circle_union_mask,
+    vehicle_exclusion_mask,
+)
 
 
 def _positive(name, value, allow_zero=False):
@@ -27,11 +31,10 @@ def _positive(name, value, allow_zero=False):
     return number
 
 
-def scan_points_in_frame(scan, transform):
-    """Convert valid LaserScan rays using a target<-scan stamped transform."""
-    if (not scan.header.frame_id or transform.child_frame_id != scan.header.frame_id
-            or not transform.header.frame_id):
-        raise ValueError("scan transform frames do not match")
+def laser_scan_points(scan):
+    """Convert valid LaserScan rays to XYZ points in the scan frame."""
+    if not scan.header.frame_id:
+        raise ValueError("LaserScan frame is empty")
     metadata = (scan.angle_min, scan.angle_increment, scan.range_min, scan.range_max)
     if (not all(math.isfinite(value) for value in metadata)
             or scan.range_min < 0 or scan.range_max < scan.range_min
@@ -44,6 +47,14 @@ def scan_points_in_frame(scan, transform):
     xyz = np.column_stack((ranges[valid] * np.cos(angles),
                            ranges[valid] * np.sin(angles),
                            np.zeros(np.count_nonzero(valid), dtype=float)))
+    return xyz
+
+
+def transform_points(points, transform, source_frame):
+    """Apply a target<-source TransformStamped to an XYZ array."""
+    if (not source_frame or transform.child_frame_id.lstrip("/") != source_frame.lstrip("/")
+            or not transform.header.frame_id):
+        raise ValueError("point transform frames do not match")
     rotation_value = transform.transform.rotation
     quaternion = np.asarray((rotation_value.x, rotation_value.y,
                              rotation_value.z, rotation_value.w), dtype=float)
@@ -54,7 +65,7 @@ def scan_points_in_frame(scan, transform):
             or np.linalg.norm(quaternion) < 1e-12):
         raise ValueError("invalid scan transform")
     rotation = quaternion_matrix(quaternion)[:3, :3]
-    return xyz @ rotation.T + translation
+    return points @ rotation.T + translation
 
 
 def _color(cluster_id):
@@ -132,6 +143,7 @@ def cluster_markers(header, xyz, labels, point_size):
 class RddfRoiDetector:
     def __init__(self):
         self.map_frame = rospy.get_param("~frames/map", "map").lstrip("/")
+        self.base_frame = rospy.get_param("~frames/base_link", "base_link").lstrip("/")
         self.lidar_frame = rospy.get_param("~frames/lidar", "laser_link").lstrip("/")
         self.radius = _positive("corridor_radius_m", rospy.get_param("~roi/corridor_radius_m"))
         self.lookahead = _positive("lookahead_m", rospy.get_param("~roi/lookahead_m"))
@@ -148,6 +160,19 @@ class RddfRoiDetector:
         self.eps = _positive("eps", rospy.get_param("~eps"))
         self.min_samples = int(rospy.get_param("~min_samples"))
         self.point_size = _positive("point_size", rospy.get_param("~point_size"))
+        self.self_filter_enabled = rospy.get_param("~roi/self_filter/enabled")
+        if not isinstance(self.self_filter_enabled, bool):
+            raise ValueError("self_filter/enabled must be Boolean")
+        self.vehicle_extents = (
+            _positive("self_filter/rear_extent_m",
+                      rospy.get_param("~roi/self_filter/rear_extent_m")),
+            _positive("self_filter/front_extent_m",
+                      rospy.get_param("~roi/self_filter/front_extent_m")),
+            _positive("self_filter/right_extent_m",
+                      rospy.get_param("~roi/self_filter/right_extent_m")),
+            _positive("self_filter/left_extent_m",
+                      rospy.get_param("~roi/self_filter/left_extent_m")),
+        )
         dbscan([], self.eps, self.min_samples)
         if self.max_depth < 0:
             raise ValueError("max_successor_depth must be nonnegative")
@@ -168,8 +193,10 @@ class RddfRoiDetector:
             topics["current_rddf"], RddfMatch, self.match_callback, queue_size=1)
         self.scan_subscriber = rospy.Subscriber(
             topics["scan"], LaserScan, self.scan_callback, queue_size=1)
-        rospy.loginfo("RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f",
-                      topics["scan"], topics["current_rddf"], self.radius, self.lookahead)
+        rospy.loginfo(
+            "RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f self_filter=%s",
+            topics["scan"], topics["current_rddf"], self.radius, self.lookahead,
+            self.self_filter_enabled)
 
     def match_callback(self, message):
         if (not message.matched or not message.has_nearest or not message.source_route_name
@@ -217,9 +244,19 @@ class RddfRoiDetector:
                 source_route, segment_index, segment_fraction,
                 self.lookahead, self.lookbehind, self.max_depth)
             centers = np.unique(np.round(np.vstack(polylines), 6), axis=0)
-            transform = self.tf_buffer.lookup_transform(
+            map_transform = self.tf_buffer.lookup_transform(
                 self.map_frame, scan.header.frame_id, scan.header.stamp, rospy.Duration(0.05))
-            xyz = scan_points_in_frame(scan, transform)
+            laser_xyz = laser_scan_points(scan)
+            xyz = transform_points(laser_xyz, map_transform, scan.header.frame_id)
+            removed_count = 0
+            if self.self_filter_enabled:
+                base_transform = self.tf_buffer.lookup_transform(
+                    self.base_frame, scan.header.frame_id, scan.header.stamp,
+                    rospy.Duration(0.05))
+                base_xyz = transform_points(laser_xyz, base_transform, scan.header.frame_id)
+                keep = vehicle_exclusion_mask(base_xyz[:, :2], *self.vehicle_extents)
+                removed_count = int(len(xyz) - np.count_nonzero(keep))
+                xyz = xyz[keep]
             mask = circle_union_mask(xyz[:, :2], centers, self.radius)
             filtered = xyz[mask]
             labels = dbscan(filtered[:, :2], self.eps, self.min_samples)
@@ -235,8 +272,8 @@ class RddfRoiDetector:
         self.cluster_publisher.publish(
             cluster_markers(header, filtered, labels, self.point_size))
         cluster_count = len(set(labels.tolist()) - {NOISE})
-        rospy.logdebug("RDDF ROI %s: %d/%d points, %d clusters",
-                       source_route, len(filtered), len(xyz), cluster_count)
+        rospy.logdebug("RDDF ROI %s: %d/%d points, self=%d removed, %d clusters",
+                       source_route, len(filtered), len(xyz), removed_count, cluster_count)
 
 
 if __name__ == "__main__":

@@ -22,3 +22,14 @@ max_successor_depth: 4
 # 다음 번호 RDDF의 시작점이 현재 경로와 연결됐다고 판단할 최대 거리 [m]
 # 용인 RDDF는 대부분 정확히 맞닿으므로 크게 올리면 잘못된 좌우 경로가 연결될 수 있다.
 connection_distance_m: 1.0
+
+# base_link 기준 차량 자체 반사 제거 영역
+# base_link 원점은 뒷바퀴 축 중심이고 +X 전방, +Y 왼쪽이다.
+# 현재 값은 LiDAR가 전방 1.05 m에 있다는 장착값을 포함한 잠정 영역이다.
+# 팀 뷰어의 기존 차량 외곽과 실제 차체를 보고 각 방향으로 5~10 cm 크게 맞춘다.
+self_filter:
+  enabled: true
+  rear_extent_m: 0.70
+  front_extent_m: 1.50
+  right_extent_m: 0.65
+  left_extent_m: 0.65

@@ -5,7 +5,11 @@ from pathlib import Path
 
 import numpy as np
 
-from object_detection_core.rddf_roi import RddfRouteNetwork, circle_union_mask
+from object_detection_core.rddf_roi import (
+    RddfRouteNetwork,
+    circle_union_mask,
+    vehicle_exclusion_mask,
+)
 
 
 class RddfRoiCoreTest(unittest.TestCase):
@@ -52,6 +56,15 @@ class RddfRoiCoreTest(unittest.TestCase):
             2.0,
         )
         np.testing.assert_array_equal(mask, (True, True, False, False))
+
+    def test_vehicle_exclusion_uses_base_link_extents_and_removes_boundary(self):
+        points = np.asarray((
+            (-0.7, 0.0), (1.5, 0.65), (0.0, -0.65),
+            (-0.71, 0.0), (1.51, 0.0), (0.0, 0.66),
+        ))
+        mask = vehicle_exclusion_mask(
+            points, rear_m=0.7, front_m=1.5, right_m=0.65, left_m=0.65)
+        np.testing.assert_array_equal(mask, (False, False, False, True, True, True))
 
 
 if __name__ == "__main__":

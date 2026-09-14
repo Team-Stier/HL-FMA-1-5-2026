@@ -214,3 +214,24 @@ def circle_union_mask(points, centers, radius_m):
                 if mask[index]:
                     break
     return mask
+
+
+def vehicle_exclusion_mask(points, rear_m, front_m, right_m, left_m):
+    """Return True for points outside a base_link-aligned vehicle box.
+
+    ``base_link`` follows REP-103: +X is forward and +Y is left. The box spans
+    ``[-rear_m, front_m]`` in X and ``[-right_m, left_m]`` in Y. Points on the
+    box boundary are treated as vehicle returns and removed.
+    """
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 2:
+        raise ValueError("points must have shape (N, 2)")
+    if not np.isfinite(points).all():
+        raise ValueError("vehicle exclusion input contains non-finite coordinates")
+    extents = tuple(float(value) for value in (rear_m, front_m, right_m, left_m))
+    if any(not math.isfinite(value) or value <= 0 for value in extents):
+        raise ValueError("vehicle exclusion extents must be positive")
+    rear, front, right, left = extents
+    inside = ((points[:, 0] >= -rear) & (points[:, 0] <= front)
+              & (points[:, 1] >= -right) & (points[:, 1] <= left))
+    return ~inside

@@ -15,6 +15,7 @@
     <rosparam command="load" file="$(arg dbscan_config)"/>
     <param name="rddf_directory" value="$(arg rddf_directory)"/>
     <param name="frames/map" value="map"/>
+    <param name="frames/base_link" value="base_link"/>
     <param name="frames/lidar" value="laser_link"/>
     <param name="topics/scan" value="$(arg scan_topic)"/>
     <param name="topics/current_rddf" value="$(arg current_rddf_topic)"/>
