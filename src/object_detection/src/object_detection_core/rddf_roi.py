@@ -199,6 +199,19 @@ def circle_union_mask(points, centers, radius_m):
     return nearest_within_radius(points, centers, radius)
 
 
+def lidar_forward_mask(points, min_x_m):
+    """Return points at or ahead of a minimum X in the LiDAR frame."""
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 2:
+        raise ValueError("points must have shape (N, 2)")
+    if not np.isfinite(points).all():
+        raise ValueError("LiDAR forward ROI input contains non-finite coordinates")
+    minimum = float(min_x_m)
+    if not math.isfinite(minimum) or minimum < 0:
+        raise ValueError("LiDAR forward ROI minimum X must be nonnegative")
+    return points[:, 0] >= minimum
+
+
 def angular_roi_mask(points, min_angle_deg, max_angle_deg):
     """Return points inside a base_link angular sector.
 

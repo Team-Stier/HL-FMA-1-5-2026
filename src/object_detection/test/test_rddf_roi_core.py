@@ -9,6 +9,7 @@ from object_detection_core.rddf_roi import (
     RddfRouteNetwork,
     angular_roi_mask,
     circle_union_mask,
+    lidar_forward_mask,
     vehicle_exclusion_mask,
 )
 
@@ -69,6 +70,14 @@ class RddfRoiCoreTest(unittest.TestCase):
         rear_mask = angular_roi_mask(points, 135.0, -135.0)
         np.testing.assert_array_equal(
             rear_mask, (False, False, False, False, True, True))
+
+    def test_lidar_forward_mask_uses_lidar_x_and_includes_cutoff(self):
+        points = np.asarray((
+            (-1.0, 0.0), (0.0, 10.0), (0.049, -2.0),
+            (0.05, 3.0), (2.0, -100.0),
+        ))
+        mask = lidar_forward_mask(points, 0.05)
+        np.testing.assert_array_equal(mask, (False, False, False, True, True))
 
     def test_vehicle_exclusion_uses_base_link_extents_and_removes_boundary(self):
         points = np.asarray((
