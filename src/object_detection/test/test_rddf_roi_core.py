@@ -7,6 +7,7 @@ import numpy as np
 
 from object_detection_core.rddf_roi import (
     RddfRouteNetwork,
+    angular_roi_mask,
     circle_union_mask,
     vehicle_exclusion_mask,
 )
@@ -56,6 +57,18 @@ class RddfRoiCoreTest(unittest.TestCase):
             2.0,
         )
         np.testing.assert_array_equal(mask, (True, True, False, False))
+
+    def test_angular_roi_uses_base_link_heading_and_includes_boundaries(self):
+        points = np.asarray((
+            (1.0, 0.0), (1.0, 1.0), (0.0, 1.0),
+            (0.0, -1.0), (-1.0, 1.0), (-1.0, 0.0),
+        ))
+        mask = angular_roi_mask(points, -90.0, 90.0)
+        np.testing.assert_array_equal(mask, (True, True, True, True, False, False))
+
+        rear_mask = angular_roi_mask(points, 135.0, -135.0)
+        np.testing.assert_array_equal(
+            rear_mask, (False, False, False, False, True, True))
 
     def test_vehicle_exclusion_uses_base_link_extents_and_removes_boundary(self):
         points = np.asarray((

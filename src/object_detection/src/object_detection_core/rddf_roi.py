@@ -199,6 +199,31 @@ def circle_union_mask(points, centers, radius_m):
     return nearest_within_radius(points, centers, radius)
 
 
+def angular_roi_mask(points, min_angle_deg, max_angle_deg):
+    """Return points inside a base_link angular sector.
+
+    ``base_link`` follows REP-103: +X is 0 degrees and +Y is +90 degrees.
+    Sector boundaries are included. If the minimum angle is greater than the
+    maximum angle, the sector wraps across -180/180 degrees.
+    """
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 2:
+        raise ValueError("points must have shape (N, 2)")
+    if not np.isfinite(points).all():
+        raise ValueError("angular ROI input contains non-finite coordinates")
+    minimum, maximum = float(min_angle_deg), float(max_angle_deg)
+    if (not math.isfinite(minimum) or not math.isfinite(maximum)
+            or not -180.0 <= minimum <= 180.0
+            or not -180.0 <= maximum <= 180.0
+            or minimum == maximum):
+        raise ValueError(
+            "angular ROI angles must be distinct and within [-180, 180] degrees")
+    angles = np.degrees(np.arctan2(points[:, 1], points[:, 0]))
+    if minimum < maximum:
+        return (angles >= minimum) & (angles <= maximum)
+    return (angles >= minimum) | (angles <= maximum)
+
+
 def vehicle_exclusion_mask(points, rear_m, front_m, right_m, left_m):
     """Return True for points outside a base_link-aligned vehicle box.
 
