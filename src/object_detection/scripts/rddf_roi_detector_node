@@ -80,7 +80,7 @@ def _clear_markers():
     return MarkerArray([clear])
 
 
-def roi_markers(header, polylines, centers, radius):
+def roi_markers(header, polylines, centers, radius, vehicle_box=None):
     output = _clear_markers()
     circles = Marker()
     circles.header = header
@@ -106,6 +106,43 @@ def roi_markers(header, polylines, centers, radius):
         line.color = ColorRGBA(0.0, 1.0, 1.0, 0.95)
         line.points = [Point(float(x), float(y), 0.08) for x, y in polyline]
         output.markers.append(line)
+    if vehicle_box is not None:
+        base_frame, rear, front, right, left = vehicle_box
+        box_header = Header(stamp=header.stamp, frame_id=base_frame)
+
+        fill = Marker()
+        fill.header = box_header
+        fill.ns = "vehicle_self_filter_fill"
+        fill.id = 0
+        fill.type = Marker.CUBE
+        fill.action = Marker.ADD
+        fill.pose.position.x = (front - rear) * 0.5
+        fill.pose.position.y = (left - right) * 0.5
+        fill.pose.position.z = 0.025
+        fill.pose.orientation.w = 1.0
+        fill.scale.x = front + rear
+        fill.scale.y = left + right
+        fill.scale.z = 0.05
+        fill.color = ColorRGBA(1.0, 0.08, 0.02, 0.13)
+        output.markers.append(fill)
+
+        outline = Marker()
+        outline.header = box_header
+        outline.ns = "vehicle_self_filter_outline"
+        outline.id = 0
+        outline.type = Marker.LINE_STRIP
+        outline.action = Marker.ADD
+        outline.pose.orientation.w = 1.0
+        outline.scale.x = 0.08
+        outline.color = ColorRGBA(1.0, 0.08, 0.02, 1.0)
+        outline.points = [
+            Point(-rear, -right, 0.10),
+            Point(front, -right, 0.10),
+            Point(front, left, 0.10),
+            Point(-rear, left, 0.10),
+            Point(-rear, -right, 0.10),
+        ]
+        output.markers.append(outline)
     return output
 
 
@@ -184,6 +221,9 @@ class RddfRoiDetector:
         self.self_filter_enabled = rospy.get_param("~roi/self_filter/enabled")
         if not isinstance(self.self_filter_enabled, bool):
             raise ValueError("self_filter/enabled must be Boolean")
+        self.self_filter_visualize = rospy.get_param("~roi/self_filter/visualize")
+        if not isinstance(self.self_filter_visualize, bool):
+            raise ValueError("self_filter/visualize must be Boolean")
         self.vehicle_extents = (
             _positive("self_filter/rear_extent_m",
                       rospy.get_param("~roi/self_filter/rear_extent_m")),
@@ -294,7 +334,10 @@ class RddfRoiDetector:
         self.roi_points_publisher.publish(
             point_cloud2.create_cloud_xyz32(header, filtered.tolist()))
         self.roi_marker_publisher.publish(
-            roi_markers(header, polylines, centers, self.radius))
+            roi_markers(
+                header, polylines, centers, self.radius,
+                ((self.base_frame,) + self.vehicle_extents
+                 if self.self_filter_enabled and self.self_filter_visualize else None)))
         self.cluster_publisher.publish(
             cluster_markers(
                 header, clustered, labels, self.point_size, self.centroid_size))

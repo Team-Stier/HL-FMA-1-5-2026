@@ -12,9 +12,9 @@ DBSCAN 입력으로 사용한다. 현재 RDDF 끝에 가까워지면 연결된 �
 이어 붙인다. 좌우 경로가 갈리는 지점에서는 아직 경로가 확정되지 않은 두 후보를 모두
 포함해 전환 순간에 ROI가 끊기지 않게 한다.
 
-차량 자체 반사는 DBSCAN 전에 `base_link` 기준 직사각형 영역으로 제거한다. 기본 영역은
-전방 1.50 m, 후방 0.70 m, 좌우 0.65 m다. 팀 뷰어의 기존 차량 외곽과 실제 차체를 보면서
-`config/rddf_roi.yaml`의 `self_filter` 값을 조절한다.
+차량 자체 반사는 DBSCAN 전에 `base_link` 기준 직사각형 영역으로 제거한다. 복사한 뷰어에는
+실제 제거 영역이 반투명 빨간 면과 외곽선으로 표시된다. 팀 뷰어의 기존 차량 외곽 및 실제
+차체를 보면서 `config/rddf_roi.yaml`의 `self_filter` 값을 조절한다.
 
 RDDF 원 판정과 DBSCAN 이웃 검색은 SciPy가 설치되어 있으면 KD-tree를 사용한다. ROI를
 통과한 점은 기본 5 cm XY voxel로 줄인 뒤 DBSCAN에 넣는다. `voxel_size_m: 0`이면
