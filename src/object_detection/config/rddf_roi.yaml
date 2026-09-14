@@ -29,7 +29,11 @@ connection_distance_m: 1.0
 # 팀 뷰어의 기존 차량 외곽과 실제 차체를 보고 각 방향으로 5~10 cm 크게 맞춘다.
 self_filter:
   enabled: true
+  # base_link 원점에서 차량 맨 뒤까지의 거리. 뒤쪽 차량점이 남으면 키운다.
   rear_extent_m: 0.70
+  # base_link 원점에서 차량 맨 앞까지의 거리. 앞쪽 차량점이 남으면 키운다.
   front_extent_m: 1.50
+  # 차량 오른쪽 폭. RViz에서 오른쪽 차량점이 남으면 키운다.
   right_extent_m: 0.65
+  # 차량 왼쪽 폭. RViz에서 왼쪽 차량점이 남으면 키운다.
   left_extent_m: 0.65

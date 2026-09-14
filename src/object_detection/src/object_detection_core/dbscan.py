@@ -1,9 +1,11 @@
-"""Small deterministic 2D DBSCAN implementation using a spatial hash grid."""
+"""Deterministic 2D DBSCAN with KD-tree and spatial-hash neighbor search."""
 
 from collections import defaultdict, deque
 import math
 
 import numpy as np
+
+from .spatial import radius_neighbors
 
 
 UNVISITED = -2
@@ -33,35 +35,36 @@ def dbscan(points, eps=0.3, min_samples=4):
     if count == 0:
         return labels
 
-    # Python floats avoid allocating a tiny NumPy vector for every distance
-    # check. This matters for dense angle-compensated LaserScan clouds.
-    xs = points[:, 0].tolist()
-    ys = points[:, 1].tolist()
-    cells = defaultdict(list)
-    for index, (x, y) in enumerate(zip(xs, ys)):
-        cells[(math.floor(x / eps), math.floor(y / eps))].append(index)
-    eps_squared = eps * eps
+    adjacency = radius_neighbors(points, eps)
+    if adjacency is None:
+        # Dependency-free fallback for systems where SciPy is not installed.
+        # Python floats avoid a tiny NumPy allocation for every distance check.
+        xs = points[:, 0].tolist()
+        ys = points[:, 1].tolist()
+        cells = defaultdict(list)
+        for index, (x, y) in enumerate(zip(xs, ys)):
+            cells[(math.floor(x / eps), math.floor(y / eps))].append(index)
+        eps_squared = eps * eps
+        adjacency = [[index] for index in range(count)]
 
-    adjacency = [[index] for index in range(count)]
+        def connect(first, second):
+            dx = xs[first] - xs[second]
+            dy = ys[first] - ys[second]
+            if dx * dx + dy * dy <= eps_squared:
+                adjacency[first].append(second)
+                adjacency[second].append(first)
 
-    def connect(first, second):
-        dx = xs[first] - xs[second]
-        dy = ys[first] - ys[second]
-        if dx * dx + dy * dy <= eps_squared:
-            adjacency[first].append(second)
-            adjacency[second].append(first)
-
-    # Build each undirected neighbor pair once. Only the current cell and four
-    # forward neighboring cells are needed; the other four were already seen.
-    for cell, members in cells.items():
-        for offset, first in enumerate(members):
-            for second in members[offset + 1:]:
-                connect(first, second)
-        cell_x, cell_y = cell
-        for dx, dy in ((0, 1), (1, -1), (1, 0), (1, 1)):
-            for first in members:
-                for second in cells.get((cell_x + dx, cell_y + dy), ()):
+        # Build each undirected neighbor pair once. Only the current cell and
+        # four forward neighbors are needed; the other four were already seen.
+        for cell, members in cells.items():
+            for offset, first in enumerate(members):
+                for second in members[offset + 1:]:
                     connect(first, second)
+            cell_x, cell_y = cell
+            for dx, dy in ((0, 1), (1, -1), (1, 0), (1, 1)):
+                for first in members:
+                    for second in cells.get((cell_x + dx, cell_y + dy), ()):
+                        connect(first, second)
 
     cluster = 0
     for index in range(count):
@@ -90,3 +93,24 @@ def dbscan(points, eps=0.3, min_samples=4):
                         queue.append(neighbor)
         cluster += 1
     return labels
+
+
+def voxel_downsample(points, voxel_size_m):
+    """Replace points in each XY voxel with their centroid."""
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] not in (2, 3):
+        raise ValueError("points must have shape (N, 2) or (N, 3)")
+    if not np.isfinite(points).all():
+        raise ValueError("points must contain only finite coordinates")
+    if (not isinstance(voxel_size_m, (int, float)) or isinstance(voxel_size_m, bool)
+            or not math.isfinite(voxel_size_m) or voxel_size_m <= 0):
+        raise ValueError("voxel_size_m must be a positive finite number")
+    if len(points) == 0:
+        return points.copy()
+    cells = np.floor(points[:, :2] / float(voxel_size_m)).astype(np.int64)
+    _, inverse = np.unique(cells, axis=0, return_inverse=True)
+    count = int(inverse.max()) + 1
+    sums = np.zeros((count, points.shape[1]), dtype=float)
+    samples = np.bincount(inverse, minlength=count)
+    np.add.at(sums, inverse, points)
+    return sums / samples[:, None]

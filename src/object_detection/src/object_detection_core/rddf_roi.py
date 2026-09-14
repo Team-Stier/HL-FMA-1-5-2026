@@ -9,6 +9,8 @@ import re
 
 import numpy as np
 
+from .spatial import nearest_within_radius
+
 
 @dataclass(frozen=True)
 class Route:
@@ -194,26 +196,7 @@ def circle_union_mask(points, centers, radius_m):
         raise ValueError("ROI input contains non-finite coordinates")
     if not math.isfinite(radius) or radius <= 0:
         raise ValueError("radius_m must be positive")
-    cells = {}
-    for center in centers:
-        key = (math.floor(center[0] / radius), math.floor(center[1] / radius))
-        cells.setdefault(key, []).append(center)
-    radius_squared = radius * radius
-    mask = np.zeros(len(points), dtype=bool)
-    for index, point in enumerate(points):
-        cell_x, cell_y = math.floor(point[0] / radius), math.floor(point[1] / radius)
-        for dx in (-1, 0, 1):
-            if mask[index]:
-                break
-            for dy in (-1, 0, 1):
-                for center in cells.get((cell_x + dx, cell_y + dy), ()):
-                    delta = point - center
-                    if float(delta @ delta) <= radius_squared:
-                        mask[index] = True
-                        break
-                if mask[index]:
-                    break
-    return mask
+    return nearest_within_radius(points, centers, radius)
 
 
 def vehicle_exclusion_mask(points, rear_m, front_m, right_m, left_m):

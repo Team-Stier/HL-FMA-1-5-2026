@@ -16,7 +16,7 @@ from std_msgs.msg import ColorRGBA, Header
 from tf.transformations import quaternion_matrix
 from visualization_msgs.msg import Marker, MarkerArray
 
-from object_detection_core import NOISE, dbscan
+from object_detection_core import NOISE, dbscan, spatial_index_backend, voxel_downsample
 from object_detection_core.rddf_roi import (
     RddfRouteNetwork,
     circle_union_mask,
@@ -159,6 +159,8 @@ class RddfRoiDetector:
             rospy.get_param("~rddf_directory"), connection_distance)
         self.eps = _positive("eps", rospy.get_param("~eps"))
         self.min_samples = int(rospy.get_param("~min_samples"))
+        self.voxel_size = _positive(
+            "voxel_size_m", rospy.get_param("~voxel_size_m"), allow_zero=True)
         self.point_size = _positive("point_size", rospy.get_param("~point_size"))
         self.self_filter_enabled = rospy.get_param("~roi/self_filter/enabled")
         if not isinstance(self.self_filter_enabled, bool):
@@ -194,9 +196,12 @@ class RddfRoiDetector:
         self.scan_subscriber = rospy.Subscriber(
             topics["scan"], LaserScan, self.scan_callback, queue_size=1)
         rospy.loginfo(
-            "RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f self_filter=%s",
+            "RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f "
+            "self_filter=%s spatial=%s voxel=%.3f",
             topics["scan"], topics["current_rddf"], self.radius, self.lookahead,
-            self.self_filter_enabled)
+            self.self_filter_enabled, spatial_index_backend(), self.voxel_size)
+        if spatial_index_backend() != "kd_tree":
+            rospy.logwarn("python3-scipy가 없어 KD-tree 대신 NumPy/spatial-hash fallback을 사용합니다")
 
     def match_callback(self, message):
         if (not message.matched or not message.has_nearest or not message.source_route_name
@@ -259,7 +264,9 @@ class RddfRoiDetector:
                 xyz = xyz[keep]
             mask = circle_union_mask(xyz[:, :2], centers, self.radius)
             filtered = xyz[mask]
-            labels = dbscan(filtered[:, :2], self.eps, self.min_samples)
+            clustered = (voxel_downsample(filtered, self.voxel_size)
+                         if self.voxel_size > 0 else filtered)
+            labels = dbscan(clustered[:, :2], self.eps, self.min_samples)
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException,
                 tf2_ros.ExtrapolationException, ValueError, IndexError) as error:
             rospy.logwarn_throttle(5.0, "RDDF ROI 생략: %s", error)
@@ -270,10 +277,12 @@ class RddfRoiDetector:
         self.roi_marker_publisher.publish(
             roi_markers(header, polylines, centers, self.radius))
         self.cluster_publisher.publish(
-            cluster_markers(header, filtered, labels, self.point_size))
+            cluster_markers(header, clustered, labels, self.point_size))
         cluster_count = len(set(labels.tolist()) - {NOISE})
-        rospy.logdebug("RDDF ROI %s: %d/%d points, self=%d removed, %d clusters",
-                       source_route, len(filtered), len(xyz), removed_count, cluster_count)
+        rospy.logdebug(
+            "RDDF ROI %s: roi=%d voxel=%d/%d points, self=%d removed, %d clusters",
+            source_route, len(filtered), len(clustered), len(xyz), removed_count,
+            cluster_count)
 
 
 if __name__ == "__main__":

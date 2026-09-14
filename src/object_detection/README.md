@@ -16,6 +16,10 @@ DBSCAN 입력으로 사용한다. 현재 RDDF 끝에 가까워지면 연결된 �
 전방 1.50 m, 후방 0.70 m, 좌우 0.65 m다. 팀 뷰어의 기존 차량 외곽과 실제 차체를 보면서
 `config/rddf_roi.yaml`의 `self_filter` 값을 조절한다.
 
+RDDF 원 판정과 DBSCAN 이웃 검색은 SciPy가 설치되어 있으면 KD-tree를 사용한다. ROI를
+통과한 점은 기본 5 cm XY voxel로 줄인 뒤 DBSCAN에 넣는다. `voxel_size_m: 0`이면
+다운샘플링을 끌 수 있다. RViz 표시 구성과 토픽 이름은 바뀌지 않는다.
+
 파라미터와 한글 튜닝 설명은 `config/rddf_roi.yaml`과 `config/dbscan.yaml`에 있다.
 기본 출력은 다음과 같다.
 
@@ -55,6 +59,9 @@ rostopic hz /dbscan_clusters
 ## 빌드·검사
 
 ```bash
+sudo apt update
+sudo apt install -y python3-scipy
+
 cd ~/HL-FMA2026-suhyeon
 source /opt/ros/noetic/setup.bash
 catkin_make -j2 -l2 -DPYTHON_EXECUTABLE=/usr/bin/python3

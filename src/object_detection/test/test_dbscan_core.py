@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from object_detection_core import NOISE, dbscan
+from object_detection_core import NOISE, dbscan, voxel_downsample
 
 
 class DbscanTest(unittest.TestCase):
@@ -36,6 +36,19 @@ class DbscanTest(unittest.TestCase):
         for minimum in (0, 1.5, True):
             with self.assertRaises(ValueError):
                 dbscan([(0, 0)], .3, minimum)
+
+    def test_voxel_downsample_returns_xyz_centroids(self):
+        result = voxel_downsample(
+            np.asarray(((0.01, 0.01, 1.0), (0.04, 0.03, 3.0), (0.11, 0.0, 5.0))),
+            0.05,
+        )
+        np.testing.assert_allclose(result, ((0.025, 0.02, 2.0), (0.11, 0.0, 5.0)))
+
+    def test_voxel_downsample_validates_input(self):
+        for points, size in (([(0, 0, 0, 0)], .05), ([(0, float("nan"))], .05),
+                             ([(0, 0)], 0), ([(0, 0)], True)):
+            with self.assertRaises(ValueError):
+                voxel_downsample(points, size)
 
 
 if __name__ == '__main__':
