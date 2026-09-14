@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TF·실행·관측",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "tf",
+      "type": "backend",
+      "label": "TF 프레임",
+      "sublabel": "동적 소유권 · 정적 장착값",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "bringup",
+      "type": "backend",
+      "label": "Bringup",
+      "sublabel": "기능 인자 · 필수 초기화",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "replay",
+      "type": "backend",
+      "label": "Replay·지도 수집",
+      "sublabel": "실차 bringup과 다른 옵션",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Viewer·시각화",
+      "sublabel": "경로 · 진단 · 초기 위치 선택",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "config",
+      "type": "database",
+      "label": "운영 설정",
+      "sublabel": "YAML · 측정 여부 · reload",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": []
+}

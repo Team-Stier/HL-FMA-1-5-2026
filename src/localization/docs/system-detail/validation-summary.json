@@ -1,0 +1,192 @@
+{
+  "diagram_type": "architecture",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-architecture.html",
+  "specification_sha256": "a338aca066d385f61f8a111849ecc49f22a8a8d442fb0a32c4af0cacd221b0e7",
+  "artifact_sha256": "cab1a3a142731e1a1558f1afc6251ba2dc793eb3a391b04eb77a68bb85c204d4",
+  "artifact_bytes": 971793,
+  "archify": {
+    "count": 25,
+    "validation": "25 × 9/9 showcase, 0 errors, 0 warnings",
+    "browser_evidence": "passed",
+    "receipts": {
+      "system": {
+        "specification_sha256": "3574326b6b83c51a3b620a6384a47251b15ebb5560224af4dcc597c428cf5cb9",
+        "artifact_sha256": "cf1adef9db2cd99f4ccce96303186173a47f2db8867cde9accef3c588bb1dad9",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "localization": {
+        "specification_sha256": "8365903cbb161358d31db95d9185166e63f092f4e183780918310c79d3deea66",
+        "artifact_sha256": "05cc17b511dbe43200e184bf7779266893e052509c4e29358fb73fa3c4d7b176",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "sensors": {
+        "specification_sha256": "13728e47f00dad5ea481b0e3fcd9a2c1d4e9ae380fa5ac45ff59b3fc9dbf6a58",
+        "artifact_sha256": "a59c38825fb97399e04180475c5522d4bef57fdca3f1cbaf0d63b0bf15dd0561",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "perception": {
+        "specification_sha256": "aec5d84900760aa4ca888b6e9b0f2665d2ca5c3bb0b4c12553d1c77c85071a25",
+        "artifact_sha256": "300b7c22988ff255eb91c9c9d4d90112dcbacf00b7f0025030b0ea8f30dff12b",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "planning": {
+        "specification_sha256": "0ef5bf15813d2b3494b508df3fd4e101d1627847e98a82850cf3a830491fccf3",
+        "artifact_sha256": "54f1ea7469823bbed0bc0e8be5db05fe40565c3b31e1727c7ba23edb575bc7c2",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "control": {
+        "specification_sha256": "fc202c51948c24f8e8ada675a66b1a729428cfca03c497b30a9a716792c248dd",
+        "artifact_sha256": "65b05dbbf68fad13004464bd2c5a50a7f4e7aaa74721b801ceadb94d990736cd",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "interfaces": {
+        "specification_sha256": "24c159c353efb334c33bdb97412914068038364babeecc6a359e521df1c9fd9b",
+        "artifact_sha256": "2f0aada369a62825231af2fc6a0a62f21816d554f32ab460fd83db42fe2694d4",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "motion": {
+        "specification_sha256": "2152b11b65405993e614764b29b72e24a8e309b4f733f8526c57fb7601bdacbb",
+        "artifact_sha256": "f7d31ea8716c8e6117f12c074580c6dbcf4d27201475c5dafb451cef864badff",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "adapter": {
+        "specification_sha256": "6f16c81d26a254cf7d390fc6a13d7fda2270607ce9ad79f2c27861e33ab3ac6c",
+        "artifact_sha256": "1899c54cfc07084d2bb88a0e31d1285b9a3b841d8a7b01cef5c4cce27868284c",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "filters": {
+        "specification_sha256": "f50a69567869026200128f293b6a9a6db3cc8779172a40f9b87b4b5cd267be4f",
+        "artifact_sha256": "ff85f447fde0ef4a318bfd97b02454a89f73282640f724ba568c3d2249676273",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "lidar": {
+        "specification_sha256": "226c86724b9035825f2cb362598dc94b6ed307f1d78307a6b6aef79dffc13333",
+        "artifact_sha256": "c9f3051490b1df0bab5c8d4aee56b3e80f36ea7f88f7b6c656db83c5826c7df7",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "safety": {
+        "specification_sha256": "a8d69d8700767401a11d20274be4d58072b7782b30a49cbf788d8bf6ed3bb7e9",
+        "artifact_sha256": "99272f23e46fe76addfa0172791caebb80b4c40b9ed9a4c1c26274b0c978d08a",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "encoder": {
+        "specification_sha256": "14d69766fb64bf5ae6b0b8846c794f1522721b2cb5d39854ce341cbca8f4c29c",
+        "artifact_sha256": "2c5b781eeca29361cf5e05cb1c831ca6a0ac8baa667356b872c136e004581314",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "imu": {
+        "specification_sha256": "c8bf18b60cead9dbcb347734418e0bba4e917e47eb2dd40b9119c814f3b0c569",
+        "artifact_sha256": "0dc5e3c5702973ad6f583ecba9e6b93d572b1ff6afe9365ef9021f2f274ea139",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "gps": {
+        "specification_sha256": "c7f834aa53e6006d24cc8d2acbc2d9d36748dc03e828933f9373a5dbf6d6cdea",
+        "artifact_sha256": "4f754c64de91d1f4890f72fc5129be2737dfed60d4c289424fb52d595b65eedc",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "recovery": {
+        "specification_sha256": "7a435faabee606eed59705bc23863a7528c82f6b8f206cd6a7c566b32b4c32ca",
+        "artifact_sha256": "20e088681e0aeaa671a9aa9b0966b35d03c6d62a365678a339e595e79dbbe8c2",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "state": {
+        "specification_sha256": "41595456f98dca8de0e23b68bf9875e23e588999d6e7bf19ab774f969d5fcef7",
+        "artifact_sha256": "5a7c1f602742fd5ff957016fe26ac94709628e0d5f34802f37b3bdb65822ed9c",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "output": {
+        "specification_sha256": "daf9a95dc762d24ca3d92653dac58e6999cb3ff94835398d224f6b87bd0df681",
+        "artifact_sha256": "24ac2fed3a2896cb71b774bd4633a0b7b343aa2cb0b929957d657eeb9f434c78",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "rddf": {
+        "specification_sha256": "c6968b6e68e97143da78b246d7eecba42fee6412cec1d304f453f2276d50e01e",
+        "artifact_sha256": "6f72c8bd3e796a2f88a4961a0a7bf74ed191f8f01b8efcb92f8f40def9607f3a",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "rddf_match": {
+        "specification_sha256": "dc75db8701130a90b3fa3270c4648390f19f189cb57d32fd74bd7b575a216666",
+        "artifact_sha256": "4a3b54fcbede2799c9e298747b3af090589ea609c69e5b5d27e4a55b40fd0d74",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "timing": {
+        "specification_sha256": "c51e9b49955f01654f0ec1513e85ac23459e04c2c365b3b74587dd4b4e0610d4",
+        "artifact_sha256": "82a0cb7ea4b369b8ef849ec9213dfb3850b4c25781be8f79d9be7a01a8d1610f",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "operations": {
+        "specification_sha256": "666121b7bc37a01a44998ef85811cb0f493b6aa500431b5c6b9c29cbf648edce",
+        "artifact_sha256": "2f93c5a4cbd3d7b0d97aebcd5a05c210fd2194ffb7acfc3fddcb450cb7e663f0",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "tf": {
+        "specification_sha256": "aa197e9578486db9ef23ba8788599d68e94fb40a3a32b04514a2202c8f86e42f",
+        "artifact_sha256": "c164f509a9b4a4be606bfc52ac14c17bf2eab1ca4b687f5b216fd2f62a95a8d4",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "launches": {
+        "specification_sha256": "9e4ea6d3620243989d884ad0ec9a74e499b2994b2f5cb47c83e912c1fc19df3a",
+        "artifact_sha256": "14b4a9726f8669ec35eb11c937b7e38a71080a4661309bc824f44c236e9e69c9",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      },
+      "viewer": {
+        "specification_sha256": "bbd858d5b819951c2679771b118db867d8d4ac75d164ca7e894f4215564b6e69",
+        "artifact_sha256": "798bfdc2cc5c1f58249b3ad90137a47eb1cc0975b2b13e16a1016ead82a678b5",
+        "validation": "9/9 showcase, 0 errors, 0 warnings",
+        "browser_evidence": "passed"
+      }
+    }
+  },
+  "explorer": {
+    "browser_evidence": "passed",
+    "node_interactions": 127,
+    "desktop_viewport_theme_measurements": 200,
+    "offline": true,
+    "compatibility_entry": "localization-five-stage.html"
+  },
+  "visual_review": {
+    "status": "passed",
+    "reviewer": "Codex image-capable review",
+    "scope": [
+      "explorer localization at 2048x1320 dark"
+    ],
+    "note": "Codex inspected the current Localization screenshot. Automated browser coverage spans all 25 diagrams; native receipts do not imply perceptual review.",
+    "artifact_sha256": "cab1a3a142731e1a1558f1afc6251ba2dc793eb3a391b04eb77a68bb85c204d4"
+  },
+  "source_snapshots": 90,
+  "source_drift": [],
+  "runtime_ros_verification": {
+    "catkin_build": "passed",
+    "catkin_test_results": {
+      "tests": 233,
+      "errors": 0,
+      "failures": 0
+    },
+    "live_sensors": false
+  },
+  "local_qwen_report": "usage/REPORT.md"
+}

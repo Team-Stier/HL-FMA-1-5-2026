@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "센서 시각과 clock_ready",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Host clock 확인",
+      "sublabel": "chrony · 동기 상태",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "monitor",
+      "type": "backend",
+      "label": "SensorTimingMonitor",
+      "sublabel": "센서·driver·host 진단",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "ready",
+      "type": "messagebus",
+      "label": "clock_ready",
+      "sublabel": "내부 Bool heartbeat",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "driver",
+      "type": "backend",
+      "label": "GNSS 시각 정책",
+      "sublabel": "NavPVT · receiver epoch",
+      "pos": [
+        455,
+        380
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "consumers",
+      "type": "backend",
+      "label": "시각 조건 소비자",
+      "sublabel": "GPS gate · 보정 · 초기화",
+      "pos": [
+        850,
+        380
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "host-to-monitor",
+      "from": "host",
+      "to": "monitor",
+      "label": "host 상태",
+      "variant": "default"
+    },
+    {
+      "id": "monitor-to-ready",
+      "from": "monitor",
+      "to": "ready",
+      "label": "준비 판정",
+      "variant": "default"
+    },
+    {
+      "id": "driver-to-monitor",
+      "from": "driver",
+      "to": "monitor",
+      "label": "timing 진단",
+      "variant": "default"
+    },
+    {
+      "id": "ready-to-consumers",
+      "from": "ready",
+      "to": "consumers",
+      "label": "clock_ready",
+      "variant": "default",
+      "labelAt": [
+        975.0,
+        270.0
+      ]
+    }
+  ]
+}

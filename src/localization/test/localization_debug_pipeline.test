@@ -1,8 +1,0 @@
-<launch>
-  <include file="$(find localization)/test/localization_debug.launch">
-    <arg name="start_rviz" value="false"/>
-  </include>
-
-  <test test-name="localization_debug_pipeline" pkg="localization"
-        type="test_localization_debug_pipeline.py" time-limit="20"/>
-</launch>

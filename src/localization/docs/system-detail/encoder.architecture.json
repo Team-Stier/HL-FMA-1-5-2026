@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "엔코더 검사·Twist 변환",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "encoder0",
+      "type": "backend",
+      "label": "엔코더 수신",
+      "sublabel": "SerialFeedBack",
+      "pos": [
+        60,
+        270
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "encoder1",
+      "type": "backend",
+      "label": "속도 변환",
+      "sublabel": "vx = speed × scale × sign",
+      "pos": [
+        455,
+        270
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "encoder2",
+      "type": "backend",
+      "label": "Twist 발행",
+      "sublabel": "base_link · PC 수신 시각",
+      "pos": [
+        850,
+        270
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "encoder0-to-encoder1",
+      "from": "encoder0",
+      "to": "encoder1",
+      "label": "검사 통과",
+      "variant": "default"
+    },
+    {
+      "id": "encoder1-to-encoder2",
+      "from": "encoder1",
+      "to": "encoder2",
+      "label": "변환",
+      "variant": "default"
+    }
+  ]
+}

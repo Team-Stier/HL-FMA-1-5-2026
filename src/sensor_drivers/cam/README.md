@@ -74,7 +74,7 @@ sudo apt install ros-noetic-usb-cam ros-noetic-rqt-image-view v4l-utils
 패키지를 빌드하고 현재 터미널에 반영한다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 catkin_make --pkg cam_bringup
 source devel/setup.bash

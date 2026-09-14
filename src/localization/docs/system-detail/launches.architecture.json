@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Launch 구성 트리",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "bringup",
+      "type": "backend",
+      "label": "bringup.launch",
+      "sublabel": "최상위 구성",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "local",
+      "type": "backend",
+      "label": "local_fusion.launch",
+      "sublabel": "전처리·Local EKF",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "absolute",
+      "type": "backend",
+      "label": "절대 위치 관측",
+      "sublabel": "gps_fusion",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "global",
+      "type": "backend",
+      "label": "global_fusion.launch",
+      "sublabel": "Global EKF",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "safety",
+      "type": "backend",
+      "label": "safety_and_tf.launch",
+      "sublabel": "Supervisor·Gate·정적 TF",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "display",
+      "type": "backend",
+      "label": "visualization.launch",
+      "sublabel": "시각화·Viewer",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": []
+}

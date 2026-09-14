@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/perception.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/perception.html",
+  "specification": {
+    "sha256": "aec5d84900760aa4ca888b6e9b0f2665d2ca5c3bb0b4c12553d1c77c85071a25",
+    "bytes": 2281
+  },
+  "artifact": {
+    "sha256": "300b7c22988ff255eb91c9c9d4d90112dcbacf00b7f0025030b0ea8f30dff12b",
+    "bytes": 801066
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

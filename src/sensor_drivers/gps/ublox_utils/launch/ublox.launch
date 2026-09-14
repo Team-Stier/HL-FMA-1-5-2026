@@ -8,6 +8,7 @@
     <!-- u-blox position receiver -->
     <arg name="device_position_receiver" default="/dev/ttyACM0"/>
     <arg name="frame_id_position_receiver" default="gnss"/>
+    <arg name="use_ros_time_position_receiver" default="false"/>
 
     <!-- u-blox moving baseline receiver -->
     <arg name="use_moving_baseline" default="false"/>
@@ -42,6 +43,7 @@
         <rosparam command="load" file="$(arg param_file_dir)/$(arg param_file_name).yaml"/>
         <param name="device" value="$(arg device_position_receiver)"/>
         <param name="frame_id" value="$(arg frame_id_position_receiver)"/>
+        <param name="use_ros_time" value="$(arg use_ros_time_position_receiver)"/>
     </node>
 
     <!-- The second optional ublox moving baseline receiver -->

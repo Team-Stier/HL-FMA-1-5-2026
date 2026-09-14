@@ -83,7 +83,7 @@ enable_filter_config: false
 # For MTi-8: 3 options: 0 = "General_RTK", 1 = "GeneralNoBaro_RTK", 2 = "GeneralMag_RTK"
 # For MTi-300: 0 = "general", 1 = "high_mag_dep", 2 = "dynamic", 3 = "lwo_mag_dep", 4 = "vru_general"
 # For MTI-G-710: 3 options: 0 = "General", 1 = "GeneralNoBaro",  2 = "GeneralMag", 3 = "Automotive", 4 = "HighPerformanceEDR"
-mti_filter_option: 0
+mti_filter_option: 4
 
 # For MTi-620(R) and MTi-630(R) roll pitch options: "Responsive", "General", "Robust"
 mti620630filterlabel_rollpitch: "Robust"
@@ -252,4 +252,3 @@ magnetic_field_stddev: [0.0, 0.0, 0.0]     # [Tesla] Standard deviation for magn
 ## 5.2) MTi-7/8/670(G)/680(G)/MTi-G-710, 100Hz:  FA FF C0 34 10 20 FF FF 10 60 FF FF 10 10 FF FF 20 10 00 64 40 20 00 64 80 20 00 64 C0 20 00 64 08 10 00 64 E0 20 FF FF 50 42 00 64 50 22 00 64 D0 12 00 64 70 10 FF FF A9
 ## 5.3) MTi-630(R)/MTi-300, 400Hz: FA FF C0 24 10 20 FF FF 10 60 FF FF 10 10 FF FF 20 10 01 90 40 20 01 90 80 20 01 90 C0 20 00 64 08 10 01 90 E0 20 FF FF 95
 ## 5.4) MTi-3/630(R)/MTi-300, 100Hz: FA FF C0 24 10 20 FF FF 10 60 FF FF 10 10 FF FF 20 10 00 64 40 20 00 64 80 20 00 64 C0 20 00 64 08 10 00 64 E0 20 FF FF 49
-

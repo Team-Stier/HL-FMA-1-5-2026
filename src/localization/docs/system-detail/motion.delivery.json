@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/motion.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/motion.html",
+  "specification": {
+    "sha256": "2152b11b65405993e614764b29b72e24a8e309b4f733f8526c57fb7601bdacbb",
+    "bytes": 2028
+  },
+  "artifact": {
+    "sha256": "f7d31ea8716c8e6117f12c074580c6dbcf4d27201475c5dafb451cef864badff",
+    "bytes": 798426
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

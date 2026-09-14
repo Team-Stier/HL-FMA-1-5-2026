@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "전체 시스템",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "sensors",
+      "type": "external",
+      "label": "센서 드라이버",
+      "sublabel": "IMU · GNSS · LiDAR · Camera",
+      "pos": [
+        60,
+        230
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "localization",
+      "type": "backend",
+      "label": "Localization",
+      "sublabel": "위치 추정 · 초기화 · 상태 · 복구",
+      "pos": [
+        455,
+        230
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "planning",
+      "type": "backend",
+      "label": "경로 계획·선택",
+      "sublabel": "플래너 뼈대 · Selector 구현",
+      "pos": [
+        850,
+        230
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "차량 제어",
+      "sublabel": "control · 실행 코드 없음",
+      "pos": [
+        850,
+        410
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "interfaces",
+      "type": "messagebus",
+      "label": "인터페이스",
+      "sublabel": "메시지 정의 · 차량 연결",
+      "pos": [
+        455,
+        410
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "perception",
+      "type": "backend",
+      "label": "인지",
+      "sublabel": "객체 검출 · 신호등 인식",
+      "pos": [
+        455,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "operations",
+      "type": "frontend",
+      "label": "실행·관측",
+      "sublabel": "launch · replay · Viewer",
+      "pos": [
+        60,
+        410
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "sensors-to-localization",
+      "from": "sensors",
+      "to": "localization",
+      "label": "센서 입력",
+      "variant": "default"
+    },
+    {
+      "id": "localization-to-planning",
+      "from": "localization",
+      "to": "planning",
+      "label": "위치 연결 미구현",
+      "variant": "dashed"
+    },
+    {
+      "id": "planning-to-control",
+      "from": "planning",
+      "to": "control",
+      "label": "Path · 설계",
+      "variant": "dashed",
+      "labelAt": [
+        975,
+        365.0
+      ]
+    },
+    {
+      "id": "control-to-interfaces",
+      "from": "control",
+      "to": "interfaces",
+      "label": "DriveCmd · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "sensors-to-perception",
+      "from": "sensors",
+      "to": "perception",
+      "label": "Scan/Image · 설계",
+      "variant": "dashed",
+      "fromSide": "top"
+    },
+    {
+      "id": "perception-to-planning",
+      "from": "perception",
+      "to": "planning",
+      "label": "객체 정보 · 설계",
+      "variant": "dashed",
+      "toSide": "top"
+    }
+  ]
+}

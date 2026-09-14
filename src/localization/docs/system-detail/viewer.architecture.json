@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Viewer·진단·표시",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "odometry",
+      "type": "messagebus",
+      "label": "위치·센서·상태",
+      "sublabel": "공개 토픽 · 진단 입력",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "visualization",
+      "type": "backend",
+      "label": "시각화 노드",
+      "sublabel": "Path · Marker",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "Localization Viewer",
+      "sublabel": "센서 패널 · 경로·초기 위치",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "front",
+      "type": "frontend",
+      "label": "전방 Scan 표시",
+      "sublabel": "거리·유효 스캔 시각화",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "odometry-to-visualization",
+      "from": "odometry",
+      "to": "visualization",
+      "label": "Odometry·상태",
+      "variant": "default"
+    }
+  ]
+}

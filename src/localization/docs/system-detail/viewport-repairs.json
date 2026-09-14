@@ -1,0 +1,96 @@
+{
+  "system": {
+    "sensors": [
+      60,
+      230
+    ],
+    "localization": [
+      455,
+      230
+    ],
+    "planning": [
+      850,
+      230
+    ],
+    "control": [
+      850,
+      410
+    ],
+    "interfaces": [
+      455,
+      410
+    ],
+    "perception": [
+      455,
+      60
+    ],
+    "operations": [
+      60,
+      410
+    ]
+  },
+  "localization": {
+    "motion": [
+      60,
+      60
+    ],
+    "global": [
+      455,
+      60
+    ],
+    "output": [
+      850,
+      60
+    ],
+    "lidar": [
+      60,
+      245
+    ],
+    "gps": [
+      455,
+      245
+    ],
+    "safety": [
+      850,
+      245
+    ],
+    "rddf": [
+      60,
+      430
+    ],
+    "timing": [
+      455,
+      430
+    ],
+    "operations": [
+      850,
+      430
+    ]
+  },
+  "filters": {
+    "motion": [
+      60,
+      60
+    ],
+    "local": [
+      455,
+      60
+    ],
+    "history": [
+      850,
+      60
+    ],
+    "global": [
+      60,
+      280
+    ],
+    "gps": [
+      455,
+      280
+    ],
+    "lidar": [
+      60,
+      430
+    ]
+  }
+}

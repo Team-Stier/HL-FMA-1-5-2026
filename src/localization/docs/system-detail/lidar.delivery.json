@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/lidar.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/lidar.html",
+  "specification": {
+    "sha256": "226c86724b9035825f2cb362598dc94b6ed307f1d78307a6b6aef79dffc13333",
+    "bytes": 1656
+  },
+  "artifact": {
+    "sha256": "c9f3051490b1df0bab5c8d4aee56b3e80f36ea7f88f7b6c656db83c5826c7df7",
+    "bytes": 798135
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

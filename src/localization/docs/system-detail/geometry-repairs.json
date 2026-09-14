@@ -1,0 +1,112 @@
+{
+  "lidar.architecture": {
+    "driver-to-record": {
+      "labelAt": [
+        185,
+        270
+      ]
+    }
+  },
+  "filters.architecture": {
+    "motion-to-global": {
+      "labelAt": [
+        185,
+        265.0
+      ]
+    }
+  },
+  "gps.architecture": {
+    "gps2-to-gps3": {
+      "labelAt": [
+        975,
+        250.0
+      ]
+    }
+  },
+  "system.architecture": {
+    "planning-to-control": {
+      "labelAt": [
+        975.0,
+        475.0
+      ]
+    },
+    "sensors-to-perception": {
+      "fromSide": "top"
+    },
+    "perception-to-planning": {
+      "toSide": "top"
+    }
+  },
+  "tf.architecture": {
+    "base-to-sensor_frames": {
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  },
+  "rddf_match.architecture": {
+    "ambiguity-to-pose": {
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  },
+  "timing.architecture": {
+    "ready-to-consumers": {
+      "labelAt": [
+        975.0,
+        270.0
+      ]
+    }
+  },
+  "rddf.architecture": {
+    "transaction-to-confirm": {
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  },
+  "state.architecture": {
+    "state2-to-state3": {
+      "labelAt": [
+        975,
+        250.0
+      ]
+    }
+  },
+  "control.architecture": {
+    "drive-to-vehicle": {
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  },
+  "planning.architecture": {
+    "selector-to-final": {
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  },
+  "recovery.architecture": {
+    "recovery2-to-recovery3": {
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  },
+  "output.architecture": {
+    "output2-to-output3": {
+      "labelAt": [
+        975,
+        250.0
+      ]
+    }
+  }
+}

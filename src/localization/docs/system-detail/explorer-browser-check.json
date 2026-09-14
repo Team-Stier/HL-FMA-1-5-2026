@@ -1,0 +1,1848 @@
+{
+  "evidenceKind": "custom-explorer-automated-browser",
+  "artifact": {
+    "path": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-architecture.html",
+    "sha256": "cab1a3a142731e1a1558f1afc6251ba2dc793eb3a391b04eb77a68bb85c204d4",
+    "bytes": 971793
+  },
+  "checks": [
+    "offline root → localization → motion → encoder → function source; source deep link reload",
+    "global source/function search",
+    "component inspector, drill-down, browser back, Escape",
+    "all 127 diagram nodes activate the authored target or inspector",
+    "390px mobile horizontal containment",
+    "usage record displays measured and proxy quantities distinctly"
+  ],
+  "measurements": [
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "system",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "localization",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "sensors",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "perception",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "planning",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "control",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "interfaces",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "motion",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "adapter",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "filters",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "lidar",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "safety",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "encoder",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "imu",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "gps",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "recovery",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "state",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "output",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "rddf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "rddf_match",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "timing",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "operations",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "tf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "launches",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "viewer",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "system",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "localization",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "sensors",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "perception",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "planning",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "control",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "interfaces",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "motion",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "adapter",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "filters",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "lidar",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "safety",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "encoder",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "imu",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "gps",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "recovery",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "state",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "output",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "rddf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "rddf_match",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "timing",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "operations",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "tf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "launches",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1440,
+      "ih": 900,
+      "sw": 1440,
+      "sh": 900,
+      "view": "viewer",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "system",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "localization",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "sensors",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "perception",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "planning",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "control",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "interfaces",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "motion",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "adapter",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "filters",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "lidar",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "safety",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "encoder",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "imu",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "gps",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "recovery",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "state",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "output",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "rddf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "rddf_match",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "timing",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "operations",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "tf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "launches",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "viewer",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "system",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "localization",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "sensors",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "perception",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "planning",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "control",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "interfaces",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "motion",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "adapter",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "filters",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "lidar",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "safety",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "encoder",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "imu",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "gps",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "recovery",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "state",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "output",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "rddf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "rddf_match",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "timing",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "operations",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "tf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "launches",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1600,
+      "ih": 1000,
+      "sw": 1600,
+      "sh": 1000,
+      "view": "viewer",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "system",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "localization",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "sensors",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "perception",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "planning",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "control",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "interfaces",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "motion",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "adapter",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "filters",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "lidar",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "safety",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "encoder",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "imu",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "gps",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "recovery",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "state",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "output",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "rddf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "rddf_match",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "timing",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "operations",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "tf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "launches",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "viewer",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "system",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "localization",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "sensors",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "perception",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "planning",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "control",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "interfaces",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "motion",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "adapter",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "filters",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "lidar",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "safety",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "encoder",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "imu",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "gps",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "recovery",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "state",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "output",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "rddf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "rddf_match",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "timing",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "operations",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "tf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "launches",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 1920,
+      "ih": 1080,
+      "sw": 1920,
+      "sh": 1080,
+      "view": "viewer",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "system",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "localization",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "sensors",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "perception",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "planning",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "control",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "interfaces",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "motion",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "adapter",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "filters",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "lidar",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "safety",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "encoder",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "imu",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "gps",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "recovery",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "state",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "output",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "rddf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "rddf_match",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "timing",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "operations",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "tf",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "launches",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "viewer",
+      "theme": "dark",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "system",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "localization",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "sensors",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "perception",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "planning",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "control",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "interfaces",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "motion",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "adapter",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "filters",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "lidar",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "safety",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "encoder",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "imu",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "gps",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "recovery",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "state",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "output",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "rddf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "rddf_match",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "timing",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "operations",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "tf",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "launches",
+      "theme": "light",
+      "pass": true
+    },
+    {
+      "iw": 2048,
+      "ih": 1320,
+      "sw": 2048,
+      "sh": 1320,
+      "view": "viewer",
+      "theme": "light",
+      "pass": true
+    }
+  ],
+  "screenshots": [
+    "explorer.system.1440x900.dark.png",
+    "explorer.localization.1440x900.dark.png",
+    "explorer.safety.1440x900.dark.png",
+    "explorer.encoder.1440x900.dark.png",
+    "explorer.gps.1440x900.dark.png",
+    "explorer.rddf.1440x900.dark.png",
+    "explorer.system.1440x900.light.png",
+    "explorer.localization.1440x900.light.png",
+    "explorer.safety.1440x900.light.png",
+    "explorer.encoder.1440x900.light.png",
+    "explorer.gps.1440x900.light.png",
+    "explorer.rddf.1440x900.light.png",
+    "explorer.system.2048x1320.dark.png",
+    "explorer.localization.2048x1320.dark.png",
+    "explorer.safety.2048x1320.dark.png",
+    "explorer.encoder.2048x1320.dark.png",
+    "explorer.gps.2048x1320.dark.png",
+    "explorer.rddf.2048x1320.dark.png",
+    "explorer.system.2048x1320.light.png",
+    "explorer.localization.2048x1320.light.png",
+    "explorer.safety.2048x1320.light.png",
+    "explorer.encoder.2048x1320.light.png",
+    "explorer.gps.2048x1320.light.png",
+    "explorer.rddf.2048x1320.light.png"
+  ],
+  "errors": [],
+  "offline": true,
+  "visualReview": "pending",
+  "status": "pass"
+}

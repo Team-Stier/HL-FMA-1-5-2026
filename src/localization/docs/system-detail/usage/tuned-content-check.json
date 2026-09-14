@@ -1,0 +1,20 @@
+{
+  "status": "pass",
+  "requested_context": 8192,
+  "actual_prompt_tokens": 1028,
+  "expected": [
+    "AMBIGUOUS_ROUTE",
+    "INVALID_INPUT",
+    "MATCHED",
+    "TOO_FAR",
+    "UNKNOWN_ROUTE"
+  ],
+  "returned": [
+    "INVALID_INPUT",
+    "UNKNOWN_ROUTE",
+    "TOO_FAR",
+    "AMBIGUOUS_ROUTE",
+    "MATCHED"
+  ],
+  "note": "AST-based status literal extraction check; tests a 1,028-token real input, not saturation of an 8K window."
+}

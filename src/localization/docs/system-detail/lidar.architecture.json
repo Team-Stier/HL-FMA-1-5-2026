@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "LiDAR 스캔 수집·표시",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "driver",
+      "type": "external",
+      "label": "RPLIDAR S2",
+      "sublabel": "원시 LaserScan",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "front",
+      "type": "backend",
+      "label": "전방 스캔 표시",
+      "sublabel": "거리·각도 필터",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "viewer",
+      "type": "frontend",
+      "label": "공통 Viewer",
+      "sublabel": "센서 스캔 관측",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "record",
+      "type": "database",
+      "label": "원시 토픽 기록",
+      "sublabel": "rosbag",
+      "pos": [
+        60,
+        380
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "driver-to-front",
+      "from": "driver",
+      "to": "front",
+      "label": "LaserScan",
+      "variant": "default"
+    },
+    {
+      "id": "front-to-viewer",
+      "from": "front",
+      "to": "viewer",
+      "label": "전방 스캔",
+      "variant": "default"
+    },
+    {
+      "id": "driver-to-record",
+      "from": "driver",
+      "to": "record",
+      "label": "원시 스캔",
+      "variant": "default",
+      "labelAt": [
+        185,
+        270
+      ]
+    }
+  ]
+}

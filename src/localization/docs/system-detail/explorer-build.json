@@ -1,0 +1,9 @@
+{
+  "artifact": "../system-architecture.html",
+  "sha256": "cab1a3a142731e1a1558f1afc6251ba2dc793eb3a391b04eb77a68bb85c204d4",
+  "bytes": 971793,
+  "diagram_type": "architecture",
+  "archify_diagrams": 25,
+  "navigation": "custom wrapper with unchanged Archify source SVG geometry",
+  "compatibility_entry": "../localization-five-stage.html"
+}

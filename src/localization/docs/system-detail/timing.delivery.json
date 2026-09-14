@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/timing.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/timing.html",
+  "specification": {
+    "sha256": "c51e9b49955f01654f0ec1513e85ac23459e04c2c365b3b74587dd4b4e0610d4",
+    "bytes": 2108
+  },
+  "artifact": {
+    "sha256": "82a0cb7ea4b369b8ef849ec9213dfb3850b4c25781be8f79d9be7a01a8d1610f",
+    "bytes": 799195
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

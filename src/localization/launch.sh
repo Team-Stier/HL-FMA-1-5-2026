@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-
 set -eo pipefail
 
-exec roslaunch localization localization.launch start_rviz:=false "$@"
+# The workspace bringup starts localization; sensor/vehicle drivers run separately.
+# Estimator, quality gates, TF calibration and fusion defaults remain unchanged.
+exec roslaunch localization localization.launch \
+  start_encoder_driver:=false \
+  start_imu_driver:=false \
+  start_gps_driver:=false \
+  start_rviz:=false \
+  "$@"

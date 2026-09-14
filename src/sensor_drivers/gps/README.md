@@ -56,7 +56,7 @@ sudo apt install \
 ```
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 catkin_make
 source devel/setup.bash
@@ -145,17 +145,13 @@ Localization에서는 `fix_ok`가 참인지 먼저 검사하고, `solution`과
 | `3`, `136` | 3D Fix, RTK Fixed, spoofing 감지 없음 |
 | `3`, `144` | 3D Fix, RTK Fixed, 해당 epoch에서 spoofing 이상 감지 |
 
-NTRIP 서버는 `RTS1.ngii.go.kr`, mountpoint는 `VRS-RTCM31`이다. 계정 정보는
-`STIER_NTRIP_USERNAME`, `STIER_NTRIP_PASSWORD` 환경변수로 전달하며 저장소에는 넣지 않는다.
-이 PC에서 기존 계정으로 실센서를 실행하려면 다음과 같이 로컬 설정을 읽는다.
+참고 프로젝트와 동일하게 다음 NTRIP 값이 `gps_bringup/launch/gps.launch`에 평문으로
+들어 있다.
 
-```bash
-source ~/.config/hl-fma2026-suhyeon/ntrip.env
-roslaunch gps_bringup gps.launch
-```
-
-새 PC에서는 발급받은 계정을 환경변수에 설정한다. bag 재생에는 NTRIP 계정이나 센서
-드라이버 실행이 필요하지 않다.
+- Host: `RTS1.ngii.go.kr`
+- Mountpoint: `VRS-RTCM31`
+- Username: `suhyeon351`
+- Password: `ngii`
 
 NTRIP 노드가 실패해 종료되면 roslaunch가 3초 뒤 다시 시작한다. 연결된 NTRIP 클라이언트의
 내부 재접속 간격은 5초이고 RTCM 수신 timeout은 4초다. RTK Float 또는 Fixed로 가지 않으면

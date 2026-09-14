@@ -1,7 +1,0 @@
-<library path="lib/liblocalization_rviz_plugins">
-  <class name="localization/LocalizationSensorStatusPanel"
-         type="localization_rviz::LocalizationSensorStatusPanel"
-         base_class_type="rviz::Panel">
-    <description>GPS, IMU, encoder and Localization diagnostics panel.</description>
-  </class>
-</library>

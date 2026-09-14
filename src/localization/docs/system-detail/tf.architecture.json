@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TF 프레임과 발행 소유자",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "map",
+      "type": "external",
+      "label": "map",
+      "sublabel": "전역 ENU 기준",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "odom",
+      "type": "backend",
+      "label": "odom",
+      "sublabel": "Global EKF: map → odom",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "base",
+      "type": "backend",
+      "label": "base_link",
+      "sublabel": "Local EKF: odom → base_link",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "sensor_frames",
+      "type": "external",
+      "label": "장착 센서 프레임",
+      "sublabel": "imu_link · gps_link · laser_link",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "map-to-odom",
+      "from": "map",
+      "to": "odom",
+      "label": "Global EKF",
+      "variant": "default"
+    },
+    {
+      "id": "odom-to-base",
+      "from": "odom",
+      "to": "base",
+      "label": "Local EKF",
+      "variant": "default"
+    },
+    {
+      "id": "base-to-sensor_frames",
+      "from": "base",
+      "to": "sensor_frames",
+      "label": "정적 장착 TF",
+      "variant": "default",
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  ]
+}

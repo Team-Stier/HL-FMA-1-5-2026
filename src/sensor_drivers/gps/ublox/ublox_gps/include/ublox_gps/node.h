@@ -782,8 +782,10 @@ class UbloxFirmware7Plus : public UbloxFirmware {
     sensor_msgs::NavSatFix fix;
     fix.header.frame_id = frame_id;
     // set the timestamp
+    const bool use_ros_time = nh->param<bool>("use_ros_time", false);
     uint8_t valid_time = m.VALID_DATE | m.VALID_TIME | m.VALID_FULLY_RESOLVED;
-    if (((m.valid & valid_time) == valid_time) &&
+    if (!use_ros_time &&
+        ((m.valid & valid_time) == valid_time) &&
         (m.flags2 & m.FLAGS2_CONFIRMED_AVAILABLE)) {
       // Use NavPVT timestamp since it is valid
       // The time in nanoseconds from the NavPVT message can be between -1e9 and 1e9
@@ -798,7 +800,7 @@ class UbloxFirmware7Plus : public UbloxFirmware {
         fix.header.stamp.nsec = (uint32_t)(m.nano);
       }
     } else {
-      // Use ROS time since NavPVT timestamp is not valid
+      // Use receipt time when explicitly requested or NavPVT time is invalid.
       fix.header.stamp = ros::Time::now();
     }
     // Set the LLA

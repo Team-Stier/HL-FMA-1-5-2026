@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CalibratedIMU의 입력·보정",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "imu0",
+      "type": "security",
+      "label": "IMU 입력 검사",
+      "sublabel": "시각 · quaternion · gyro",
+      "pos": [
+        60,
+        270
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "imu1",
+      "type": "security",
+      "label": "정지 yaw 제약",
+      "sublabel": "encoder=0 AND speed=0",
+      "pos": [
+        455,
+        270
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "imu2",
+      "type": "security",
+      "label": "주행 heading 보정",
+      "sublabel": "GNSS · IMU · 속도 정합",
+      "pos": [
+        850,
+        270
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "imu0-to-imu1",
+      "from": "imu0",
+      "to": "imu1",
+      "label": "유효 IMU",
+      "variant": "default"
+    },
+    {
+      "id": "imu1-to-imu2",
+      "from": "imu1",
+      "to": "imu2",
+      "label": "보정 판단",
+      "variant": "default"
+    }
+  ]
+}

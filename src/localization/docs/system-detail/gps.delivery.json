@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/gps.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/gps.html",
+  "specification": {
+    "sha256": "c7f834aa53e6006d24cc8d2acbc2d9d36748dc03e828933f9373a5dbf6d6cdea",
+    "bytes": 2422
+  },
+  "artifact": {
+    "sha256": "4f754c64de91d1f4890f72fc5129be2737dfed60d4c289424fb52d595b65eedc",
+    "bytes": 800689
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

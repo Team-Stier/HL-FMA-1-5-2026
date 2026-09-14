@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "센서 드라이버",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "imu",
+      "type": "backend",
+      "label": "Xsens IMU",
+      "sublabel": "imu_bringup / 내장 driver",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "gps",
+      "type": "backend",
+      "label": "u-blox GNSS",
+      "sublabel": "Fix · NavPVT · timing",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "lidar",
+      "type": "backend",
+      "label": "RPLIDAR S2",
+      "sublabel": "LaserScan · frame remap",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "camera",
+      "type": "backend",
+      "label": "USB Camera",
+      "sublabel": "usb_cam · Image",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "encoder",
+      "type": "backend",
+      "label": "ERP42 feedback",
+      "sublabel": "rosserial · SerialFeedBack",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": []
+}

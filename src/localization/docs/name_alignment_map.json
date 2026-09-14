@@ -1,0 +1,55 @@
+{
+  "source_repository": "Team-Stier/Mando",
+  "source_commit": "5c6c753",
+  "target_base_commit": "1f59303",
+  "replacements": [
+    [
+      "mando_localization",
+      "localization"
+    ],
+    [
+      "MANDO_LOCALIZATION_WS",
+      "LOCALIZATION_WS"
+    ],
+    [
+      "/molit/sensors/gps/navpvt",
+      "/ublox_position_receiver/navpvt"
+    ],
+    [
+      "/molit/sensors/gps/fix",
+      "/ublox_position_receiver/fix"
+    ],
+    [
+      "/molit/sensors/imu/data",
+      "/imu/data"
+    ],
+    [
+      "/molit/sensors/lidar/scan",
+      "/scan"
+    ],
+    [
+      "/molit/vehicle/twist",
+      "/localization/encoder/twist"
+    ],
+    [
+      "/molit/localization",
+      "/localization"
+    ],
+    [
+      "laser_link",
+      "laser"
+    ],
+    [
+      "ublox_gps_node",
+      "ublox_position_receiver"
+    ],
+    [
+      "mando_encoder_serial",
+      "arduino_serial"
+    ],
+    [
+      "mando_rplidar_s2",
+      "rplidar_s2"
+    ]
+  ]
+}

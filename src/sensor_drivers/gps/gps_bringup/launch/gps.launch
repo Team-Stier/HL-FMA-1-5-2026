@@ -7,6 +7,8 @@
   <include file="$(find ublox_utils)/launch/ublox.launch">
     <arg name="device_position_receiver" value="/dev/gps" />
     <arg name="frame_id_position_receiver" value="gps_link" />
+    <!-- 현재 수신기의 UTC stamp가 시스템 시각보다 약 1.7 s 앞서므로 수신 시각을 사용한다. -->
+    <arg name="use_ros_time_position_receiver" value="true" />
     <arg name="ntrip_host" value="RTS1.ngii.go.kr" />
     <arg name="ntrip_mountpoint" value="VRS-RTCM31" />
     <arg name="use_ntrip" value="true" />

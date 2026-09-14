@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "차량 제어: 설계 계약",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "path",
+      "type": "external",
+      "label": "경로·신호등 입력",
+      "sublabel": "/path/final · /TL_label",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "controller",
+      "type": "backend",
+      "label": "제어 계산",
+      "sublabel": "control · 실행 노드 없음",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "drive",
+      "type": "messagebus",
+      "label": "차량 명령",
+      "sublabel": "/pure_pursuit/raw_drive",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "vehicle",
+      "type": "external",
+      "label": "차량 인터페이스",
+      "sublabel": "ERP42 메시지 · Arduino",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "path-to-controller",
+      "from": "path",
+      "to": "controller",
+      "label": "제어 입력 · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "controller-to-drive",
+      "from": "controller",
+      "to": "drive",
+      "label": "DriveCmd · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "drive-to-vehicle",
+      "from": "drive",
+      "to": "vehicle",
+      "label": "차량 전달 · 설계",
+      "variant": "dashed",
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  ]
+}

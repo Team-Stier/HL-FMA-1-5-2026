@@ -1,0 +1,455 @@
+{
+  "src/sensor_drivers/README.md": {
+    "sha256": "e639a4f7e36ae14fb13f699650fdbbf3f398bffe69094aa65a7f14b746cd3144",
+    "line_count": 285,
+    "redacted_lines": []
+  },
+  "src/localization/launch/sensors.launch": {
+    "sha256": "ba30e82666b78f5fc09363b3fb1de6b716ab80b20bcfb93e0579cf8f859f7065",
+    "line_count": 44,
+    "redacted_lines": []
+  },
+  "src/localization/launch/bringup.launch": {
+    "sha256": "e0c581f45acfdb29e1198f89ae8e816506e79d7b7ccc0d6961e62e73d453d3fa",
+    "line_count": 163,
+    "redacted_lines": []
+  },
+  "src/localization/config/localization_interfaces.yaml": {
+    "sha256": "a6dbae5cf0e0daa7478bae352006e8676abcba30c9b3fb731271ece28e7955aa",
+    "line_count": 98,
+    "redacted_lines": []
+  },
+  "src/selector/scripts/selector_node": {
+    "sha256": "f28e5ef76672c74ddcb8125f9e3dd4df4f35fab5dfc2c29103f63e3bcaaa8c62",
+    "line_count": 15,
+    "redacted_lines": []
+  },
+  "src/lidar_path_planning/CMakeLists.txt": {
+    "sha256": "800209b19b6b2eae3cdf48fb07f5ed6ff2b1028923253d2b7f581dcc24c19b92",
+    "line_count": 5,
+    "redacted_lines": []
+  },
+  "src/parking_path_planning/CMakeLists.txt": {
+    "sha256": "a78c2c3a3f6f6d730d2e65aad72ea58922c439c7b31083d534f817e6b732fd6f",
+    "line_count": 5,
+    "redacted_lines": []
+  },
+  "src/control/CMakeLists.txt": {
+    "sha256": "156170fd94d23832fbb2da86d1d425985b1774528d22de788858af1aa27ae870",
+    "line_count": 5,
+    "redacted_lines": []
+  },
+  "README.md": {
+    "sha256": "d08abb80537b5f886b8fbb6148ce9a8ad2a9ca2b1306855d341f60d1126df40f",
+    "line_count": 477,
+    "redacted_lines": []
+  },
+  "src/interfaces/README.md": {
+    "sha256": "93bc3f3d0a556c4e9c81ef6acaf427fd8d0ae4632d724609876f2bd04675e82f",
+    "line_count": 70,
+    "redacted_lines": []
+  },
+  "src/object_detection/CMakeLists.txt": {
+    "sha256": "b79b79df7989e0471e1f7c235f6504bd5a2daac9b6b7cdd4fa30a366e6621589",
+    "line_count": 5,
+    "redacted_lines": []
+  },
+  "src/traffic_light/CMakeLists.txt": {
+    "sha256": "993e674994565343a397059fd5d5eab81d3140e2ab01a04aecfc88523bb210e8",
+    "line_count": 5,
+    "redacted_lines": []
+  },
+  "src/localization/launch/replay.launch": {
+    "sha256": "13c8a15c50e24c5f19812dd86f41e99e23c4ff5d7de740e476708652d0a5c3e6",
+    "line_count": 24,
+    "redacted_lines": []
+  },
+  "src/localization/launch/local_fusion.launch": {
+    "sha256": "18189bb857d2a62307bf40874be3fc39d945d11f09aa606eadbab7911ccd33c1",
+    "line_count": 68,
+    "redacted_lines": []
+  },
+  "src/localization/config/ekf_global.yaml": {
+    "sha256": "9157a1f02144d9330be3c757af3257c03734e7b81efd7b95e12cbc60c5edee6f",
+    "line_count": 86,
+    "redacted_lines": []
+  },
+  "src/localization/launch/global_fusion.launch": {
+    "sha256": "89ef01d6aea2a9c62975fb9b140f7dc2a1c3fe695506407e502a7939fe9af263",
+    "line_count": 17,
+    "redacted_lines": []
+  },
+  "src/localization/src/output_gate/localization_output_gate.cpp": {
+    "sha256": "dc3163e3f91a8f77c5617f09505c7186058336116ca15fe681f68374ee0b0637",
+    "line_count": 185,
+    "redacted_lines": []
+  },
+  "src/localization/src/odometry_gps_fusion/odometry_gps_fusion.cpp": {
+    "sha256": "11d52ca7fbef24064d6e6f3c6c6fde67c6cac0c58f61d2429991bd3f02d8dd0f",
+    "line_count": 893,
+    "redacted_lines": []
+  },
+  "src/localization/src/supervisor/localization_supervisor_node.cpp": {
+    "sha256": "84fd252cc6fc77cb8dcd24dd372a0220bad80cd732ac7d872b34d48cb9798af6",
+    "line_count": 25,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/rddf_initializer_node.py": {
+    "sha256": "af6aa5ed542bd62541aeae2ed3dcd120818a92207a16683e54ddc368cc69130b",
+    "line_count": 265,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/sensor_timing_monitor.py": {
+    "sha256": "6ebbb43409a5b2e0a66ab9e7b9c870f7264cd658a29d78ab153368f9ecef3794",
+    "line_count": 204,
+    "redacted_lines": []
+  },
+  "src/localization/launch/safety_and_tf.launch": {
+    "sha256": "f3b32656376a798a314f47c0e5a48cf03cb6aac4083f8ffd7e4007c4100a58ea",
+    "line_count": 56,
+    "redacted_lines": []
+  },
+  "src/localization/launch/visualization.launch": {
+    "sha256": "0e066e71c98e182a7b558afde3eb3ab20784427e8570f0746fedca47f28066d5",
+    "line_count": 39,
+    "redacted_lines": []
+  },
+  "src/sensor_drivers/imu/imu_bringup/launch/xsens_mti.launch": {
+    "sha256": "995e05f480b454f626e0df41ea80499bf493205bf50e4539ddffc95c2f90b3c8",
+    "line_count": 39,
+    "redacted_lines": []
+  },
+  "src/sensor_drivers/imu/xsens_ros_mti_driver/param/xsens_mti_node.yaml": {
+    "sha256": "0cece80b0ffdc437d6389d5b41071f4428598b56709d5b141f7cbb4437c2a072",
+    "line_count": 254,
+    "redacted_lines": []
+  },
+  "src/localization/config/imu_driver.yaml": {
+    "sha256": "3054c873cb9e6cb81a3d9c81f39b9ce3e1dfcb57f4998e9b4e5de5f0d24577f6",
+    "line_count": 60,
+    "redacted_lines": []
+  },
+  "src/localization/config/gps_driver.yaml": {
+    "sha256": "ce120d153be20a571a5b23333937ff74fbc2b878cc0b80c259442bb45d1a734f",
+    "line_count": 41,
+    "redacted_lines": []
+  },
+  "src/sensor_drivers/gps/gps_bringup/launch/gps.launch": {
+    "sha256": "844f10f35a8a1aca9f7d45c27417010986c9b77ba8f71bddf880b0fd0e91cdac",
+    "line_count": 26,
+    "redacted_lines": [
+      11,
+      12
+    ]
+  },
+  "src/sensor_drivers/lidar/launch/rplidar_s2.launch": {
+    "sha256": "60ee23abebb46474b91cff1cee88065eaea2b18dfd2aa78b4dcfe295978bb5ef",
+    "line_count": 30,
+    "redacted_lines": []
+  },
+  "src/localization/config/lidar_driver.yaml": {
+    "sha256": "0f156397ac09c92a217577d8a2da6e51e0cd0456a67be0263ee2fd1eeafcb7b3",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/sensor_drivers/cam/cam_bringup/launch/cam.launch": {
+    "sha256": "07b296e9981e9e992d40052ef3a095105c779cff75ffe248567d3d8a441398d2",
+    "line_count": 30,
+    "redacted_lines": []
+  },
+  "src/sensor_drivers/cam/README.md": {
+    "sha256": "7cb0dabe59b8eca45ac4745c902d2c3a7b0b0f4988a60c90797c7b2b7d99b473",
+    "line_count": 141,
+    "redacted_lines": []
+  },
+  "src/localization/config/encoder_driver.yaml": {
+    "sha256": "547159aca901c656657de6e73ce4cc6019a480d482b59221e4f1d02caff40287",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/erp42_msgs/msg/SerialFeedBack.msg": {
+    "sha256": "211da52ae1a1718a7f300df4c894c054b4bfc70e3a600765fa7b661cb05d42f7",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/traffic_light/package.xml": {
+    "sha256": "ee6a23ce83a861bf337473efa24cc593dfd07a73ec821f4f2c1387d8253b83a1",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/interfaces/perception_interfaces/msg/TLLabel.msg": {
+    "sha256": "5d7b567589f9694d72fb59379032604cf1773239d24de78ed8d82171a2da8538",
+    "line_count": 9,
+    "redacted_lines": []
+  },
+  "src/object_detection/package.xml": {
+    "sha256": "6682e284d363960cd718a9db128c852e10abb5ffeca8360ebed5d337f73165a1",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/interfaces/perception_interfaces/msg/ObjectInfo.msg": {
+    "sha256": "4062a4592d07557c3b34beb60a554358be1f7a7dc7e796bdf493cb959252f690",
+    "line_count": 16,
+    "redacted_lines": []
+  },
+  "src/lidar_path_planning/package.xml": {
+    "sha256": "3ab22bfe49e3c4da149c51964c874465f4c91cfde135a3c4300ba0c87a1af7a9",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/parking_path_planning/package.xml": {
+    "sha256": "dd74284222365f5d9990b20f6c3c245e342e69fe46bc1285a3c72531ab688f90",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/control/package.xml": {
+    "sha256": "88978a8c40c984ce9367451cf1dc56e7204a817759c35fac209045f56ab7530f",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/erp42_msgs/msg/DriveCmd.msg": {
+    "sha256": "56f15570d84c45413da15c1933d25cf480f8f6bfb460216ffdad921d1a3f4ec4",
+    "line_count": 6,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/README.md": {
+    "sha256": "0cb3bd1b87237bc48ae739480657579e0f6c8277690351a78825807f10c71ec5",
+    "line_count": 187,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/vehicle_interface_bringup/launch/arduino.launch": {
+    "sha256": "51c57c6141e76399ac03244f6a32e9959ecf24d0064e8008a5629e5662886c2c",
+    "line_count": 15,
+    "redacted_lines": []
+  },
+  "src/interfaces/sensor_interfaces/msg/GpsStatus.msg": {
+    "sha256": "78a3597d379b4dfeb09ba73fd911ec4ac0d8cbbf21aca8902ffbd4d50a74ccb8",
+    "line_count": 39,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/erp42_msgs/msg/CANFeedBack.msg": {
+    "sha256": "d819437c1720254e32eab45b985fdb1bdea4c93670d682c71b28b340ba78eda4",
+    "line_count": 17,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/erp42_msgs/msg/CmdControl.msg": {
+    "sha256": "2dde71b29133d40b6d69dd5dd1329e274e8d3b0d9602b90bc905a7d08b764f65",
+    "line_count": 12,
+    "redacted_lines": []
+  },
+  "src/interfaces/vehicle_interface/erp42_msgs/msg/ModeCmd.msg": {
+    "sha256": "00d3f46d06b3e9c38033a6c16c323196ee0fc7eea569bc1c0e8f6df5cfc62d47",
+    "line_count": 7,
+    "redacted_lines": []
+  },
+  "src/localization/srv/SetInitialHeading.srv": {
+    "sha256": "9a47e80be1c640a39106b323a4d7b61caaf6611f1f3fd03102b947765b832b3e",
+    "line_count": 8,
+    "redacted_lines": []
+  },
+  "src/localization/msg/GpsGateReanchor.msg": {
+    "sha256": "981e14c9a98dad8784afe4dac63bdbca80adde54d0544f0c1afb766542b6d4de",
+    "line_count": 2,
+    "redacted_lines": []
+  },
+  "src/localization/src/imu_encoder_fusion/encoder_to_twist_adapter.cpp": {
+    "sha256": "3916fe514ac36055b09c479562b281872fa2ca4cd1f0934d09347136d915177d",
+    "line_count": 264,
+    "redacted_lines": []
+  },
+  "src/localization/config/encoder_calibration.yaml": {
+    "sha256": "364ade9bf63ddc63b5abfbb33de4078dc4d183edbc14e6a6c75eef0a0acc4715",
+    "line_count": 32,
+    "redacted_lines": []
+  },
+  "src/localization/src/common/localization_interface_adapter.cpp": {
+    "sha256": "76fc47d77b5b816bfeeff155d64cbfe54b2f4467a7345f36d54cc84bd82a54e8",
+    "line_count": 168,
+    "redacted_lines": []
+  },
+  "src/localization/config/ekf_local.yaml": {
+    "sha256": "9b510dbd0043063e84185b5023740c0b2ad58f69c81705e96aea10ebf0dd6fdd",
+    "line_count": 67,
+    "redacted_lines": []
+  },
+  "src/localization/src/imu_encoder_fusion/imu_normalizer.cpp": {
+    "sha256": "3bb2e31dbd1a755e416bd7ae82326b99a44ce223f396c50ef2cdfabe3110ed22",
+    "line_count": 228,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/calibrated_imu_core.py": {
+    "sha256": "84d1ee92c167ea38769beebd2ba49aef086d1e45b99106aea5f343cffe67e3fe",
+    "line_count": 477,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/calibrated_imu_node.py": {
+    "sha256": "ad2090781bdd7393b40d2a1587c41cbeaa20996c8c9ec1a14c6eb731563d5e45",
+    "line_count": 270,
+    "redacted_lines": []
+  },
+  "src/localization/src/common/localization_interface_adapter.hpp": {
+    "sha256": "31928017dbe6877911aed46ecea761067d401549f2b313c772f6a7a42d64c227",
+    "line_count": 59,
+    "redacted_lines": []
+  },
+  "src/localization/src/odometry_gps_fusion/local_odometry_history.hpp": {
+    "sha256": "ba070dc8db4698f9c9fdfc788fcce52f9e318944424ef76b85af3f813619014f",
+    "line_count": 147,
+    "redacted_lines": []
+  },
+  "src/localization/launch/map_data_collection.launch": {
+    "sha256": "8ddaeb72f340dfb71f18fed7f930dc40cc90a877df106fb9e9913da045a60c39",
+    "line_count": 73,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/lidar_front_scan_visualizer.py": {
+    "sha256": "b226e78cf0b8dc838523c0c0efa61771142e9b1e0f8f17d7dd0ebace2e3036be",
+    "line_count": 100,
+    "redacted_lines": []
+  },
+  "src/localization/config/lidar_front_visualization.yaml": {
+    "sha256": "934a3e8e0500b311df962d8e7eff29b67fa7d7bd91aecc9b608bd44419952d1d",
+    "line_count": 7,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/localization_viewer.py": {
+    "sha256": "10ac2dd0cbc8802d7fb864b356ff52da38153b0f88fe19a53c29eead1f38e7b9",
+    "line_count": 996,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/localization_record_command.sh": {
+    "sha256": "9e997a8571f9d18d319a9dba2747709fd24c7f0c8c397dd90a85a346eb92fb64",
+    "line_count": 382,
+    "redacted_lines": []
+  },
+  "src/localization/src/status_manager/localization_status_manager.cpp": {
+    "sha256": "03d164584af0211eef6aababe392ab02248c034c60ab374600c1f3e6be701b00",
+    "line_count": 601,
+    "redacted_lines": []
+  },
+  "src/localization/src/status_manager/localization_state_evaluator.cpp": {
+    "sha256": "39c0ac28eb3a7cf85d207cb7676bb4edf68676bd3b8de22177e23eb420b050c6",
+    "line_count": 77,
+    "redacted_lines": []
+  },
+  "src/localization/src/supervisor/localization_supervisor.cpp": {
+    "sha256": "12c2d03c71af10ac1b5ddde97497841028d796b451df8b83e1be3abe8c01f826",
+    "line_count": 182,
+    "redacted_lines": []
+  },
+  "src/localization/src/relocalization/relocalization_coordinator.cpp": {
+    "sha256": "6f9e046da8483565528222aedacaca9fb506cabf52fc706649a96910ccb5e644",
+    "line_count": 497,
+    "redacted_lines": []
+  },
+  "src/localization/src/relocalization/relocalization_policy.cpp": {
+    "sha256": "686e4e15e2ac70f125f3594eabb780d738547d5a6238763ecb99bdeb591d3156",
+    "line_count": 50,
+    "redacted_lines": []
+  },
+  "src/localization/config/imu_heading_calibration.yaml": {
+    "sha256": "40b722d01ae321fff4c4262147d72c9de9598ad7d2ea1053c2eb0ed71a9aaa46",
+    "line_count": 121,
+    "redacted_lines": []
+  },
+  "src/localization/config/initial_heading.yaml": {
+    "sha256": "ae247a7705d90e7e82f8f3abc14b15fea26e4661be862c7a5b016d749ac471fd",
+    "line_count": 12,
+    "redacted_lines": []
+  },
+  "src/localization/config/gps_reference.yaml": {
+    "sha256": "6b63e1d4cec7285172ba2e29df2b7a167b75bb3e312b9cfd6807b729cdf56ec0",
+    "line_count": 48,
+    "redacted_lines": []
+  },
+  "src/localization/config/time_sync.yaml": {
+    "sha256": "6eefe4d5e8951a3f51ecaf9a29925cfd6c96094db0ea43aa9dd0063bd30ecca9",
+    "line_count": 44,
+    "redacted_lines": []
+  },
+  "src/localization/src/common/consecutive_recovery_gate.cpp": {
+    "sha256": "7864167fd5927ba1c1f8d8ff4ad17048d69fd797ccb8547d3abd3da98c020a25",
+    "line_count": 47,
+    "redacted_lines": []
+  },
+  "src/localization/config/relocalization_policy.yaml": {
+    "sha256": "8f94af5d13af7640e7efbe80f668133289b3bca415f7d8d207ce7806024809b8",
+    "line_count": 21,
+    "redacted_lines": []
+  },
+  "src/localization/config/status_policy.yaml": {
+    "sha256": "d159a9a9c6fe81d967a9e3bfd52154af258828633d01dfd6be4d27b746129b6b",
+    "line_count": 50,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/rddf_initialization_core.py": {
+    "sha256": "36b31f0030ed640b48eff5d3bfc7d7f7cd055f0a664ce22b47740c2f20d8785c",
+    "line_count": 223,
+    "redacted_lines": []
+  },
+  "src/localization/config/rddf_initialization.yaml": {
+    "sha256": "8f74f44a2b384f0806b777753bd8e639c1388873f2f300cf6e03520e07aa0db9",
+    "line_count": 31,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/check_time_sync.py": {
+    "sha256": "01814cc3e0cc6d302f4999f06a5ffacfcc8fcdd8dcb869c40397e5da2991a7e8",
+    "line_count": 39,
+    "redacted_lines": []
+  },
+  "src/localization/scripts/timing_core.py": {
+    "sha256": "1358287179e68757381ee9ba2f77ff5c77a365eb488227c3d2a79c912d4b62ee",
+    "line_count": 246,
+    "redacted_lines": []
+  },
+  "src/localization/config/tf_configuration.yaml": {
+    "sha256": "25426ffee3daf1d1192c5eb884e45bed1978ae2eaa42d8e8d0b17e0c06f53864",
+    "line_count": 51,
+    "redacted_lines": []
+  },
+  "src/localization/src/tf/transform_configuration.cpp": {
+    "sha256": "d1159cc7e81afe987ad9ced3dae8baaba45d70ac79c0d4c6f9885c4f085d110e",
+    "line_count": 211,
+    "redacted_lines": []
+  },
+  "src/localization/src/visualization/localization_visualization.cpp": {
+    "sha256": "85dc6e0ff999e7989a5b1e867b923e8bc70434ce0542a65fe25834a31dcf45c1",
+    "line_count": 214,
+    "redacted_lines": []
+  },
+  "src/localization/docs/configuration.md": {
+    "sha256": "090d0bda2e0e2fdb549458515385443010dd4798512cda94375a67116d28ba10",
+    "line_count": 74,
+    "redacted_lines": []
+  },
+  "src/localization/src/tf/static_transform_publisher.cpp": {
+    "sha256": "6b192d7fa4ab414643935c9658ad7806721c9fffcd3c5443069cae32d7e6118b",
+    "line_count": 89,
+    "redacted_lines": []
+  },
+  "src/localization/launch.sh": {
+    "sha256": "d189759b7489a71872386a6feaf3e1d77f8d081c2b30b61eb6a28fca2a61b890",
+    "line_count": 11,
+    "redacted_lines": []
+  },
+  "src/localization/launch/gps_fusion.launch": {
+    "sha256": "2e3b5770c77e791a9e9b6fc87995d0ae4556d1c482f3977e2cc457b4366f5a6c",
+    "line_count": 33,
+    "redacted_lines": []
+  },
+  "src/localization/launch/viewer.launch": {
+    "sha256": "bb0193ddc73f2fa5ad710a9812977d5cc6af8321111f160746e5e022e981f683",
+    "line_count": 13,
+    "redacted_lines": []
+  },
+  "src/localization/config/visualization.yaml": {
+    "sha256": "582f097a3e103877d8a6cd93ffddb511db075fd389fbffb5c53c736f1b50d6da",
+    "line_count": 27,
+    "redacted_lines": []
+  },
+  "src/localization/config/localization_viewer.yaml": {
+    "sha256": "ae9bf53e4e8c7a2003817224d7dc10cd887c98f5d98a4a0b7ecd6a5322c64a0c",
+    "line_count": 40,
+    "redacted_lines": []
+  }
+}

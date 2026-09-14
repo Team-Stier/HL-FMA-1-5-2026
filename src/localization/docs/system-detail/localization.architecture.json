@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Localization 내부",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "motion",
+      "type": "backend",
+      "label": "IMU·엔코더 처리",
+      "sublabel": "보정 · 어댑터 · Local EKF",
+      "pos": [
+        60,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "global",
+      "type": "backend",
+      "label": "Global EKF",
+      "sublabel": "map 좌표의 추정 결과",
+      "pos": [
+        455,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "output",
+      "type": "security",
+      "label": "Output Gate",
+      "sublabel": "승인된 최종 Odometry",
+      "pos": [
+        850,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "gps",
+      "type": "backend",
+      "label": "GPS 위치 승인",
+      "sublabel": "측정 시각 정합 · gate pose",
+      "pos": [
+        455,
+        245
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "safety",
+      "type": "security",
+      "label": "Supervisor 프로세스",
+      "sublabel": "Manager · Coordinator · 중재",
+      "pos": [
+        850,
+        245
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "rddf",
+      "type": "database",
+      "label": "RDDF 초기화",
+      "sublabel": "GPS 자동 · 수동 선택 · 확인",
+      "pos": [
+        60,
+        430
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "timing",
+      "type": "backend",
+      "label": "센서 시각",
+      "sublabel": "host · driver · 측정 timestamp",
+      "pos": [
+        455,
+        430
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "operations",
+      "type": "frontend",
+      "label": "TF·실행·관측",
+      "sublabel": "프레임 소유권 · Viewer · replay",
+      "pos": [
+        850,
+        430
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "motion-to-global",
+      "from": "motion",
+      "to": "global",
+      "label": "IMU · Twist",
+      "variant": "default"
+    },
+    {
+      "id": "global-to-output",
+      "from": "global",
+      "to": "output",
+      "label": "Global Odom",
+      "variant": "default"
+    },
+    {
+      "id": "gps-to-global",
+      "from": "gps",
+      "to": "global",
+      "label": "GPS pose",
+      "variant": "default"
+    },
+    {
+      "id": "safety-to-output",
+      "from": "safety",
+      "to": "output",
+      "label": "valid",
+      "variant": "default"
+    }
+  ]
+}

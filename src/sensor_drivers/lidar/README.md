@@ -64,7 +64,7 @@ ls -l /dev/lidar
 등록된 S2 중 사용할 한 대를 연결하고 실행한다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 catkin_make --pkg lidar_bringup
 source devel/setup.bash

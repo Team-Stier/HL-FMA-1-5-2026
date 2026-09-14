@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "경로 계획·Selector",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "inputs",
+      "type": "external",
+      "label": "설계 입력",
+      "sublabel": "객체 정보 · 현재 위치",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "lidar_planner",
+      "type": "backend",
+      "label": "LiDAR 경로 계획",
+      "sublabel": "lidar_path_planning · 뼈대",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "selector",
+      "type": "backend",
+      "label": "Selector",
+      "sublabel": "/path/lidar → /path/final",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "final",
+      "type": "messagebus",
+      "label": "최종 경로",
+      "sublabel": "nav_msgs/Path",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "parking",
+      "type": "backend",
+      "label": "주차 경로 계획",
+      "sublabel": "parking_path_planning · 뼈대",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "inputs-to-lidar_planner",
+      "from": "inputs",
+      "to": "lidar_planner",
+      "label": "위치·객체 · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "lidar_planner-to-selector",
+      "from": "lidar_planner",
+      "to": "selector",
+      "label": "/path/lidar · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "selector-to-final",
+      "from": "selector",
+      "to": "final",
+      "label": "/path/final",
+      "variant": "default",
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    },
+    {
+      "id": "parking-to-selector",
+      "from": "parking",
+      "to": "selector",
+      "label": "주차 선택 미구현",
+      "variant": "dashed"
+    }
+  ]
+}

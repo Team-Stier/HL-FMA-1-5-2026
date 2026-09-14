@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/imu.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/imu.html",
+  "specification": {
+    "sha256": "c8bf18b60cead9dbcb347734418e0bba4e917e47eb2dd40b9119c814f3b0c569",
+    "bytes": 1253
+  },
+  "artifact": {
+    "sha256": "0dc5e3c5702973ad6f583ecba9e6b93d572b1ff6afe9365ef9021f2f274ea139",
+    "bytes": 795221
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

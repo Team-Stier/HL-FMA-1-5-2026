@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "인지: 설계와 구현 범위",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "image",
+      "type": "external",
+      "label": "카메라 영상",
+      "sublabel": "sensor_msgs/Image",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "traffic",
+      "type": "backend",
+      "label": "신호등 인식",
+      "sublabel": "traffic_light · 뼈대",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "label",
+      "type": "messagebus",
+      "label": "신호등 결과",
+      "sublabel": "/TL_label · TLLabel",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "scan",
+      "type": "external",
+      "label": "LiDAR 거리 스캔",
+      "sublabel": "sensor_msgs/LaserScan",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "objects",
+      "type": "backend",
+      "label": "객체 검출",
+      "sublabel": "object_detection · 뼈대",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "info",
+      "type": "messagebus",
+      "label": "장애물 정보",
+      "sublabel": "/object_info · ObjectInfo",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "image-to-traffic",
+      "from": "image",
+      "to": "traffic",
+      "label": "Image · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "traffic-to-label",
+      "from": "traffic",
+      "to": "label",
+      "label": "인식 결과 · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "scan-to-objects",
+      "from": "scan",
+      "to": "objects",
+      "label": "Scan · 설계",
+      "variant": "dashed"
+    },
+    {
+      "id": "objects-to-info",
+      "from": "objects",
+      "to": "info",
+      "label": "객체 목록 · 설계",
+      "variant": "dashed"
+    }
+  ]
+}

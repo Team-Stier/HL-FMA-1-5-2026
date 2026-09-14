@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "두 EKF와 관측 소유권",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "motion",
+      "type": "messagebus",
+      "label": "공통 움직임 입력",
+      "sublabel": "vx · vy=0 · yaw · yaw-rate",
+      "pos": [
+        60,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "local",
+      "type": "backend",
+      "label": "Local EKF",
+      "sublabel": "world_frame: odom",
+      "pos": [
+        455,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "history",
+      "type": "backend",
+      "label": "Local Odom 이력",
+      "sublabel": "GPS 원래 측정 시각의 pose",
+      "pos": [
+        850,
+        60
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "global",
+      "type": "backend",
+      "label": "Global EKF",
+      "sublabel": "world_frame: map",
+      "pos": [
+        60,
+        280
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "gps",
+      "type": "messagebus",
+      "label": "승인 GPS",
+      "sublabel": "pose0 · XY",
+      "pos": [
+        455,
+        280
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "motion-to-local",
+      "from": "motion",
+      "to": "local",
+      "label": "움직임",
+      "variant": "default"
+    },
+    {
+      "id": "local-to-history",
+      "from": "local",
+      "to": "history",
+      "label": "Local Odom",
+      "variant": "default"
+    },
+    {
+      "id": "motion-to-global",
+      "from": "motion",
+      "to": "global",
+      "label": "움직임",
+      "variant": "default",
+      "labelAt": [
+        185,
+        215.0
+      ]
+    },
+    {
+      "id": "gps-to-global",
+      "from": "gps",
+      "to": "global",
+      "label": "GPS XY",
+      "variant": "default"
+    }
+  ]
+}

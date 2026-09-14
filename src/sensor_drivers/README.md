@@ -5,11 +5,6 @@
 
 ```text
 sensor_drivers/
-├── arduino/
-│   ├── ros/
-│   └── logger/
-├── sensor_bringup/
-│   └── launch/
 ├── lidar/
 │   ├── config/
 │   ├── launch/
@@ -33,49 +28,6 @@ sensor_drivers/
     ├── scripts/
     └── udev/
 ```
-
-## 센서 통합 실행
-
-`sensor_bringup`은 센서별 launch를 조합하는 실행 전용 패키지다.
-워크스페이스를 빌드한 뒤 다음 명령으로 LiDAR, 카메라, GPS, IMU, ROS 제어 아두이노, CAN CSV 로거를 함께 실행한다.
-두 아두이노는 기본 활성화되며 포트는 [Arduino 안내](arduino/README.md)의 YAML 파일에서 각각 설정한다.
-각 센서의 기존 설정과 고정 장치 경로를 사용하며, 카메라는 기본적으로 Razer Kiyo Pro다.
-
-```bash
-source ~/HL-FMA2026-suhyeon/devel/setup.bash
-roslaunch sensor_bringup sensors.launch
-```
-
-연결하지 않은 장치는 `enable_lidar`, `enable_cam`, `enable_gps`, `enable_imu`, `enable_arduino`를
-`false`로 지정해 제외한다. 예를 들어 LiDAR와 IMU만 실행하려면:
-
-```bash
-roslaunch sensor_bringup sensors.launch enable_cam:=false enable_gps:=false enable_arduino:=false enable_can_logger:=false
-```
-
-Logitech C922를 사용하는 경우:
-
-```bash
-roslaunch sensor_bringup sensors.launch camera_launch:=cam_logi.launch
-```
-
-CAN 로거의 포트·baud·저장 폴더는 `arduino/logger/config/logger.yaml`에서 수정한다.
-로거는 기본 활성화되며 `enable_can_logger:=false`로 제외한다.
-CSV는 기본 `~/bags/can/` 아래 실행별 폴더에 저장된다.
-[CAN 로거 안내](arduino/logger/README.md)를 참고한다.
-
-제어용 Arduino rosserial은 `arduino/ros/config/serial.yaml`에서 포트와 baud를 설정한다.
-기본값은 `/dev/ttyACM1`, 57600 baud다. 현재 CH340 보드의 udev 규칙은
-장치 ID와 이 PC의 등록된 USB 포트 위치를 함께 검사하므로 같은 USB 포트를 사용한다.
-새 PC에서는 Arduino udev 설치 스크립트를 실행하고 연결 위치를 확인해야 한다.
-등록 전에는 확인한 `/dev/serial/by-id/...` 경로를
-`arduino_port`에 지정하거나 `enable_arduino:=false`로 제외한다.
-통신속도는 `arduino_baud`로 변경할 수 있으며 펌웨어 설정과 일치해야 한다.
-자세한 포트 식별 방법은 [Arduino 연결 안내](../interfaces/vehicle_interface/README.md#arduino-연결과-rosserial-실행)를 참고한다.
-
-GPS는 NTRIP 클라이언트도 함께 실행하므로 RTK 보정 수신에는 인터넷 연결이 필요하다.
-통합 실행 중에는 같은 센서의 개별 launch를 중복 실행하지 않는다.
-`Ctrl+C`로 함께 실행한 센서 노드를 종료한다.
 
 ## 장치 이름 고정
 
@@ -170,7 +122,7 @@ Xsens SDK와 ROS 드라이버, u-blox 드라이버, NTRIP 클라이언트와 UTM
 모든 명령은 워크스페이스 루트에서 실행한다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 catkin_make
 source devel/setup.bash
@@ -179,7 +131,7 @@ source devel/setup.bash
 새 터미널을 열 때마다 최소한 다음 환경 설정은 다시 실행한다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 source devel/setup.bash
 ```
@@ -304,7 +256,7 @@ rostopic echo -n 1 /imu/data
 `Resource not found` 또는 `package not found`가 나오면 현재 터미널에서 환경을 다시 불러온다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 source devel/setup.bash
 ```

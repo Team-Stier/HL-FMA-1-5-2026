@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/safety.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/safety.html",
+  "specification": {
+    "sha256": "a8d69d8700767401a11d20274be4d58072b7782b30a49cbf788d8bf6ed3bb7e9",
+    "bytes": 1927
+  },
+  "artifact": {
+    "sha256": "99272f23e46fe76addfa0172791caebb80b4c40b9ed9a4c1c26274b0c978d08a",
+    "bytes": 798795
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

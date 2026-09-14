@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "상태 결정의 우선순위",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "state0",
+      "type": "security",
+      "label": "Local motion 검사",
+      "sublabel": "1순위",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "state1",
+      "type": "security",
+      "label": "재정합 검사",
+      "sublabel": "2순위",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "state2",
+      "type": "security",
+      "label": "Global 출력 검사",
+      "sublabel": "3순위",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "state3",
+      "type": "security",
+      "label": "절대 소스 검사",
+      "sublabel": "4순위",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "state4",
+      "type": "security",
+      "label": "anchor와 DR 예산",
+      "sublabel": "5·6순위",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "state5",
+      "type": "security",
+      "label": "Supervisor 최종 중재",
+      "sublabel": "heartbeat 우선",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "state0-to-state1",
+      "from": "state0",
+      "to": "state1",
+      "label": "평가·처리",
+      "variant": "default"
+    },
+    {
+      "id": "state1-to-state2",
+      "from": "state1",
+      "to": "state2",
+      "label": "평가·처리",
+      "variant": "default"
+    },
+    {
+      "id": "state2-to-state3",
+      "from": "state2",
+      "to": "state3",
+      "label": "평가·처리",
+      "variant": "default",
+      "labelAt": [
+        975,
+        250.0
+      ]
+    },
+    {
+      "id": "state3-to-state4",
+      "from": "state3",
+      "to": "state4",
+      "label": "평가·처리",
+      "variant": "default"
+    },
+    {
+      "id": "state4-to-state5",
+      "from": "state4",
+      "to": "state5",
+      "label": "평가·처리",
+      "variant": "default"
+    }
+  ]
+}

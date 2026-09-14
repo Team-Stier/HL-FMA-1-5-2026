@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "InterfaceAdapter의 토픽 경계",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "public_motion",
+      "type": "messagebus",
+      "label": "공개 움직임",
+      "sublabel": "Twist · calibrated IMU",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "relay",
+      "type": "backend",
+      "label": "검증·Relay",
+      "sublabel": "localization_interface_adapter",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "private_ekf",
+      "type": "messagebus",
+      "label": "EKF 내부 토픽",
+      "sublabel": "/mando_localization/internal/ekf",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "absolute",
+      "type": "messagebus",
+      "label": "승인 절대 pose",
+      "sublabel": "GPS map_pose",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "driver",
+      "type": "messagebus",
+      "label": "내부 driver",
+      "sublabel": "공개 센서 · EKF 경계",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "public_motion-to-relay",
+      "from": "public_motion",
+      "to": "relay",
+      "label": "공개 입력",
+      "variant": "default"
+    },
+    {
+      "id": "relay-to-private_ekf",
+      "from": "relay",
+      "to": "private_ekf",
+      "label": "내부 입력",
+      "variant": "default"
+    },
+    {
+      "id": "absolute-to-relay",
+      "from": "absolute",
+      "to": "relay",
+      "label": "승인 pose",
+      "variant": "default"
+    }
+  ]
+}

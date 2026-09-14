@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "IMU·엔코더와 Local EKF",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "encoder",
+      "type": "backend",
+      "label": "엔코더 변환",
+      "sublabel": "feedback → Twist",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "adapter",
+      "type": "backend",
+      "label": "InterfaceAdapter",
+      "sublabel": "공개 ↔ 내부 토픽",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "local",
+      "type": "backend",
+      "label": "Local EKF",
+      "sublabel": "odom → base_link",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "raw_imu",
+      "type": "backend",
+      "label": "IMU 정규화",
+      "sublabel": "raw → normalized",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "calibrated",
+      "type": "backend",
+      "label": "CalibratedIMU",
+      "sublabel": "RDDF yaw · 정지 hold · GNSS",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "encoder-to-adapter",
+      "from": "encoder",
+      "to": "adapter",
+      "label": "Twist",
+      "variant": "default"
+    },
+    {
+      "id": "adapter-to-local",
+      "from": "adapter",
+      "to": "local",
+      "label": "EKF 입력",
+      "variant": "default"
+    },
+    {
+      "id": "raw_imu-to-calibrated",
+      "from": "raw_imu",
+      "to": "calibrated",
+      "label": "normalized IMU",
+      "variant": "default"
+    },
+    {
+      "id": "calibrated-to-adapter",
+      "from": "calibrated",
+      "to": "adapter",
+      "label": "calibrated IMU",
+      "variant": "default"
+    }
+  ]
+}

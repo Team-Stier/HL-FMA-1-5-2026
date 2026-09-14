@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RDDF 시작 위치 초기화",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "routes",
+      "type": "database",
+      "label": "RDDF 경로 지도",
+      "sublabel": "CSV 경로 · origin",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "candidate",
+      "type": "backend",
+      "label": "후보 선택",
+      "sublabel": "GPS 자동 · 수동 클릭",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "transaction",
+      "type": "backend",
+      "label": "초기화 호출",
+      "sublabel": "heading → Local → Global",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "confirm",
+      "type": "backend",
+      "label": "두 EKF 결과 확인",
+      "sublabel": "위치·yaw · 증가 stamp",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "ready",
+      "type": "messagebus",
+      "label": "준비 상태 발행",
+      "sublabel": "Supervisor · Output Gate",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "routes-to-candidate",
+      "from": "routes",
+      "to": "candidate",
+      "label": "경로 선분",
+      "variant": "default"
+    },
+    {
+      "id": "candidate-to-transaction",
+      "from": "candidate",
+      "to": "transaction",
+      "label": "확정 후보",
+      "variant": "default"
+    },
+    {
+      "id": "transaction-to-confirm",
+      "from": "transaction",
+      "to": "confirm",
+      "label": "출력 확인",
+      "variant": "default",
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    },
+    {
+      "id": "confirm-to-ready",
+      "from": "confirm",
+      "to": "ready",
+      "label": "연속 조건 충족",
+      "variant": "default"
+    }
+  ]
+}

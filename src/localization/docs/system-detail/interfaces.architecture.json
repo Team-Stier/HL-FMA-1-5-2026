@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "메시지·ROS 계약",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "localization_contract",
+      "type": "messagebus",
+      "label": "Localization 계약",
+      "sublabel": "공개 · 내부 · 서비스 · 프레임",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "perception_messages",
+      "type": "messagebus",
+      "label": "인지 메시지",
+      "sublabel": "ObjectInfo · TLLabel",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "gps_status",
+      "type": "messagebus",
+      "label": "GNSS 상태",
+      "sublabel": "sensor_interfaces/GpsStatus",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "erp_messages",
+      "type": "messagebus",
+      "label": "ERP42 메시지",
+      "sublabel": "피드백 · 명령 · 모드",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "local_services",
+      "type": "messagebus",
+      "label": "초기화·복구 계약",
+      "sublabel": "SetInitialHeading · Reanchor",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": []
+}

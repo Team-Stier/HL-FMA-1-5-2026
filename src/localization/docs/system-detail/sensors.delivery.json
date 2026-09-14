@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/sensors.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/sensors.html",
+  "specification": {
+    "sha256": "13728e47f00dad5ea481b0e3fcd9a2c1d4e9ae380fa5ac45ff59b3fc9dbf6a58",
+    "bytes": 1387
+  },
+  "artifact": {
+    "sha256": "a59c38825fb97399e04180475c5522d4bef57fdca3f1cbaf0d63b0bf15dd0561",
+    "bytes": 795788
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

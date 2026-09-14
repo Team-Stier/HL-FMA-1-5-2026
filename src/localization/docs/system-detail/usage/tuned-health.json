@@ -1,0 +1,1 @@
+{"model": "qwen3-coder:30b", "installed": true, "model_configured_num_ctx": 8192, "running_context_lengths": [8192], "helper_request_num_ctx": 8192, "note": "null means the server did not report a value"}

@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Supervisor 프로세스 내부",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "manager",
+      "type": "security",
+      "label": "StatusManager",
+      "sublabel": "센서·관측·추정 건강도 평가",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "arbiter",
+      "type": "security",
+      "label": "Supervisor 중재",
+      "sublabel": "공개 상태의 단일 소유자",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "gate",
+      "type": "security",
+      "label": "Output Gate",
+      "sublabel": "별도 ROS 노드",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "recovery",
+      "type": "security",
+      "label": "Recovery Coordinator",
+      "sublabel": "장기 복구 · reset · reanchor ACK",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "startup",
+      "type": "backend",
+      "label": "초기화 준비",
+      "sublabel": "RDDF ready heartbeat",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "manager-to-arbiter",
+      "from": "manager",
+      "to": "arbiter",
+      "label": "evaluated 상태",
+      "variant": "default"
+    },
+    {
+      "id": "arbiter-to-gate",
+      "from": "arbiter",
+      "to": "gate",
+      "label": "공개 valid",
+      "variant": "default"
+    },
+    {
+      "id": "recovery-to-arbiter",
+      "from": "recovery",
+      "to": "arbiter",
+      "label": "recovery active",
+      "variant": "default"
+    }
+  ]
+}

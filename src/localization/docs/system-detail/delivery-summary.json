@@ -1,0 +1,602 @@
+{
+  "system": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/system.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/system.html",
+    "specification": {
+      "sha256": "3574326b6b83c51a3b620a6384a47251b15ebb5560224af4dcc597c428cf5cb9",
+      "bytes": 3078
+    },
+    "artifact": {
+      "sha256": "cf1adef9db2cd99f4ccce96303186173a47f2db8867cde9accef3c588bb1dad9",
+      "bytes": 804390
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "localization": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/localization.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/localization.html",
+    "specification": {
+      "sha256": "8365903cbb161358d31db95d9185166e63f092f4e183780918310c79d3deea66",
+      "bytes": 2784
+    },
+    "artifact": {
+      "sha256": "05cc17b511dbe43200e184bf7779266893e052509c4e29358fb73fa3c4d7b176",
+      "bytes": 803691
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "sensors": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/sensors.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/sensors.html",
+    "specification": {
+      "sha256": "13728e47f00dad5ea481b0e3fcd9a2c1d4e9ae380fa5ac45ff59b3fc9dbf6a58",
+      "bytes": 1387
+    },
+    "artifact": {
+      "sha256": "a59c38825fb97399e04180475c5522d4bef57fdca3f1cbaf0d63b0bf15dd0561",
+      "bytes": 795788
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "perception": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/perception.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/perception.html",
+    "specification": {
+      "sha256": "aec5d84900760aa4ca888b6e9b0f2665d2ca5c3bb0b4c12553d1c77c85071a25",
+      "bytes": 2281
+    },
+    "artifact": {
+      "sha256": "300b7c22988ff255eb91c9c9d4d90112dcbacf00b7f0025030b0ea8f30dff12b",
+      "bytes": 801066
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "planning": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/planning.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/planning.html",
+    "specification": {
+      "sha256": "0ef5bf15813d2b3494b508df3fd4e101d1627847e98a82850cf3a830491fccf3",
+      "bytes": 2165
+    },
+    "artifact": {
+      "sha256": "54f1ea7469823bbed0bc0e8be5db05fe40565c3b31e1727c7ba23edb575bc7c2",
+      "bytes": 799898
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "control": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/control.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/control.html",
+    "specification": {
+      "sha256": "fc202c51948c24f8e8ada675a66b1a729428cfca03c497b30a9a716792c248dd",
+      "bytes": 1757
+    },
+    "artifact": {
+      "sha256": "65b05dbbf68fad13004464bd2c5a50a7f4e7aaa74721b801ceadb94d990736cd",
+      "bytes": 798077
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "interfaces": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/interfaces.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/interfaces.html",
+    "specification": {
+      "sha256": "24c159c353efb334c33bdb97412914068038364babeecc6a359e521df1c9fd9b",
+      "bytes": 1518
+    },
+    "artifact": {
+      "sha256": "2f0aada369a62825231af2fc6a0a62f21816d554f32ab460fd83db42fe2694d4",
+      "bytes": 797213
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "motion": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/motion.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/motion.html",
+    "specification": {
+      "sha256": "2152b11b65405993e614764b29b72e24a8e309b4f733f8526c57fb7601bdacbb",
+      "bytes": 2028
+    },
+    "artifact": {
+      "sha256": "f7d31ea8716c8e6117f12c074580c6dbcf4d27201475c5dafb451cef864badff",
+      "bytes": 798426
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "adapter": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/adapter.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/adapter.html",
+    "specification": {
+      "sha256": "6f16c81d26a254cf7d390fc6a13d7fda2270607ce9ad79f2c27861e33ab3ac6c",
+      "bytes": 1933
+    },
+    "artifact": {
+      "sha256": "1899c54cfc07084d2bb88a0e31d1285b9a3b841d8a7b01cef5c4cce27868284c",
+      "bytes": 799320
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "filters": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/filters.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/filters.html",
+    "specification": {
+      "sha256": "f50a69567869026200128f293b6a9a6db3cc8779172a40f9b87b4b5cd267be4f",
+      "bytes": 2037
+    },
+    "artifact": {
+      "sha256": "ff85f447fde0ef4a318bfd97b02454a89f73282640f724ba568c3d2249676273",
+      "bytes": 799135
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "lidar": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/lidar.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/lidar.html",
+    "specification": {
+      "sha256": "226c86724b9035825f2cb362598dc94b6ed307f1d78307a6b6aef79dffc13333",
+      "bytes": 1656
+    },
+    "artifact": {
+      "sha256": "c9f3051490b1df0bab5c8d4aee56b3e80f36ea7f88f7b6c656db83c5826c7df7",
+      "bytes": 798135
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "safety": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/safety.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/safety.html",
+    "specification": {
+      "sha256": "a8d69d8700767401a11d20274be4d58072b7782b30a49cbf788d8bf6ed3bb7e9",
+      "bytes": 1927
+    },
+    "artifact": {
+      "sha256": "99272f23e46fe76addfa0172791caebb80b4c40b9ed9a4c1c26274b0c978d08a",
+      "bytes": 798795
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "encoder": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/encoder.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/encoder.html",
+    "specification": {
+      "sha256": "14d69766fb64bf5ae6b0b8846c794f1522721b2cb5d39854ce341cbca8f4c29c",
+      "bytes": 1268
+    },
+    "artifact": {
+      "sha256": "2c5b781eeca29361cf5e05cb1c831ca6a0ac8baa667356b872c136e004581314",
+      "bytes": 794963
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "imu": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/imu.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/imu.html",
+    "specification": {
+      "sha256": "c8bf18b60cead9dbcb347734418e0bba4e917e47eb2dd40b9119c814f3b0c569",
+      "bytes": 1253
+    },
+    "artifact": {
+      "sha256": "0dc5e3c5702973ad6f583ecba9e6b93d572b1ff6afe9365ef9021f2f274ea139",
+      "bytes": 795221
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "gps": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/gps.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/gps.html",
+    "specification": {
+      "sha256": "c7f834aa53e6006d24cc8d2acbc2d9d36748dc03e828933f9373a5dbf6d6cdea",
+      "bytes": 2422
+    },
+    "artifact": {
+      "sha256": "4f754c64de91d1f4890f72fc5129be2737dfed60d4c289424fb52d595b65eedc",
+      "bytes": 800689
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "recovery": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/recovery.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/recovery.html",
+    "specification": {
+      "sha256": "7a435faabee606eed59705bc23863a7528c82f6b8f206cd6a7c566b32b4c32ca",
+      "bytes": 2556
+    },
+    "artifact": {
+      "sha256": "20e088681e0aeaa671a9aa9b0966b35d03c6d62a365678a339e595e79dbbe8c2",
+      "bytes": 800880
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "state": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/state.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/state.html",
+    "specification": {
+      "sha256": "41595456f98dca8de0e23b68bf9875e23e588999d6e7bf19ab774f969d5fcef7",
+      "bytes": 2419
+    },
+    "artifact": {
+      "sha256": "5a7c1f602742fd5ff957016fe26ac94709628e0d5f34802f37b3bdb65822ed9c",
+      "bytes": 800571
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "output": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/output.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/output.html",
+    "specification": {
+      "sha256": "daf9a95dc762d24ca3d92653dac58e6999cb3ff94835398d224f6b87bd0df681",
+      "bytes": 2492
+    },
+    "artifact": {
+      "sha256": "24ac2fed3a2896cb71b774bd4633a0b7b343aa2cb0b929957d657eeb9f434c78",
+      "bytes": 800810
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "rddf": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/rddf.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/rddf.html",
+    "specification": {
+      "sha256": "c6968b6e68e97143da78b246d7eecba42fee6412cec1d304f453f2276d50e01e",
+      "bytes": 2158
+    },
+    "artifact": {
+      "sha256": "6f72c8bd3e796a2f88a4961a0a7bf74ed191f8f01b8efcb92f8f40def9607f3a",
+      "bytes": 799810
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "rddf_match": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/rddf_match.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/rddf_match.html",
+    "specification": {
+      "sha256": "dc75db8701130a90b3fa3270c4648390f19f189cb57d32fd74bd7b575a216666",
+      "bytes": 1749
+    },
+    "artifact": {
+      "sha256": "4a3b54fcbede2799c9e298747b3af090589ea609c69e5b5d27e4a55b40fd0d74",
+      "bytes": 797971
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "timing": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/timing.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/timing.html",
+    "specification": {
+      "sha256": "c51e9b49955f01654f0ec1513e85ac23459e04c2c365b3b74587dd4b4e0610d4",
+      "bytes": 2108
+    },
+    "artifact": {
+      "sha256": "82a0cb7ea4b369b8ef849ec9213dfb3850b4c25781be8f79d9be7a01a8d1610f",
+      "bytes": 799195
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "operations": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/operations.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/operations.html",
+    "specification": {
+      "sha256": "666121b7bc37a01a44998ef85811cb0f493b6aa500431b5c6b9c29cbf648edce",
+      "bytes": 1461
+    },
+    "artifact": {
+      "sha256": "2f93c5a4cbd3d7b0d97aebcd5a05c210fd2194ffb7acfc3fddcb450cb7e663f0",
+      "bytes": 797137
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "tf": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/tf.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/tf.html",
+    "specification": {
+      "sha256": "aa197e9578486db9ef23ba8788599d68e94fb40a3a32b04514a2202c8f86e42f",
+      "bytes": 1679
+    },
+    "artifact": {
+      "sha256": "c164f509a9b4a4be606bfc52ac14c17bf2eab1ca4b687f5b216fd2f62a95a8d4",
+      "bytes": 797193
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "launches": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/launches.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/launches.html",
+    "specification": {
+      "sha256": "9e4ea6d3620243989d884ad0ec9a74e499b2994b2f5cb47c83e912c1fc19df3a",
+      "bytes": 1636
+    },
+    "artifact": {
+      "sha256": "14b4a9726f8669ec35eb11c937b7e38a71080a4661309bc824f44c236e9e69c9",
+      "bytes": 796950
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "viewer": {
+    "schemaVersion": 1,
+    "ok": true,
+    "command": "deliver",
+    "type": "architecture",
+    "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/viewer.architecture.json",
+    "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/viewer.html",
+    "specification": {
+      "sha256": "bbd858d5b819951c2679771b118db867d8d4ac75d164ca7e894f4215564b6e69",
+      "bytes": 1401
+    },
+    "artifact": {
+      "sha256": "798bfdc2cc5c1f58249b3ad90137a47eb1cc0975b2b13e16a1016ead82a678b5",
+      "bytes": 796977
+    },
+    "validation": {
+      "checksPassed": 9,
+      "checkCount": 9,
+      "compositionProfile": "showcase",
+      "compositionStatus": "pass",
+      "errors": 0,
+      "warnings": 0
+    }
+  }
+}

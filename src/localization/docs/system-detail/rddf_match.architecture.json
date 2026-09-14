@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "RDDF 선분 매칭과 모호성",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "project",
+      "type": "backend",
+      "label": "좌표 투영",
+      "sublabel": "WGS84 → map XY",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "segments",
+      "type": "backend",
+      "label": "선분 최근접점",
+      "sublabel": "projection · distance",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "ambiguity",
+      "type": "security",
+      "label": "거리·분기 모호성",
+      "sublabel": "거리 제한 · incompatible branch",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "pose",
+      "type": "messagebus",
+      "label": "경로상의 시작 pose",
+      "sublabel": "XY · yaw · route · index",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "project-to-segments",
+      "from": "project",
+      "to": "segments",
+      "label": "map 좌표",
+      "variant": "default"
+    },
+    {
+      "id": "segments-to-ambiguity",
+      "from": "segments",
+      "to": "ambiguity",
+      "label": "거리 후보",
+      "variant": "default"
+    },
+    {
+      "id": "ambiguity-to-pose",
+      "from": "ambiguity",
+      "to": "pose",
+      "label": "승인 선분",
+      "variant": "default",
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    }
+  ]
+}

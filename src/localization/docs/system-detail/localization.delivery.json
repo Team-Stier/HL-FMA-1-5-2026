@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/localization.architecture.json",
+  "output": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/docs/system-detail/localization.html",
+  "specification": {
+    "sha256": "8365903cbb161358d31db95d9185166e63f092f4e183780918310c79d3deea66",
+    "bytes": 2784
+  },
+  "artifact": {
+    "sha256": "05cc17b511dbe43200e184bf7779266893e052509c4e29358fb73fa3c4d7b176",
+    "bytes": 803691
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

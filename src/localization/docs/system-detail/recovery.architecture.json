@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "장기 GPS 단절과 복구",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1160,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "recovery0",
+      "type": "security",
+      "label": "장기 단절 감지",
+      "sublabel": "이전 anchor + 2초 초과",
+      "pos": [
+        60,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "recovery1",
+      "type": "security",
+      "label": "복구 경로 선택",
+      "sublabel": "GPS 조건 검사",
+      "pos": [
+        455,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "recovery2",
+      "type": "security",
+      "label": "GPS-only 조건부 reset",
+      "sublabel": "기본 OFF",
+      "pos": [
+        850,
+        70
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "recovery3",
+      "type": "security",
+      "label": "gate reanchor 요청",
+      "sublabel": "transaction ID",
+      "pos": [
+        850,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "recovery4",
+      "type": "security",
+      "label": "ACK 일치 검사",
+      "sublabel": "ID · stamp · XY",
+      "pos": [
+        455,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    },
+    {
+      "id": "recovery5",
+      "type": "security",
+      "label": "대기 시간 초과",
+      "sublabel": "복구 상태 유지",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        250,
+        90
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "recovery0-to-recovery1",
+      "from": "recovery0",
+      "to": "recovery1",
+      "label": "새 후보",
+      "variant": "default"
+    },
+    {
+      "id": "recovery1-to-recovery2",
+      "from": "recovery1",
+      "to": "recovery2",
+      "label": "GPS-only 조건부",
+      "variant": "default"
+    },
+    {
+      "id": "recovery2-to-recovery3",
+      "from": "recovery2",
+      "to": "recovery3",
+      "label": "Global 확인 후",
+      "variant": "default",
+      "labelAt": [
+        975.0,
+        250.0
+      ]
+    },
+    {
+      "id": "recovery3-to-recovery4",
+      "from": "recovery3",
+      "to": "recovery4",
+      "label": "ACK 수신",
+      "variant": "default"
+    },
+    {
+      "id": "recovery4-to-recovery5",
+      "from": "recovery4",
+      "to": "recovery5",
+      "label": "미완료 시 감시",
+      "variant": "default"
+    }
+  ]
+}

@@ -95,7 +95,7 @@ ls -l /dev/imu
 ## 빌드와 실행
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 catkin_make --pkg xsens_mti_driver imu_bringup
 source devel/setup.bash

@@ -1,0 +1,53 @@
+{
+  "calls": 9,
+  "local_prompt_tokens": 5842,
+  "local_generated_tokens": 1250,
+  "gross_proxy": 2618,
+  "review_adjusted_proxy": -454,
+  "reviewed_source_ranges": [
+    {
+      "source": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/scripts/rddf_initializer_node.py",
+      "start_line": 200,
+      "end_line": 238,
+      "reread_tokens": 563
+    },
+    {
+      "source": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/scripts/sensor_timing_monitor.py",
+      "start_line": 171,
+      "end_line": 190,
+      "reread_tokens": 232
+    },
+    {
+      "source": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/config/time_sync.yaml",
+      "start_line": 1,
+      "end_line": 44,
+      "reread_tokens": 505
+    },
+    {
+      "source": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/config/tf_configuration.yaml",
+      "start_line": 1,
+      "end_line": 65,
+      "reread_tokens": 558
+    },
+    {
+      "source": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/config/imu_heading_calibration.yaml",
+      "start_line": 1,
+      "end_line": 45,
+      "reread_tokens": 640
+    },
+    {
+      "source": "/home/paik/mando1-5/HL-FMA2026-stier/src/localization/scripts/timing_core.py",
+      "start_line": 1,
+      "end_line": 60,
+      "reread_tokens": 574
+    }
+  ],
+  "description": "원문 대신 Qwen 요약 JSON을 읽었을 때의 입력량 차이를 o200k_base로 계산했습니다. 원문 재검토 6건을 추가 차감했습니다. 음수는 이 비교에서 입력이 오히려 늘었다는 뜻이며, 전체 OpenAI 사용량이나 청구 비용 절감을 측정한 값이 아닙니다.",
+  "rejected_claims": [
+    "초기화 서비스 실패 시 atomicity 보장: rollback 코드 없음",
+    "모든 센서가 PC 수신 stamp를 사용한다: GPS stamp_semantics는 별도",
+    "GPS 정적 TF enabled=false이므로 GPS 데이터 미사용: TF와 fusion 활성화는 별개",
+    "encoder yaw가 GNSS 보정의 입력이다: 원문은 엔코더 움직임 정보를 사용",
+    "timing_core 상단 import만으로 측정 이력 처리를 설명한 부분: 해당 범위에서 증명되지 않음"
+  ]
+}

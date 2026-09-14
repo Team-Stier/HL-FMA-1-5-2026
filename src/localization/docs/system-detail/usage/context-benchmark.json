@@ -1,0 +1,2785 @@
+[
+  {
+    "utc": "2026-09-13T17:38:16.978384+00:00",
+    "context": 4096,
+    "run": "load_or_resize",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 663,
+      "generated_tokens": 88,
+      "finish_reason": "stop",
+      "elapsed_seconds": 23.358,
+      "model_elapsed_seconds": 23.356,
+      "response": "sensor:\n  timestamp_source: gnss_utc_requires_driver_confirmation\n  clock:\n    backend: auto\n\nNote: The YAML provided does not contain a top-level \"sensor\" section with \"timestamp_source\" and \"clock backend\" as requested. The values shown are from the \"sensors\" subsection under \"sensor_timing_monitor\", which lists individual sensor configurations. The requested fields are not directly listed at the top level of the file."
+    },
+    "exit_code": 0,
+    "wall_sec": 23.413,
+    "min_mem_available_bytes": 24797929472,
+    "max_gpu_used_mib": 11209,
+    "swap_before_bytes": 241958912,
+    "swap_after_bytes": 250347520,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 19204814392,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+          "size_vram": 11304100166,
+          "context_length": 4096
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25473896448,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 396,
+          "free_mib": 11645
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25377026048,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 419,
+          "free_mib": 11621
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25331703808,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 419,
+          "free_mib": 11621
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25321652224,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 418,
+          "free_mib": 11623
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25300959232,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 419,
+          "free_mib": 11622
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25283268608,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 419,
+          "free_mib": 11622
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25327091712,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 419,
+          "free_mib": 11622
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24966918144,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 10593,
+          "free_mib": 1448
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24962875392,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 10591,
+          "free_mib": 1449
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24910401536,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 11200,
+          "free_mib": 841
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24891396096,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 11202,
+          "free_mib": 839
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24882368512,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1905520640
+        },
+        "gpu": {
+          "used_mib": 11202,
+          "free_mib": 839
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24874262528,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11202,
+          "free_mib": 838
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24844234752,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11209,
+          "free_mib": 832
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:07.081933264+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24869183488,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11204,
+          "free_mib": 836
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:08.143153091+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24854032384,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11205,
+          "free_mib": 835
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:09.19405244+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24845697024,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11207,
+          "free_mib": 834
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:10.263809704+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24824074240,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:11.314353233+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24815558656,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:12.347182723+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24811388928,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11206,
+          "free_mib": 834
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:13.378607825+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24797929472,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:14.430437886+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24828116992,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:15.482612366+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24818495488,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.53505064+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:38:23.880346+00:00",
+    "context": 4096,
+    "run": "warm",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "truncated",
+      "prompt_tokens": 663,
+      "generated_tokens": 180,
+      "finish_reason": "length",
+      "elapsed_seconds": 6.848,
+      "model_elapsed_seconds": 6.845,
+      "response": "sensor:\n  timestamp_source: gnss_utc_requires_driver_confirmation\n  clock:\n    backend: auto\n\nNote: The YAML provided does not contain a top-level \"sensor\" section with \"timestamp_source\" and \"clock\" fields as requested. The values shown are from the \"sensors\" subsection under \"sensor_timing_monitor\". The task requested specific fields not present in the file. The file contains \"clock_preflight.backend: auto\" but not a \"clock.backend\" field at the top level. The \"timestamp_source\" is not a recognized field in the provided YAML structure. The file contains \"stamp_semantics\" values for each sensor type, but not a general \"timestamp_source\" setting. The request cannot be fulfilled with the provided file contents. The file does not contain a \"sensor\" section with \"timestamp_source\" and \"clock\" fields. The file contains \"clock_preflight"
+    },
+    "exit_code": 2,
+    "wall_sec": 6.9,
+    "min_mem_available_bytes": 24797003776,
+    "max_gpu_used_mib": 11208,
+    "swap_before_bytes": 250347520,
+    "swap_after_bytes": 250347520,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 19204814392,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+          "size_vram": 11304100166,
+          "context_length": 4096
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24815779840,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11206,
+          "free_mib": 834
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24816549888,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11205,
+          "free_mib": 836
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24801792000,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24797003776,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24820899840,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11206,
+          "free_mib": 834
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24811810816,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11205,
+          "free_mib": 836
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24815247360,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11208,
+          "free_mib": 833
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:16.971599033+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:39:32.876562+00:00",
+    "context": 4096,
+    "run": "load_or_resize",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 669,
+      "generated_tokens": 66,
+      "finish_reason": "stop",
+      "elapsed_seconds": 6.33,
+      "model_elapsed_seconds": 6.328,
+      "response": "{\n  \"clock_preflight.backend\": \"auto\",\n  \"sensors\": {\n    \"gps.stamp_semantics\": \"gnss_utc_requires_driver_confirmation\",\n    \"imu.stamp_semantics\": \"pc_driver_receipt_not_measurement_epoch\",\n    \"encoder.stamp_semantics\": \"pc_adapter_receipt_not_measurement_epoch\"\n  }\n}"
+    },
+    "exit_code": 0,
+    "wall_sec": 6.381,
+    "min_mem_available_bytes": 24692109312,
+    "max_gpu_used_mib": 11180,
+    "swap_before_bytes": 250347520,
+    "swap_after_bytes": 294649856,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 19204814392,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:44:32.869783024+09:00",
+          "size_vram": 11304100166,
+          "context_length": 4096
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24725245952,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1897132032
+        },
+        "gpu": {
+          "used_mib": 11180,
+          "free_mib": 861
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24723582976,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11179,
+          "free_mib": 861
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24704786432,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11179,
+          "free_mib": 861
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24706945024,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11178,
+          "free_mib": 863
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24713777152,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11179,
+          "free_mib": 861
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24698052608,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11180,
+          "free_mib": 861
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24692109312,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11178,
+          "free_mib": 863
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:43:23.873614947+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:39:35.423057+00:00",
+    "context": 4096,
+    "run": "warm",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 669,
+      "generated_tokens": 66,
+      "finish_reason": "stop",
+      "elapsed_seconds": 2.491,
+      "model_elapsed_seconds": 2.489,
+      "response": "{\n  \"clock_preflight.backend\": \"auto\",\n  \"sensors\": {\n    \"gps.stamp_semantics\": \"gnss_utc_requires_driver_confirmation\",\n    \"imu.stamp_semantics\": \"pc_driver_receipt_not_measurement_epoch\",\n    \"encoder.stamp_semantics\": \"pc_adapter_receipt_not_measurement_epoch\"\n  }\n}"
+    },
+    "exit_code": 0,
+    "wall_sec": 2.544,
+    "min_mem_available_bytes": 24698966016,
+    "max_gpu_used_mib": 11179,
+    "swap_before_bytes": 294649856,
+    "swap_after_bytes": 294649856,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 19204814392,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:44:35.417006563+09:00",
+          "size_vram": 11304100166,
+          "context_length": 4096
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24699142144,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11178,
+          "free_mib": 863
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:32.869783024+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24698966016,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11176,
+          "free_mib": 864
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:32.869783024+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24730882048,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11179,
+          "free_mib": 862
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:32.869783024+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:39:57.241185+00:00",
+    "context": 8192,
+    "run": "load_or_resize",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 669,
+      "generated_tokens": 66,
+      "finish_reason": "stop",
+      "elapsed_seconds": 21.761,
+      "model_elapsed_seconds": 21.759,
+      "response": "{\n  \"clock_preflight.backend\": \"auto\",\n  \"sensors\": {\n    \"gps.stamp_semantics\": \"gnss_utc_requires_driver_confirmation\",\n    \"imu.stamp_semantics\": \"pc_driver_receipt_not_measurement_epoch\",\n    \"encoder.stamp_semantics\": \"pc_adapter_receipt_not_measurement_epoch\"\n  }\n}"
+    },
+    "exit_code": 0,
+    "wall_sec": 21.815,
+    "min_mem_available_bytes": 24741679104,
+    "max_gpu_used_mib": 11196,
+    "swap_before_bytes": 294649856,
+    "swap_after_bytes": 294387712,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 19615856184,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:44:57.233667466+09:00",
+          "size_vram": 11319304518,
+          "context_length": 8192
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24741679104,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11179,
+          "free_mib": 861
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19204814392,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:35.417006563+09:00",
+              "size_vram": 11304100166,
+              "context_length": 4096
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25432924160,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 375,
+          "free_mib": 11666
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25381416960,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 390,
+          "free_mib": 11651
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25350287360,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 391,
+          "free_mib": 11650
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25335930880,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 391,
+          "free_mib": 11650
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25317707776,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 391,
+          "free_mib": 11650
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24942624768,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 10192,
+          "free_mib": 1848
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24966381568,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 10193,
+          "free_mib": 1848
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24912445440,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11187,
+          "free_mib": 854
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24913846272,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11187,
+          "free_mib": 854
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24908976128,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11186,
+          "free_mib": 855
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24869511168,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1852829696
+        },
+        "gpu": {
+          "used_mib": 11190,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24851341312,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11196,
+          "free_mib": 845
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:47.922731595+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24878055424,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11190,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:48.958787416+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24856301568,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11188,
+          "free_mib": 852
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:50.014851985+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24864137216,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:51.070797743+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24814403584,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:52.127020272+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24802820096,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11192,
+          "free_mib": 848
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:53.16918127+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24795787264,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:54.203083258+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24800284672,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:55.255411338+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24796495872,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:56.314440632+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:39:59.945653+00:00",
+    "context": 8192,
+    "run": "warm",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 669,
+      "generated_tokens": 66,
+      "finish_reason": "stop",
+      "elapsed_seconds": 2.649,
+      "model_elapsed_seconds": 2.647,
+      "response": "{\n  \"clock_preflight.backend\": \"auto\",\n  \"sensors\": {\n    \"gps.stamp_semantics\": \"gnss_utc_requires_driver_confirmation\",\n    \"imu.stamp_semantics\": \"pc_driver_receipt_not_measurement_epoch\",\n    \"encoder.stamp_semantics\": \"pc_adapter_receipt_not_measurement_epoch\"\n  }\n}"
+    },
+    "exit_code": 0,
+    "wall_sec": 2.702,
+    "min_mem_available_bytes": 24831012864,
+    "max_gpu_used_mib": 11194,
+    "swap_before_bytes": 294387712,
+    "swap_after_bytes": 294387712,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 19615856184,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:44:59.939292053+09:00",
+          "size_vram": 11319304518,
+          "context_length": 8192
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24837775360,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11192,
+          "free_mib": 848
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:57.233667466+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24831012864,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:57.233667466+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24833564672,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 846
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:57.233667466+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:40:22.807082+00:00",
+    "context": 16384,
+    "run": "load_or_resize",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 669,
+      "generated_tokens": 84,
+      "finish_reason": "stop",
+      "elapsed_seconds": 22.802,
+      "model_elapsed_seconds": 22.8,
+      "response": "{\n  \"clock_preflight.backend\": \"auto\",\n  \"sensors\": {\n    \"gps\": {\n      \"stamp_semantics\": \"gnss_utc_requires_driver_confirmation\"\n    },\n    \"imu\": {\n      \"stamp_semantics\": \"pc_driver_receipt_not_measurement_epoch\"\n    },\n    \"encoder\": {\n      \"stamp_semantics\": \"pc_adapter_receipt_not_measurement_epoch\"\n    }\n  }\n}"
+    },
+    "exit_code": 0,
+    "wall_sec": 22.858,
+    "min_mem_available_bytes": 24811626496,
+    "max_gpu_used_mib": 11194,
+    "swap_before_bytes": 294387712,
+    "swap_after_bytes": 294387712,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 20463105592,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:45:22.801186896+09:00",
+          "size_vram": 11314585926,
+          "context_length": 16384
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24848056320,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11194,
+          "free_mib": 847
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 19615856184,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:44:59.939292053+09:00",
+              "size_vram": 11319304518,
+              "context_length": 8192
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25420611584,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 374,
+          "free_mib": 11667
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25349971968,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 391,
+          "free_mib": 11650
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25333800960,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 391,
+          "free_mib": 11650
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25334067200,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 391,
+          "free_mib": 11649
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 25306447872,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 389,
+          "free_mib": 11651
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24958988288,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 9388,
+          "free_mib": 2653
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24958980096,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 9388,
+          "free_mib": 2653
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24872189952,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11182,
+          "free_mib": 859
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24897069056,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11183,
+          "free_mib": 858
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24916398080,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11185,
+          "free_mib": 855
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24911003648,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11185,
+          "free_mib": 856
+        },
+        "ollama": {
+          "models": []
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24893612032,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 852
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:12.442898897+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24881147904,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11183,
+          "free_mib": 858
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:13.494162442+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24860536832,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11184,
+          "free_mib": 856
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:14.526604548+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24861130752,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 852
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:15.565579633+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24838873088,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:16.622906242+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24811626496,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11188,
+          "free_mib": 853
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:17.686851998+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24847355904,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 852
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:18.723007186+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24855277568,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:19.778977971+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24860037120,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:20.831932853+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24856891392,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11188,
+          "free_mib": 853
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:21.88778272+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "utc": "2026-09-13T17:40:25.649678+00:00",
+    "context": 16384,
+    "run": "warm",
+    "response": {
+      "model": "qwen3-coder:30b",
+      "status": "complete",
+      "prompt_tokens": 669,
+      "generated_tokens": 66,
+      "finish_reason": "stop",
+      "elapsed_seconds": 2.786,
+      "model_elapsed_seconds": 2.784,
+      "response": "{\n  \"clock_preflight.backend\": \"auto\",\n  \"sensors\": {\n    \"gps.stamp_semantics\": \"gnss_utc_requires_driver_confirmation\",\n    \"imu.stamp_semantics\": \"pc_driver_receipt_not_measurement_epoch\",\n    \"encoder.stamp_semantics\": \"pc_adapter_receipt_not_measurement_epoch\"\n  }\n}"
+    },
+    "exit_code": 0,
+    "wall_sec": 2.838,
+    "min_mem_available_bytes": 24823218176,
+    "max_gpu_used_mib": 11190,
+    "swap_before_bytes": 294387712,
+    "swap_after_bytes": 294387712,
+    "loaded_models": {
+      "models": [
+        {
+          "name": "qwen3-coder:30b",
+          "model": "qwen3-coder:30b",
+          "size": 20463105592,
+          "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3moe",
+            "families": [
+              "qwen3moe"
+            ],
+            "parameter_size": "30.5B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-14T02:45:25.642537216+09:00",
+          "size_vram": 11314585926,
+          "context_length": 16384
+        }
+      ]
+    },
+    "samples": [
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24853028864,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 852
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:22.801186896+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24842432512,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11189,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:22.801186896+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      },
+      {
+        "memory": {
+          "MemTotal": 33553231872,
+          "MemAvailable": 24823218176,
+          "SwapTotal": 2147479552,
+          "SwapFree": 1853091840
+        },
+        "gpu": {
+          "used_mib": 11190,
+          "free_mib": 851
+        },
+        "ollama": {
+          "models": [
+            {
+              "name": "qwen3-coder:30b",
+              "model": "qwen3-coder:30b",
+              "size": 20463105592,
+              "digest": "4658589960f671935363348d11eab2af25f42ffee43fb8fea394d0d0c6395ddb",
+              "details": {
+                "parent_model": "",
+                "format": "gguf",
+                "family": "qwen3moe",
+                "families": [
+                  "qwen3moe"
+                ],
+                "parameter_size": "30.5B",
+                "quantization_level": "Q4_K_M"
+              },
+              "expires_at": "2026-09-14T02:45:22.801186896+09:00",
+              "size_vram": 11314585926,
+              "context_length": 16384
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
