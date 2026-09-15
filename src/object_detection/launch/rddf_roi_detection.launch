@@ -8,13 +8,16 @@
   <arg name="dbscan_config" default="$(find object_detection)/config/dbscan.yaml"/>
   <arg name="rddf_directory" default="$(find mando_localization)/rddf"/>
   <arg name="start_viewer" default="true"/>
+  <arg name="corridor_enabled" default="true"/>
+  <arg name="map_frame" default="map"/>
 
   <node pkg="object_detection" type="rddf_roi_detector_node"
         name="rddf_roi_detector" output="screen" clear_params="true">
     <rosparam command="load" file="$(arg roi_config)" ns="roi"/>
     <rosparam command="load" file="$(arg dbscan_config)"/>
+    <param name="roi/corridor_enabled" value="$(arg corridor_enabled)"/>
     <param name="rddf_directory" value="$(arg rddf_directory)"/>
-    <param name="frames/map" value="map"/>
+    <param name="frames/map" value="$(arg map_frame)"/>
     <param name="frames/base_link" value="base_link"/>
     <param name="frames/lidar" value="laser_link"/>
     <param name="topics/scan" value="$(arg scan_topic)"/>

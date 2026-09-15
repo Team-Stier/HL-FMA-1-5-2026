@@ -66,6 +66,10 @@ rostopic echo -n 1 /object_detection/roi_points/header
 rostopic hz /dbscan_clusters
 ```
 
+실제 LiDAR만 연결한 상태에서는 RDDF와 Localization TF 없이 `base_link` 기준으로 실행할 수
+있다. LiDAR 드라이버가 `base_link -> laser_link` 정적 TF를 발행하도록 한 뒤 다음 launch에
+`corridor_enabled:=false map_frame:=base_link`를 전달한다.
+
 ## 빌드·검사
 
 ```bash
