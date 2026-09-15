@@ -12,6 +12,10 @@ DBSCAN 입력으로 사용한다. 현재 RDDF 끝에 가까워지면 연결된 �
 이어 붙인다. 좌우 경로가 갈리는 지점에서는 아직 경로가 확정되지 않은 두 후보를 모두
 포함해 전환 순간에 ROI가 끊기지 않게 한다.
 
+`config/rddf_roi.yaml`에서 `corridor_enabled: false`로 바꾸면 RDDF 매칭과 원형 ROI를
+사용하지 않는다. 이 모드에서는 LiDAR의 차량 전방 전체에 차체 제거와 DBSCAN을 적용한다.
+전방 기준은 아래 `lidar_forward_roi` 설정을 그대로 사용한다.
+
 LiDAR 점은 팀 TF로 `base_link`에 변환한 뒤, LiDAR 장착 위치보다 차량 전방(+X)에 있는
 점만 사용한다. `laser_link`가 yaw 180도로 장착되어도 차량 전방을 올바르게 선택한다.
 LiDAR 원점 앞에서 제외할 거리와 사용 여부는 `config/rddf_roi.yaml`의

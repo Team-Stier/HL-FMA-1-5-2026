@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Filter raw 2D LiDAR by the current/next RDDF corridor and run DBSCAN."""
+"""Filter raw 2D LiDAR by optional RDDF/front ROI and run DBSCAN."""
 
 import colorsys
 import math
@@ -201,6 +201,9 @@ class RddfRoiDetector:
         self.map_frame = rospy.get_param("~frames/map", "map").lstrip("/")
         self.base_frame = rospy.get_param("~frames/base_link", "base_link").lstrip("/")
         self.lidar_frame = rospy.get_param("~frames/lidar", "laser_link").lstrip("/")
+        self.corridor_enabled = rospy.get_param("~roi/corridor_enabled")
+        if not isinstance(self.corridor_enabled, bool):
+            raise ValueError("corridor_enabled must be Boolean")
         self.radius = _positive("corridor_radius_m", rospy.get_param("~roi/corridor_radius_m"))
         self.lookahead = _positive("lookahead_m", rospy.get_param("~roi/lookahead_m"))
         self.lookbehind = _positive(
@@ -211,8 +214,9 @@ class RddfRoiDetector:
         self.max_depth = int(rospy.get_param("~roi/max_successor_depth"))
         connection_distance = _positive(
             "connection_distance_m", rospy.get_param("~roi/connection_distance_m"))
-        self.network = RddfRouteNetwork.from_directory(
+        self.network = (RddfRouteNetwork.from_directory(
             rospy.get_param("~rddf_directory"), connection_distance)
+            if self.corridor_enabled else None)
         self.eps = _positive("eps", rospy.get_param("~eps"))
         self.min_samples = int(rospy.get_param("~min_samples"))
         self.voxel_size = _positive(
@@ -268,15 +272,17 @@ class RddfRoiDetector:
         self.lock = threading.Lock()
         self.match = None
         self.last_scan_stamp = None
-        self.match_subscriber = rospy.Subscriber(
+        self.match_subscriber = (rospy.Subscriber(
             topics["current_rddf"], RddfMatch, self.match_callback, queue_size=1)
+            if self.corridor_enabled else None)
         self.scan_subscriber = rospy.Subscriber(
             topics["scan"], LaserScan, self.scan_callback, queue_size=1)
         rospy.loginfo(
-            "RDDF ROI detector: scan=%s current_rddf=%s radius=%.2f lookahead=%.1f "
+            "Object detector: scan=%s current_rddf=%s corridor=%s radius=%.2f lookahead=%.1f "
             "lidar_forward=%s[%.2f m] angle_roi=%s[%.1f, %.1f] self_filter=%s "
             "spatial=%s voxel=%.3f",
-            topics["scan"], topics["current_rddf"], self.radius, self.lookahead,
+            topics["scan"], topics["current_rddf"], self.corridor_enabled,
+            self.radius, self.lookahead,
             self.lidar_forward_roi_enabled, self.lidar_min_forward,
             self.angular_roi_enabled, self.angular_limits[0], self.angular_limits[1],
             self.self_filter_enabled, spatial_index_backend(), self.voxel_size)
@@ -314,21 +320,26 @@ class RddfRoiDetector:
                 self.match = None
             self.last_scan_stamp = stamp
             match = self.match
-        if match is None:
-            self._clear_outputs(scan.header.stamp)
-            rospy.logwarn_throttle(5.0, "RDDF ROI 대기: 현재 RDDF match 없음")
-            return
-        source_route, segment_index, segment_fraction, match_stamp = match
-        age = stamp - match_stamp
-        if age < -self.future_tolerance or age > self.hold:
-            self._clear_outputs(scan.header.stamp)
-            rospy.logwarn_throttle(5.0, "RDDF ROI 대기: RDDF match가 오래되었거나 미래 시각임")
-            return
+        if self.corridor_enabled:
+            if match is None:
+                self._clear_outputs(scan.header.stamp)
+                rospy.logwarn_throttle(5.0, "RDDF ROI 대기: 현재 RDDF match 없음")
+                return
+            source_route, segment_index, segment_fraction, match_stamp = match
+            age = stamp - match_stamp
+            if age < -self.future_tolerance or age > self.hold:
+                self._clear_outputs(scan.header.stamp)
+                rospy.logwarn_throttle(5.0, "RDDF ROI 대기: RDDF match가 오래되었거나 미래 시각임")
+                return
         try:
-            polylines = self.network.corridor(
-                source_route, segment_index, segment_fraction,
-                self.lookahead, self.lookbehind, self.max_depth)
-            centers = np.unique(np.round(np.vstack(polylines), 6), axis=0)
+            if self.corridor_enabled:
+                polylines = self.network.corridor(
+                    source_route, segment_index, segment_fraction,
+                    self.lookahead, self.lookbehind, self.max_depth)
+                centers = np.unique(np.round(np.vstack(polylines), 6), axis=0)
+            else:
+                polylines = []
+                centers = np.empty((0, 2), dtype=float)
             map_transform = self.tf_buffer.lookup_transform(
                 self.map_frame, scan.header.frame_id, scan.header.stamp, rospy.Duration(0.05))
             laser_xyz = laser_scan_points(scan)
@@ -359,8 +370,11 @@ class RddfRoiDetector:
                     angle_removed_count = int(np.count_nonzero(keep & ~angle_keep))
                     keep &= angle_keep
             xyz = xyz[keep]
-            mask = circle_union_mask(xyz[:, :2], centers, self.radius)
-            filtered = xyz[mask]
+            if self.corridor_enabled:
+                mask = circle_union_mask(xyz[:, :2], centers, self.radius)
+                filtered = xyz[mask]
+            else:
+                filtered = xyz
             clustered = (voxel_downsample(filtered, self.voxel_size)
                          if self.voxel_size > 0 else filtered)
             labels = dbscan(clustered[:, :2], self.eps, self.min_samples)
@@ -381,9 +395,10 @@ class RddfRoiDetector:
                 header, clustered, labels, self.point_size, self.centroid_size))
         cluster_count = len(set(labels.tolist()) - {NOISE})
         rospy.logdebug(
-            "RDDF ROI %s: roi=%d voxel=%d/%d points, lidar_x=%d self=%d angle=%d "
+            "Object ROI %s: roi=%d voxel=%d/%d points, lidar_x=%d self=%d angle=%d "
             "removed, %d clusters",
-            source_route, len(filtered), len(clustered), len(xyz), lidar_removed_count,
+            source_route if self.corridor_enabled else "all-forward",
+            len(filtered), len(clustered), len(xyz), lidar_removed_count,
             removed_count, angle_removed_count, cluster_count)
 
 

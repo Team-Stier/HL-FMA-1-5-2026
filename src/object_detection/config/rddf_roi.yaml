@@ -1,3 +1,8 @@
+# RDDF 점 기반 원형 ROI 사용 여부
+# false면 RDDF 매칭을 기다리지 않고 LiDAR의 차량 전방 전체를 DBSCAN 입력으로 사용한다.
+# 이때도 lidar_forward_roi, angular_roi, self_filter 설정은 그대로 적용된다.
+corridor_enabled: true
+
 # RDDF 점을 중심으로 만드는 원형 ROI의 반지름 [m]
 # 차선 폭이 약 3.5 m라면 1.75~2.2 m에서 시작해 차량과 연석 포함 범위를 확인한다.
 corridor_radius_m: 2.0
