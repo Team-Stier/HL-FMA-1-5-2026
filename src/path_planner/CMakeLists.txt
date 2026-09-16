@@ -5,7 +5,10 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
   planning_interfaces
+  rospy
   roscpp
+  std_msgs
+  std_srvs
   tf2
   tf2_geometry_msgs
   visualization_msgs
@@ -14,8 +17,12 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES path_planner_core
-  CATKIN_DEPENDS geometry_msgs nav_msgs planning_interfaces roscpp tf2
-                 tf2_geometry_msgs visualization_msgs
+  CATKIN_DEPENDS geometry_msgs nav_msgs planning_interfaces rospy roscpp
+                 std_msgs std_srvs tf2 tf2_geometry_msgs visualization_msgs
+)
+
+catkin_install_python(PROGRAMS test/frenet_field_test_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 add_library(path_planner_core
@@ -47,6 +54,12 @@ install(DIRECTORY include/${PROJECT_NAME}/
 )
 install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+install(FILES
+  test/frenet_field_control.yaml
+  test/frenet_field_planner.yaml
+  test/frenet_field_test.rviz
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/test
 )
 install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 

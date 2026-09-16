@@ -11,8 +11,15 @@
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>planning_interfaces</depend>
+  <depend>rospy</depend>
   <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>visualization_msgs</depend>
+  <exec_depend>control</exec_depend>
+  <exec_depend>object_detection</exec_depend>
+  <exec_depend>rviz</exec_depend>
+  <exec_depend>sensor_bringup</exec_depend>
 </package>

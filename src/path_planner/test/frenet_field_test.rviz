@@ -1,0 +1,112 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Views
+    Name: Views
+  - Class: rviz/Tool Properties
+    Name: Tool Properties
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Background Color: 24; 29; 37
+    Fixed Frame: base_link
+    Frame Rate: 30
+  Displays:
+    - Class: rviz/Grid
+      Name: Vehicle-relative grid
+      Enabled: true
+      Plane: XY
+      Cell Size: 1
+      Plane Cell Count: 40
+      Color: 72; 80; 94
+      Alpha: 0.35
+    - Class: rviz/LaserScan
+      Name: Real LiDAR
+      Enabled: true
+      Topic: /molit/sensors/lidar/scan
+      Queue Size: 2
+      Size (m): 0.05
+      Style: Points
+      Decay Time: 0
+      Color Transformer: FlatColor
+      Color: 255; 132; 62
+      Position Transformer: XYZ
+    - Class: rviz/PointCloud2
+      Name: Object detector ROI points
+      Enabled: true
+      Topic: /object_detection/roi_points
+      Queue Size: 1
+      Style: Points
+      Size (m): 0.06
+      Color Transformer: FlatColor
+      Color: 50; 230; 230
+      Position Transformer: XYZ
+      Decay Time: 0
+    - Class: rviz/MarkerArray
+      Name: Real DBSCAN clusters
+      Enabled: true
+      Marker Topic: /dbscan_clusters
+      Queue Size: 1
+    - Class: rviz/MarkerArray
+      Name: Object detector filters
+      Enabled: true
+      Marker Topic: /object_detection/roi_markers
+      Queue Size: 1
+    - Class: rviz/Path
+      Name: Vehicle-relative straight reference
+      Enabled: true
+      Topic: /frenet_test/reference_path
+      Color: 180; 180; 180
+      Alpha: 0.9
+      Line Style: Lines
+      Line Width: 0.08
+      Buffer Length: 1
+      Pose Style: None
+    - Class: rviz/Path
+      Name: Frenet output
+      Enabled: true
+      Topic: /frenet_test/planned_path
+      Color: 255; 238; 40
+      Alpha: 1
+      Line Style: Lines
+      Line Width: 0.18
+      Buffer Length: 1
+      Pose Style: None
+    - Class: rviz/Path
+      Name: PP input
+      Enabled: true
+      Topic: /path/final
+      Color: 87; 243; 133
+      Alpha: 0.9
+      Line Style: Lines
+      Line Width: 0.10
+      Buffer Length: 1
+      Pose Style: None
+    - Class: rviz/MarkerArray
+      Name: Test bounds and status
+      Enabled: true
+      Marker Topic: /frenet_test/markers
+      Queue Size: 1
+    - Class: rviz/PointStamped
+      Name: PP lookahead point
+      Enabled: true
+      Topic: /control/lookahead_point
+      Color: 255; 0; 255
+      Radius: 0.20
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/Measure
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: Vehicle-relative Frenet view
+      Target Frame: base_link
+      Angle: 0
+      Scale: 45
+      X: 6
+      Y: 0
+Window Geometry:
+  Width: 1400
+  Height: 850

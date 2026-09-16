@@ -1,0 +1,56 @@
+# No-localization vehicle-frame PP test. Production control config is unchanged.
+control_node:
+  path_topic: /path/final
+  mission_topic: /mission/state
+  odometry_topic: /frenet_test/odometry
+  feedback_topic: /erp42_serial/feedback
+  emergency_stop_topic: /vehicle/emergency_stop
+  command_topic: /erp42_serial/drive
+  state_topic: /control/state
+  lookahead_point_topic: /control/lookahead_point
+  stanley_projection_point_topic: /control/stanley_projection_point
+  cross_track_error_topic: /control/cross_track_error
+  heading_error_topic: /control/heading_error
+  steering_angle_topic: /control/steering_angle_rad
+
+  expected_frame_id: base_link
+  vehicle_frame_id: base_link
+  lateral_controller: pure_pursuit
+
+  control_rate_hz: 20.0
+  path_timeout_sec: 0.50
+  mission_timeout_sec: 0.50
+  odometry_timeout_sec: 0.25
+  feedback_timeout_sec: 0.30
+  maximum_control_dt_sec: 0.20
+
+  wheelbase_m: 0.75
+  rear_axle_to_pose_reference_m: 0.0
+  maximum_road_wheel_steering_deg: 25.0
+  road_wheel_angle_at_command_limit_deg: 25.0
+  steering_command_limit_deg: 25
+  steering_command_sign: -1
+  maximum_steering_rate_deg_per_sec: 45.0
+
+  target_speed_kph: 5
+  maximum_speed_kph: 5
+  require_ros_mode: true
+
+  lookahead_base_m: 1.00
+  lookahead_speed_gain_sec: 0.50
+  lookahead_curvature_gain_m: 1.00
+  lookahead_min_m: 0.80
+  lookahead_max_m: 1.80
+  minimum_target_distance_m: 0.20
+  curvature_preview_distance_m: 2.00
+
+  stanley_gain: 0.80
+  stanley_softening_speed_mps: 0.50
+  stanley_minimum_control_speed_mps: 0.20
+  stanley_heading_window_m: 0.80
+  stanley_heading_error_gain: 1.00
+  stanley_curvature_feedforward_gain: 0.00
+  stanley_curvature_preview_distance_m: 1.50
+  stanley_yaw_rate_damping_gain_sec: 0.00
+
+  calibration_required: false

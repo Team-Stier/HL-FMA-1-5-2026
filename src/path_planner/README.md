@@ -85,6 +85,38 @@ roslaunch path_planner path_planner.launch
 RDDF 좌우 주행 가능 경계를 `config/path_planner.yaml`에 넣고 검증한 뒤
 `roslaunch path_planner path_planner.launch calibration_required:=false`로 실행한다.
 
+### Localization/RDDF 없이 운동장에서 Frenet 실차 시험
+
+`frenet_field_test.launch`는 Localization, State Manager, RDDF tracker, Selector를 실행하지
+않는다. 좌표계는 차량에 붙은 `base_link`이고 테스트 어댑터가 직선 기준선과 원점 pose만
+형식에 맞게 공급한다. 장애물은 가상 데이터가 아니라 실제 LiDAR를 RDDF corridor 없이
+DBSCAN한 `/dbscan_clusters`만 사용한다. Frenet 결과의 `Path`를 PP 입력으로 변환하고
+Arduino rosserial까지 연결한다. 생산 코어와 생산 설정은 변경하지 않으며 모든 전용 코드는
+`path_planner/test`에 있다.
+
+```bash
+source /opt/ros/noetic/setup.bash
+catkin_make
+source devel/setup.bash
+roslaunch path_planner frenet_field_test.launch \
+  arduino_port:=/dev/ttyACM0
+```
+
+시작 직후에는 `DISARMED`라 Control이 `KPH=0, brake=1`을 보낸다. RViz에서 실제 LiDAR,
+청록 ROI point, DBSCAN cluster, 회색 직선 기준선, 노란 Frenet 경로와 초록 PP 입력을
+확인한다. Arduino feedback의 `MorA=1`까지 확인한 뒤에만 주행을 켠다. 시험 속도는 전용
+Control 설정에서 `5 km/h`다.
+
+```bash
+rostopic echo /erp42_serial/feedback
+rostopic echo /path_planner/status
+rosservice call /frenet_test/run "data: true"
+```
+
+정지는 `rosservice call /frenet_test/run "data: false"`, 별도 비상정지는
+`rostopic pub -1 /vehicle/emergency_stop std_msgs/Bool "data: true"`다. LiDAR나 Arduino를
+이미 별도로 실행 중이면 각각 `start_lidar:=false`, `start_arduino:=false`를 준다.
+
 시험은 ROS 설치/GTest 다운로드 없이 빈 도로, 라바콘 회피, 전폭 차단·reset, 잘못된 치수/방향,
 동일 s 비교, 위치/변환 점프의 여섯 시나리오 그룹을 검사한다. 현장 주행/제동 검증이 아니다.
 더 넓은 기존 회귀시험은 원본 workspace에 보존하며 이 전달본에는 필요한 최소 코어 시험만 넣는다.

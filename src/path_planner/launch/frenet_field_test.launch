@@ -1,0 +1,66 @@
+<launch>
+  <!-- No Localization, State Manager, RDDF tracker, or Selector is started. -->
+  <arg name="start_lidar" default="true"/>
+  <arg name="start_object_detection" default="true"/>
+  <arg name="start_control" default="true"/>
+  <arg name="start_arduino" default="true"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="arduino_port" default=""/>
+  <arg name="arduino_baud" default=""/>
+
+  <!-- Only the physical LiDAR and Arduino are enabled from sensor_bringup. -->
+  <include file="$(find sensor_bringup)/launch/sensors.launch">
+    <arg name="enable_lidar" value="$(arg start_lidar)"/>
+    <arg name="enable_cam" value="false"/>
+    <arg name="enable_gps" value="false"/>
+    <arg name="enable_imu" value="false"/>
+    <arg name="enable_arduino" value="$(arg start_arduino)"/>
+    <arg name="publish_lidar_static_tf" value="true"/>
+    <arg name="arduino_port" value="$(arg arduino_port)"/>
+    <arg name="arduino_baud" value="$(arg arduino_baud)"/>
+  </include>
+
+  <!-- RDDF corridor is disabled: DBSCAN uses the real forward LiDAR points. -->
+  <include if="$(arg start_object_detection)"
+           file="$(find object_detection)/launch/rddf_roi_detection.launch">
+    <arg name="corridor_enabled" value="false"/>
+    <arg name="map_frame" value="base_link"/>
+    <arg name="start_viewer" value="false"/>
+  </include>
+
+  <!-- Test-only format adapter: straight reference, zero local pose, arm service. -->
+  <node pkg="path_planner"
+        type="frenet_field_test_node.py"
+        name="frenet_field_test"
+        output="screen"
+        required="true">
+    <!-- 1.40 m/s is slightly above 5 km/h so integer KPH limiting remains 5. -->
+    <param name="speed_limit_mps" value="1.40"/>
+    <param name="road_left_bound_m" value="3.0"/>
+    <param name="road_right_bound_m" value="3.0"/>
+  </node>
+
+  <node pkg="path_planner"
+        type="path_planner_node"
+        name="path_planner"
+        output="screen"
+        required="true">
+    <rosparam command="load"
+              file="$(find path_planner)/test/frenet_field_planner.yaml"/>
+    <remap from="/molit/localization/odometry" to="/frenet_test/odometry"/>
+  </node>
+
+  <include if="$(arg start_control)" file="$(find control)/launch/control.launch">
+    <arg name="config"
+         value="$(find path_planner)/test/frenet_field_control.yaml"/>
+    <arg name="lateral_controller" value="pure_pursuit"/>
+    <arg name="calibration_required" value="false"/>
+  </include>
+
+  <node if="$(arg start_rviz)"
+        pkg="rviz"
+        type="rviz"
+        name="frenet_field_test_rviz"
+        args="-d $(find path_planner)/test/frenet_field_test.rviz"
+        output="screen"/>
+</launch>
