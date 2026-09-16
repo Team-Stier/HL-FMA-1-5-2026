@@ -19,7 +19,6 @@
 ## 가장 먼저 볼 그림: RDDF 모드에서 PP까지
 
 ```mermaid
-%%{init: {"flowchart": {"htmlLabels": true, "nodeSpacing": 36, "rankSpacing": 45}, "themeVariables": {"fontSize": "18px"}}}%%
 flowchart TB
     classDef source fill:#ddf4ff,stroke:#0969da,stroke-width:2px,color:#1f2328
     classDef decision fill:#fff8c5,stroke:#9a6700,stroke-width:3px,color:#1f2328
@@ -63,7 +62,6 @@ State Manager가 담당한다.
 ## RDDF·LOCAL·PARKING 경로 선택
 
 ```mermaid
-%%{init: {"flowchart": {"htmlLabels": true, "nodeSpacing": 40, "rankSpacing": 50}, "themeVariables": {"fontSize": "18px"}}}%%
 flowchart TB
     classDef active fill:#dafbe1,stroke:#1a7f37,stroke-width:3px,color:#1f2328
     classDef choice fill:#fff8c5,stroke:#9a6700,stroke-width:3px,color:#1f2328
@@ -97,7 +95,6 @@ Selector는 경로를 새로 만들거나 RDDF를 자르지 않는다. State Man
 ## 센서·인지·LOCAL 경로 생성
 
 ```mermaid
-%%{init: {"flowchart": {"htmlLabels": true, "nodeSpacing": 40, "rankSpacing": 50}, "themeVariables": {"fontSize": "18px"}}}%%
 flowchart TB
     classDef sensor fill:#ddf4ff,stroke:#0969da,stroke-width:2px,color:#1f2328
     classDef active fill:#dafbe1,stroke:#1a7f37,stroke-width:3px,color:#1f2328
