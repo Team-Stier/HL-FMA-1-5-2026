@@ -66,6 +66,13 @@ Localization이 별도로 구성해야 한다.
 - 현재 연결 시 모델명: `Xsens Motion Tracker Dev. Board`
 - 드라이버가 보고한 장치: `MTi-3-8A7G6`, device ID `03889250`
 
+추가 등록 장치:
+
+- USB serial: `DBBE3VMC`
+- Vendor/Product ID: `2639:0300`
+- 현재 연결 시 모델명: `Xsens Motion Tracker Dev. Board`
+- 드라이버가 보고한 장치: `MTi-3-8A7G6`, device ID `0388BD48`
+
 udev 규칙은 `udev/99-stier-xsens.rules`에 있다. 다른 MTi 제품도 예비 장치로 사용할 경우
 장치를 하나씩 연결해 `ID_SERIAL_SHORT`를 확인한 뒤 같은 `/dev/imu` 이름을 사용하는 규칙을
 한 줄씩 추가한다. 정상 운용 중에는 IMU를 한 대만 연결한다.

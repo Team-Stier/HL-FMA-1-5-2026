@@ -1,2 +1,4 @@
-# Xsens MTi-3-0L-DK
+# Xsens MTi-3-0L-DK units registered for this vehicle.
+# Keep one IMU connected at a time because both devices intentionally use /dev/imu.
 KERNEL=="ttyUSB*", ATTRS{idVendor}=="2639", ATTRS{idProduct}=="0300", ATTRS{serial}=="DB8GG04M", SYMLINK+="imu", MODE="0666"
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="2639", ATTRS{idProduct}=="0300", ATTRS{serial}=="DBBE3VMC", SYMLINK+="imu", MODE="0666"

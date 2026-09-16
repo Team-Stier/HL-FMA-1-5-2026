@@ -245,7 +245,7 @@ class ConfigurationContractTest(unittest.TestCase):
     def test_measured_imu_identity_and_fail_closed_covariance(self):
         imu = load_yaml("imu_driver.yaml")
         self.assertEqual("/dev/imu", imu["port"])
-        self.assertEqual("03889250", imu["device_id"])
+        self.assertEqual("0388BD48", imu["device_id"])
         self.assertEqual(115200, imu["baudrate"])
         self.assertTrue(imu["covariance_override"]["enabled"])
         self.assertEqual("measured", imu["covariance_override"]["calibration_state"])
