@@ -47,31 +47,28 @@ flowchart TB
     CAR[Arduino / T870<br/>차량 구동]:::active
 
     TL -->|traffic signal| SM
-    LOC -->|RDDF match · TF| OD
     LOC -->|Odometry · valid| SM
     LOADER -->|/route/map| SM
 
     OD -->|/dbscan_clusters| LP
-    LOC -->|Odometry| LP
-    LOADER -->|/route/map| LP
     SM -->|/mission/state · LOCAL 요청| LP
 
     SM -->|/path/rddf + 선택 요청| SEL
     LP -->|/path/local| SEL
     PARK -.->|/path/park| SEL
-    PARK -.->|/parking/maneuver| SM
 
     SEL -->|/path/final · 유일한 경로 입력| PP
-    LOC -->|Odometry| PP
     SM -.->|속도 · 정지 · 방향<br/>경로 아님| PP
     ESTOP --> PP
     CAR -->|feedback| PP
     PP -->|/erp42_serial/drive| CAR
 ```
 
-선 교차를 줄이기 위해 판단 결과에 영향을 주지 않는 검증용 역방향 선은 그림에서
-생략했다. State Manager는 원본 LiDAR와 `/path/local`도 받아 선택 경로 충돌 여부를
-검증하지만, 이 입력들은 새로운 경로를 생성하거나 Selector를 우회하지 않는다.
+선 교차를 줄이기 위해 여러 노드가 공유하는 위치·지도 입력과 검증용 역방향 선은
+그림에서 생략하고 아래 입력·출력 표에 기록했다. 생략된 선은 Localization에서
+Object Detection·Path Planner·PP로 가는 위치 정보, RDDF 파일 로더에서 Path Planner로
+가는 `/route/map`, LiDAR와 `/path/local`에서 State Manager로 가는 안전 검증 입력이다.
+이 선들은 새로운 경로를 생성하거나 Selector를 우회하지 않는다.
 
 **PP는 State Manager의 `/path/rddf`를 직접 받지 않는다.** State Manager가 잘라서 만든
 `/path/rddf`는 반드시 Selector를 통과하고, PP는 Selector가 내보낸 `/path/final`만
