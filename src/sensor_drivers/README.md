@@ -80,10 +80,10 @@ S2M1 두 대의 USB 고유 시리얼은 `lidar/udev/99-stier-rplidar.rules`에 �
 중 어느 것을 연결해도 `/dev/lidar`가 된다. 드라이버는 1,000,000 baud, 10 Hz로 실행해
 `sensor_msgs/LaserScan` 형식의 `/scan`을 발행한다.
 
-차량 좌표계는 `base_link`의 `+x`가 전방, `+y`가 왼쪽, `+z`가 위쪽이다. LiDAR는 차량
-전방 X축을 중심으로 180도 회전되어 있으므로 launch 파일이 `base_link`에서 `laser`로
-roll `pi`, yaw `0`인 정적 TF를 발행한다. 전후 X는 유지되고 좌우 Y와 상하 Z만
-반전된다. RViz의 Fixed Frame은 `base_link`로 설정한다.
+차량 좌표계는 `base_link`의 `+x`가 전방, `+y`가 왼쪽, `+z`가 위쪽이다. 기존 yaw `pi`는
+RPLIDAR raw scan의 앞뒤 축을 차량과 맞추는 보정이다. 여기에 물리 장착 방향인 전방 X축
+roll `pi`를 추가한다. 따라서 기존 yaw-only 표시와 비교하면 앞뒤는 유지되고 좌우만
+바뀐다. RViz의 Fixed Frame은 `base_link`로 설정한다.
 
 ```bash
 ./src/sensor_drivers/lidar/scripts/install_udev_rules.sh
@@ -99,7 +99,7 @@ LiDAR의 실제 장착 위치를 측정한 뒤 `laser_x`, `laser_y`, `laser_z`�
 ```bash
 roslaunch lidar_bringup rplidar_s2.launch \
   laser_x:=0.0 laser_y:=0.0 laser_z:=0.0 \
-  laser_roll:=3.141592653589793
+  laser_yaw:=3.141592653589793 laser_roll:=3.141592653589793
 ```
 
 ## u-blox GPS

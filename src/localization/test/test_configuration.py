@@ -219,7 +219,7 @@ class ConfigurationContractTest(unittest.TestCase):
         self.assertEqual([0.20, 0.0, 0.0], static["imu_link"]["translation_m"])
         self.assertEqual([0.65, 0.0, 0.0], static["gps_link"]["translation_m"])
         self.assertEqual([1.05, 0.0, 0.0], static["laser_link"]["translation_m"])
-        self.assertEqual([180.0, 0.0, 0.0], static["laser_link"]["rotation_rpy_deg"])
+        self.assertEqual([180.0, 0.0, 180.0], static["laser_link"]["rotation_rpy_deg"])
 
     def test_filters_obey_tf_contract(self):
         local = load_yaml("ekf_local.yaml")

@@ -23,13 +23,15 @@
     <arg name="arduino_baud" value="$(arg arduino_baud)"/>
   </include>
 
-  <!-- base_link is the rear axle. LiDAR is 0.30 m ahead of the 0.75 m
-       front axle and mounted 180 degrees about the forward X axis. -->
+  <!-- base_link is the rear axle. Keep the existing 180-degree yaw that
+       aligns the RPLIDAR raw front axis, then add the physical 180-degree
+       roll about vehicle X. Relative to yaw-only, this changes left/right
+       without changing front/back. -->
   <node if="$(arg publish_lidar_static_tf)"
         pkg="tf2_ros"
         type="static_transform_publisher"
         name="frenet_field_lidar_tf"
-        args="1.05 0.0 0.0 1.0 0.0 0.0 0.0 base_link laser_link"/>
+        args="1.05 0.0 0.0 0.0 1.0 0.0 0.0 base_link laser_link"/>
 
   <!-- RDDF corridor is disabled: DBSCAN uses the real forward LiDAR points. -->
   <include if="$(arg start_object_detection)"

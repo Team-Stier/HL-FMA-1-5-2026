@@ -29,7 +29,7 @@ max_successor_depth: 4
 connection_distance_m: 1.0
 
 # LiDAR 장착 위치를 기준으로 차량 전방(base_link +X)만 남기는 ROI
-# laser_link의 X축 180도 장착을 TF로 적용한 뒤 차량 전방을 사용한다.
+# raw scan yaw 보정과 X축 180도 장착 roll을 TF로 적용한 뒤 차량 전방을 사용한다.
 lidar_forward_roi:
   enabled: true
   # LiDAR 원점보다 차량 전방으로 이 거리보다 가까운 점은 제거한다.
