@@ -20,6 +20,14 @@ Visualization Manager:
       Plane Cell Count: 40
       Color: 72; 80; 94
       Alpha: 0.35
+    - Class: rviz/TF
+      Name: Vehicle and LiDAR mounting TF
+      Enabled: true
+      Frame Timeout: 15
+      Marker Scale: 0.5
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
     - Class: rviz/LaserScan
       Name: Real LiDAR
       Enabled: true
@@ -53,13 +61,13 @@ Visualization Manager:
       Marker Topic: /object_detection/roi_markers
       Queue Size: 1
     - Class: rviz/Path
-      Name: Vehicle-relative straight reference
+      Name: Always-on straight test reference
       Enabled: true
       Topic: /frenet_test/reference_path
-      Color: 180; 180; 180
-      Alpha: 0.9
+      Color: 70; 160; 255
+      Alpha: 1
       Line Style: Lines
-      Line Width: 0.08
+      Line Width: 0.14
       Buffer Length: 1
       Pose Style: None
     - Class: rviz/Path
@@ -69,7 +77,7 @@ Visualization Manager:
       Color: 255; 238; 40
       Alpha: 1
       Line Style: Lines
-      Line Width: 0.18
+      Line Width: 0.24
       Buffer Length: 1
       Pose Style: None
     - Class: rviz/Path

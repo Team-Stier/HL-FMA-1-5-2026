@@ -96,6 +96,11 @@ Arduino rosserial까지 연결한다. 생산 코어와 생산 설정은 변경�
 
 테스트의 `base_link → laser_link`는 뒷차축 기준 X=`1.05 m`다. wheelbase `0.75 m`와
 앞차축보다 0.30 m 전방인 장착 위치를 합한 값이며, 장착 방향은 기존 yaw 180°를 유지한다.
+RViz의 TF 축과 LaserScan은 이 변환을 자동 적용한다. 파란 직선은 Planner 성공 여부와
+무관하게 항상 보이는 테스트 기준선이고, 노란 선은 실제 Frenet 성공 출력이다.
+
+현장 테스트의 차체 `1.40 × 0.775 m`, 후륜축→중심 `0.38 m`는 기존 Frenet 코어 시험용
+값이다. 동작 확인용이며 대회 장애물 여유거리로 사용하기 전에는 실측값으로 교체해야 한다.
 
 ```bash
 source /opt/ros/noetic/setup.bash

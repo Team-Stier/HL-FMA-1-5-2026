@@ -1,6 +1,6 @@
 # No-localization field-test parameters. The path_planner core is unchanged.
-# Vehicle extents follow the current object_detection self-filter provisional
-# geometry (front 2.0 m, rear 0.7 m, +/-0.7 m). Re-measure before competition.
+# Test-only vehicle geometry used by the existing Frenet core fixture. These
+# values make the open-field behavior visible; re-measure before competition.
 calibration_required: false
 
 frame_id: base_link
@@ -14,10 +14,10 @@ road_left_bound_m: 3.0
 road_right_bound_m: 3.0
 
 vehicle:
-  length_m: 2.70
-  width_m: 1.40
+  length_m: 1.40
+  width_m: 0.775
   wheelbase_m: 0.75
-  rear_axle_to_center_m: 0.65
+  rear_axle_to_center_m: 0.38
 
 planner:
   horizon_m: 8.0
