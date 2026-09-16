@@ -5,6 +5,7 @@
   <arg name="start_control" default="true"/>
   <arg name="start_arduino" default="true"/>
   <arg name="start_rviz" default="true"/>
+  <arg name="publish_lidar_static_tf" default="true"/>
   <arg name="arduino_port" default=""/>
   <arg name="arduino_baud" default=""/>
 
@@ -15,10 +16,19 @@
     <arg name="enable_gps" value="false"/>
     <arg name="enable_imu" value="false"/>
     <arg name="enable_arduino" value="$(arg start_arduino)"/>
-    <arg name="publish_lidar_static_tf" value="true"/>
+    <!-- This test owns the measured translation in the publisher below. -->
+    <arg name="publish_lidar_static_tf" value="false"/>
     <arg name="arduino_port" value="$(arg arduino_port)"/>
     <arg name="arduino_baud" value="$(arg arduino_baud)"/>
   </include>
+
+  <!-- base_link is the rear axle. LiDAR is 0.30 m ahead of the 0.75 m
+       front axle. Preserve the already verified yaw-only mounting direction. -->
+  <node if="$(arg publish_lidar_static_tf)"
+        pkg="tf2_ros"
+        type="static_transform_publisher"
+        name="frenet_field_lidar_tf"
+        args="1.05 0.0 0.0 3.141592653589793 0.0 0.0 base_link laser_link"/>
 
   <!-- RDDF corridor is disabled: DBSCAN uses the real forward LiDAR points. -->
   <include if="$(arg start_object_detection)"

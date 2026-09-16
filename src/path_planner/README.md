@@ -94,6 +94,9 @@ DBSCAN한 `/dbscan_clusters`만 사용한다. Frenet 결과의 `Path`를 PP 입�
 Arduino rosserial까지 연결한다. 생산 코어와 생산 설정은 변경하지 않으며 모든 전용 코드는
 `path_planner/test`에 있다.
 
+테스트의 `base_link → laser_link`는 뒷차축 기준 X=`1.05 m`다. wheelbase `0.75 m`와
+앞차축보다 0.30 m 전방인 장착 위치를 합한 값이며, 장착 방향은 기존 yaw 180°를 유지한다.
+
 ```bash
 source /opt/ros/noetic/setup.bash
 catkin_make

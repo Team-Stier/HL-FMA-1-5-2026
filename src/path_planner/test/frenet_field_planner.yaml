@@ -44,7 +44,9 @@ obstacles:
   topic: /dbscan_clusters
   namespace: dbscan_clusters
   minimum_extent_m: 0.10
-  maximum_extent_m: 5.0
+  # Current outdoor DBSCAN can form a 5.012 m wall/fence cluster. Keep that
+  # observation instead of invalidating the entire 10 Hz heartbeat.
+  maximum_extent_m: 6.0
   maximum_count: 100
 
 pose_jump:
