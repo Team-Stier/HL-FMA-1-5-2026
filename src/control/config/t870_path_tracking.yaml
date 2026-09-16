@@ -1,9 +1,8 @@
 control_node:
   path_topic: /path/final
-  pose_topic: /current_pos
+  odometry_topic: /molit/localization/odometry
   feedback_topic: /erp42_serial/feedback
-  traffic_light_topic: /TL_label
-  command_topic: /erp42_serial/drive
+  command_topic: /pure_pursuit/raw_drive
   state_topic: /control/state
   lookahead_point_topic: /control/lookahead_point
   stanley_projection_point_topic: /control/stanley_projection_point
@@ -17,14 +16,14 @@ control_node:
 
   control_rate_hz: 20.0
   path_timeout_sec: 0.50
-  pose_timeout_sec: 0.25
+  odometry_timeout_sec: 0.25
   feedback_timeout_sec: 0.30
   maximum_control_dt_sec: 0.20
 
   # 2026-08-23 현장 간이 측정 후 실차 기준값으로 승인한 값이다.
   wheelbase_m: 0.75
-  # /current_pos가 나타내는 pose 기준점이 rear axle보다 앞에 있으면 양수다.
-  # 현재 base_link 원점 위치가 확정되지 않아 0.0을 유지한다.
+  # Localization base_link가 rear axle보다 앞에 있으면 양수다.
+  # 현재 State Manager와 같은 rear-axle base_link 계약으로 0.0을 사용한다.
   rear_axle_to_pose_reference_m: 0.0
 
   # 간이 확인된 실제 road-wheel 범위와 Uno DriveCmd 범위는 모두 +/-25 deg다.
@@ -42,8 +41,6 @@ control_node:
   target_speed_kph: 5
   maximum_speed_kph: 10
   require_ros_mode: true
-  stop_on_red: true
-  stop_on_yellow: false
 
   # Pure Pursuit 저속 시작값. 0.75 m wheelbase 기준이며 실차 기록으로 조정한다.
   lookahead_base_m: 1.00

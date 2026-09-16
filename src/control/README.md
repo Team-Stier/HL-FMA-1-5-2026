@@ -29,21 +29,22 @@ wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_r
 입력:
 
 - `/path/final` (`nav_msgs/Path`, `map`)
-- `/current_pos` (`geometry_msgs/PoseStamped`, `map`)
+- `/molit/localization/odometry` (`nav_msgs/Odometry`, `map` → `base_link`)
 - `/erp42_serial/feedback` (`erp42_msgs/SerialFeedBack`, speed는 m/s)
-- `/TL_label` (`perception_interfaces/TLLabel`)
 
 출력:
 
-- `/erp42_serial/drive` (`erp42_msgs/DriveCmd`)
+- `/pure_pursuit/raw_drive` (`erp42_msgs/DriveCmd`, Safety Gate 입력)
 - `/control/state`
 - `/control/lookahead_point`, `/control/stanley_projection_point`
 - `/control/cross_track_error`, `/control/heading_error`
 - `/control/steering_angle_rad`
 
-path·pose·feedback timeout, frame 불일치, 잘못된 수치, E-stop, RC 모드, 설정된 신호등
-정지 조건에서는 `KPH=0`, `Deg=0`, `brake=1`을 발행한다. `control_node`는 TF를 조회하지
-않으므로 path와 pose가 실제로 같은 `expected_frame_id` 좌표계여야 한다.
+path·odometry·feedback timeout, frame 불일치, 잘못된 수치, E-stop, RC 모드에서는
+`KPH=0`, `Deg=0`, `brake=1`을 raw 출력으로 발행한다. 신호등 정지와 미션 속도 제한은
+State Manager와 Safety Gate가 단일하게 적용한다. `control_node`는 TF를 조회하지 않으므로
+path와 Odometry가 같은 `expected_frame_id`이고 child frame이 `vehicle_frame_id`여야 한다.
+Control은 `/erp42_serial/drive`를 직접 발행하지 않는다.
 
 ## 코드 위치
 
@@ -72,16 +73,16 @@ ROS 연결과 안전 조건은 `node/`, 횡제어 수식은 `lateral/`, 속도 �
 | 파라미터 | 수정할 때 |
 |---|---|
 | `wheelbase_m` | 앞·뒤 차축 중심 거리 재측정 시에만 변경한다. PP와 Stanley 모두에 영향을 준다. |
-| `rear_axle_to_pose_reference_m` | pose 기준점이 rear axle보다 앞이면 양수로 실측 입력한다. |
+| `rear_axle_to_pose_reference_m` | Localization `base_link` 기준점이 rear axle보다 앞이면 양수로 실측 입력한다. |
 | `maximum_road_wheel_steering_deg` | 반복 사용 가능한 실제 바퀴 조향 한계를 측정해 입력한다. |
 | `road_wheel_angle_at_command_limit_deg` | Uno 최대 명령과 실제 road-wheel 각도의 대응값이다. |
 | `steering_command_limit_deg`, `steering_command_sign` | Arduino 명령 범위·부호와 반드시 함께 맞춘다. |
 | `maximum_steering_rate_deg_per_sec` | 낮추면 부드럽고 느려지며, 높이면 곡선 반응과 기구 충격이 함께 커진다. |
 | `target_speed_kph`, `maximum_speed_kph` | target이 maximum을 넘으면 노드가 시작을 거부한다. 상한은 기본 10을 유지한다. |
 | `control_rate_hz`, `maximum_control_dt_sec` | 상위 제어 주기와 허용할 최대 timer 지연이다. CPU 지연과 조향 변화율을 함께 확인한다. |
-| `path_timeout_sec`, `pose_timeout_sec`, `feedback_timeout_sec` | 각 topic의 실제 주기와 지연을 rosbag으로 확인한 뒤 변경한다. |
+| `path_timeout_sec`, `odometry_timeout_sec`, `feedback_timeout_sec` | 각 topic의 실제 주기와 지연을 rosbag으로 확인한 뒤 변경한다. |
 | `expected_frame_id`, `vehicle_frame_id` | 전자는 입력 검증, 후자는 디버그 점의 frame 표시에 사용한다. |
-| `require_ros_mode`, `stop_on_red`, `stop_on_yellow` | 실차 모드·신호등 정지 정책이다. 안전 시험 없이 완화하지 않는다. |
+| `require_ros_mode` | feedback의 `MorA==1`을 요구한다. Arduino가 실제 선택 모드를 feedback에 싣기 전까지 fail-closed다. |
 | `calibration_required` | `true`면 주행하지 않고 정지 명령만 발행한다. 현재 실측값 승인으로 기본값은 `false`다. |
 
 YAML 위쪽의 `..._topic` 값은 입출력 topic 이름이다. 이름을 변경하면 연결되는 패키지와
@@ -117,12 +118,16 @@ yaw-rate 센서를 연결하기 전에 damping gain을 켜면 안 된다.
 
 ```bash
 source /opt/ros/noetic/setup.bash
-catkin_make --pkg erp42_msgs perception_interfaces control
+catkin_make --pkg erp42_msgs control
 source devel/setup.bash
 
 roslaunch control control.launch lateral_controller:=pure_pursuit
 roslaunch control control.launch lateral_controller:=stanley
 ```
+
+전체 미션 실행에서는 `roslaunch state_manager mission.launch`가 기본적으로 Pure Pursuit
+Control을 포함한다. 단독 시험이 필요하면 `start_control:=false`로 통합 Control을 끈다.
+Safety Gate의 차량 출력은 별도의 `enable_vehicle_output` opt-in 전까지 preview에만 남는다.
 
 별도 시험 YAML은 다음처럼 지정한다.
 
@@ -138,7 +143,7 @@ roslaunch control control.launch \
 
 ```bash
 source /opt/ros/noetic/setup.bash
-catkin_make --pkg erp42_msgs perception_interfaces control
+catkin_make --pkg erp42_msgs control
 catkin_make run_tests_control
 catkin_test_results --all build/test_results/control
 ```
@@ -155,7 +160,8 @@ catkin_test_results --all build/test_results/control
 
 ```bash
 rosbag record \
-  /path/final /current_pos /erp42_serial/feedback /erp42_serial/drive \
+  /path/final /molit/localization/odometry /erp42_serial/feedback \
+  /pure_pursuit/raw_drive /vehicle_safety/preview_drive /erp42_serial/drive \
   /control/state /control/cross_track_error /control/heading_error \
   /control/steering_angle_rad
 ```

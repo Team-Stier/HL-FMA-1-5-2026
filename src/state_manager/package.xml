@@ -6,6 +6,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>planning_interfaces</depend>
   <depend>selector</depend>
+  <exec_depend>control</exec_depend>
   <exec_depend>mando_localization</exec_depend>
   <exec_depend>object_detection</exec_depend>
   <exec_depend>vehicle_safety</exec_depend><depend>rospy</depend><depend>nav_msgs</depend>

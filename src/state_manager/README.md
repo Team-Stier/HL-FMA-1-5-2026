@@ -23,12 +23,14 @@ flowchart LR
   LANE[차로 제어 신호 입력<br/>센서·구현 미정] -->|LaneSignals| S
   DYN[동적 장애물 판단<br/>구현 미정] -->|DynamicObservation| S
   D[상시 LiDAR + 시각별 TF] --> S
-  S -->|MissionState + TrafficConstraint| P[Local / Parking Planner]
-  S -->|PlannedPath RDDF| X[Selector]
+  S -->|MissionState| P[Local / Parking Planner]
+  S -->|MissionState<br/>RDDF / LOCAL / PARKING 요청| X[Selector]
+  S -->|PlannedPath RDDF| X
   P -->|PlannedPath + decision_id| X
   X -->|PathStatus| G[Vehicle Safety Gate]
-  X -->|nav_msgs/Path| C[Control]
-  C -->|raw DriveCmd| G
+  X -->|nav_msgs/Path| PP[Pure Pursuit Control]
+  L -->|Odometry| PP
+  PP -->|/pure_pursuit/raw_drive| G
   S -->|MissionState + SafetyStatus| G
   L --> G
   G -->|명시적으로 출력 활성화 시| A[Arduino]
@@ -168,13 +170,11 @@ RViz `/mission/markers`에 정지선의 붉은 수직 벽과 `STOP WALL`/`RDDF O
 플래너 제한은 벽 그림의 옆을 돌아가는 우회를 허용하지 않는 **해당 RDDF 진행거리 제한**이다.
 마커는 0.5초 뒤 만료되므로 갱신이 끊긴 화면을 현재 상태로 오인하지 않아야 한다.
 
-추후 로컬 플래너에는 `/mission/traffic_constraint` (`planning_interfaces/TrafficConstraint`)를 연결한다.
-`active`, `stop_line_s`, `target_s`, `stop_line_pose`, `required_signal`을 제공하며,
-`route_name`/`decision_id`가 현재 MissionState와 일치하는 fresh·valid 제약만 사용해야 한다.
-신호 구간에서 제약이 없거나 stale/invalid이면 통과 가능한 것으로 취급하면 안 된다.
-`stop_line_pose`의 방향은 진행 방향이며 그에 수직인 선이 정지선이다. 이 메시지는
-실제 LaserScan에 가짜 장애물을 섞지 않는다. 현재 RDDF 생성기는 연결되어 있고,
-외부 로컬 플래너가 이 계약을 소비하는 구현은 해당 플래너를 추가할 때 연결한다.
+`/mission/traffic_constraint` (`planning_interfaces/TrafficConstraint`)는 정지선 상태를
+진단·시각화하고 State Manager 내부 RDDF 제한과 같은 판단인지 검증하기 위해 발행한다.
+현재 2·4·7 신호 구간은 모두 RDDF 모드이고 LOCAL/Frenet 모드와 겹치지 않으므로
+`path_planner`에는 연결하지 않는다. 향후 한 구간에서 신호 제약과 지역 회피를 동시에
+허용하는 요구가 생길 때만 planner 계약으로 다시 검토한다.
 
 ## 경사로 앞·뒤 마커와 3초 정차
 
@@ -321,7 +321,7 @@ RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단
 | `/perception/dynamic_obstacle` | `DynamicObservation` | 어린이 검출과 중앙 정지 여부를 fresh 관측으로 발행 |
 | `/parking/maneuver` | `ParkingManeuver` | 현재 요청 ID를 반영한 주차 단계·방향·RDDF 시작/목표 거리 |
 | `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지 제약 |
-| `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치. future Local Planner용 계약 |
+| `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치를 진단·검증용으로 제공 |
 | `/path/rddf`, `/path/local`, `/path/park` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
 | `/path/selector_status` | `PathStatus` | 경로 준비 여부. 정지 중에도 readiness는 갱신 |
 | `/path/final` | `nav_msgs/Path` | Control용 최종 경로. invalid이면 비움 |

@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <geometry_msgs/PointStamped.h>
-#include <geometry_msgs/PoseStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
@@ -18,7 +18,6 @@
 
 #include <erp42_msgs/DriveCmd.h>
 #include <erp42_msgs/SerialFeedBack.h>
-#include <perception_interfaces/TLLabel.h>
 
 #include "control/lateral/pure_pursuit.hpp"
 #include "control/lateral/stanley_controller.hpp"
@@ -53,9 +52,8 @@ T requiredParam(const ros::NodeHandle& node, const std::string& name) {
 
 struct NodeConfig {
   std::string path_topic;
-  std::string pose_topic;
+  std::string odometry_topic;
   std::string feedback_topic;
-  std::string traffic_light_topic;
   std::string command_topic;
   std::string state_topic;
   std::string lookahead_point_topic;
@@ -68,11 +66,9 @@ struct NodeConfig {
   std::string controller_mode;
   bool calibration_required{false};
   bool require_ros_mode{true};
-  bool stop_on_red{true};
-  bool stop_on_yellow{false};
   double control_rate_hz{0.0};
   double path_timeout_sec{0.0};
-  double pose_timeout_sec{0.0};
+  double odometry_timeout_sec{0.0};
   double feedback_timeout_sec{0.0};
   double maximum_control_dt_sec{0.0};
   double wheelbase_m{0.0};
@@ -88,11 +84,9 @@ struct NodeConfig {
 NodeConfig loadConfig(const ros::NodeHandle& node) {
   NodeConfig config;
   config.path_topic = requiredParam<std::string>(node, "path_topic");
-  config.pose_topic = requiredParam<std::string>(node, "pose_topic");
+  config.odometry_topic = requiredParam<std::string>(node, "odometry_topic");
   config.feedback_topic =
       requiredParam<std::string>(node, "feedback_topic");
-  config.traffic_light_topic =
-      requiredParam<std::string>(node, "traffic_light_topic");
   config.command_topic = requiredParam<std::string>(node, "command_topic");
   config.state_topic = requiredParam<std::string>(node, "state_topic");
   config.lookahead_point_topic =
@@ -114,11 +108,10 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
   config.calibration_required =
       requiredParam<bool>(node, "calibration_required");
   config.require_ros_mode = requiredParam<bool>(node, "require_ros_mode");
-  config.stop_on_red = requiredParam<bool>(node, "stop_on_red");
-  config.stop_on_yellow = requiredParam<bool>(node, "stop_on_yellow");
   config.control_rate_hz = requiredParam<double>(node, "control_rate_hz");
   config.path_timeout_sec = requiredParam<double>(node, "path_timeout_sec");
-  config.pose_timeout_sec = requiredParam<double>(node, "pose_timeout_sec");
+  config.odometry_timeout_sec =
+      requiredParam<double>(node, "odometry_timeout_sec");
   config.feedback_timeout_sec =
       requiredParam<double>(node, "feedback_timeout_sec");
   config.maximum_control_dt_sec =
@@ -197,7 +190,7 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
   }
   if (!positiveFinite(config.control_rate_hz) ||
       !positiveFinite(config.path_timeout_sec) ||
-      !positiveFinite(config.pose_timeout_sec) ||
+      !positiveFinite(config.odometry_timeout_sec) ||
       !positiveFinite(config.feedback_timeout_sec) ||
       !positiveFinite(config.maximum_control_dt_sec) ||
       !positiveFinite(config.curvature_preview_distance_m) ||
@@ -271,12 +264,10 @@ class ControlNode {
 
     path_subscriber_ = node_.subscribe(
         config_.path_topic, 1, &ControlNode::onPath, this);
-    pose_subscriber_ = node_.subscribe(
-        config_.pose_topic, 1, &ControlNode::onPose, this);
+    odometry_subscriber_ = node_.subscribe(
+        config_.odometry_topic, 1, &ControlNode::onOdometry, this);
     feedback_subscriber_ = node_.subscribe(
         config_.feedback_topic, 1, &ControlNode::onFeedback, this);
-    traffic_light_subscriber_ = node_.subscribe(
-        config_.traffic_light_topic, 1, &ControlNode::onTrafficLight, this);
     timer_ = node_.createWallTimer(
         ros::WallDuration(1.0 / config_.control_rate_hz),
         &ControlNode::onTimer, this);
@@ -294,21 +285,16 @@ class ControlNode {
     has_path_ = true;
   }
 
-  void onPose(const geometry_msgs::PoseStamped::ConstPtr& message) {
-    latest_pose_ = message;
-    pose_receipt_time_ = ros::SteadyTime::now();
-    has_pose_ = true;
+  void onOdometry(const nav_msgs::Odometry::ConstPtr& message) {
+    latest_odometry_ = message;
+    odometry_receipt_time_ = ros::SteadyTime::now();
+    has_odometry_ = true;
   }
 
   void onFeedback(const erp42_msgs::SerialFeedBack::ConstPtr& message) {
     latest_feedback_ = message;
     feedback_receipt_time_ = ros::SteadyTime::now();
     has_feedback_ = true;
-  }
-
-  void onTrafficLight(
-      const perception_interfaces::TLLabel::ConstPtr& message) {
-    latest_traffic_light_label_ = message->label;
   }
 
   bool fresh(const ros::SteadyTime& now, const ros::SteadyTime& receipt,
@@ -319,13 +305,14 @@ class ControlNode {
   bool buildRearAxlePath(std::vector<Point2d>* path,
                          std::string* reason) const {
     if (latest_path_->header.frame_id != config_.expected_frame_id ||
-        latest_pose_->header.frame_id != config_.expected_frame_id) {
+        latest_odometry_->header.frame_id != config_.expected_frame_id ||
+        latest_odometry_->child_frame_id != config_.vehicle_frame_id) {
       *reason = "FRAME_MISMATCH";
       return false;
     }
-    const geometry_msgs::Point& position = latest_pose_->pose.position;
+    const geometry_msgs::Point& position = latest_odometry_->pose.pose.position;
     const geometry_msgs::Quaternion& orientation =
-        latest_pose_->pose.orientation;
+        latest_odometry_->pose.pose.orientation;
     const double quaternion_norm =
         std::sqrt(orientation.x * orientation.x +
                   orientation.y * orientation.y +
@@ -416,9 +403,9 @@ class ControlNode {
       publishSafe("STALE_PATH");
       return;
     }
-    if (!has_pose_ || !fresh(now, pose_receipt_time_,
-                             config_.pose_timeout_sec)) {
-      publishSafe("STALE_POSE");
+    if (!has_odometry_ || !fresh(now, odometry_receipt_time_,
+                                 config_.odometry_timeout_sec)) {
+      publishSafe("STALE_ODOMETRY");
       return;
     }
     if (!has_feedback_ || !fresh(now, feedback_receipt_time_,
@@ -439,17 +426,6 @@ class ControlNode {
       publishSafe("INVALID_SPEED_FEEDBACK");
       return;
     }
-    if (config_.stop_on_red &&
-        latest_traffic_light_label_ == perception_interfaces::TLLabel::RED) {
-      publishSafe("RED_LIGHT");
-      return;
-    }
-    if (config_.stop_on_yellow && latest_traffic_light_label_ ==
-                                      perception_interfaces::TLLabel::YELLOW) {
-      publishSafe("YELLOW_LIGHT");
-      return;
-    }
-
     std::vector<Point2d> rear_axle_path;
     std::string invalid_reason;
     if (!buildRearAxlePath(&rear_axle_path, &invalid_reason)) {
@@ -542,23 +518,20 @@ class ControlNode {
   ros::Publisher heading_error_publisher_;
   ros::Publisher steering_angle_publisher_;
   ros::Subscriber path_subscriber_;
-  ros::Subscriber pose_subscriber_;
+  ros::Subscriber odometry_subscriber_;
   ros::Subscriber feedback_subscriber_;
-  ros::Subscriber traffic_light_subscriber_;
   ros::WallTimer timer_;
   nav_msgs::Path::ConstPtr latest_path_;
-  geometry_msgs::PoseStamped::ConstPtr latest_pose_;
+  nav_msgs::Odometry::ConstPtr latest_odometry_;
   erp42_msgs::SerialFeedBack::ConstPtr latest_feedback_;
   ros::SteadyTime path_receipt_time_;
-  ros::SteadyTime pose_receipt_time_;
+  ros::SteadyTime odometry_receipt_time_;
   ros::SteadyTime feedback_receipt_time_;
   ros::SteadyTime last_timer_time_;
   bool has_path_{false};
-  bool has_pose_{false};
+  bool has_odometry_{false};
   bool has_feedback_{false};
   bool has_timer_time_{false};
-  int32_t latest_traffic_light_label_{
-      perception_interfaces::TLLabel::NOT_DETECTED};
   double previous_steering_angle_rad_{0.0};
 };
 

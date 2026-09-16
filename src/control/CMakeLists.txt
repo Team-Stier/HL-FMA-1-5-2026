@@ -7,7 +7,6 @@ find_package(catkin REQUIRED COMPONENTS
   erp42_msgs
   geometry_msgs
   nav_msgs
-  perception_interfaces
   roscpp
   std_msgs
   tf2
@@ -24,7 +23,6 @@ catkin_package(
     erp42_msgs
     geometry_msgs
     nav_msgs
-    perception_interfaces
     roscpp
     std_msgs
     tf2

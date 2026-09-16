@@ -8,8 +8,8 @@ HL Mando Future Mobility Award 2026 자율주행 경진대회 출전을 위한 �
 
 > 현재 작업 브랜치의 Localization은 Mando 코드를 이름·경로만 정렬한 이식본이다.
 > State Manager·Selector·Vehicle Safety Gate가 추가되었으며 기본 실행은 차량 출력 미리보기다.
-> 현장 기준점·차량 보정과 인지·Planner·Control 연동은 남아 있다. 기존 `/current_pos`
-> 변환과 `/gps/status` 연결도 별도 작업이며, State Manager는 승인 Odometry를 사용한다.
+> 현장 기준점·차량 보정과 인지·Planner 연동은 남아 있다. Control은 승인 Odometry와
+> Safety Gate 사이에 연결했으며 `/gps/status` 연결은 별도 작업이다.
 > 실행 전 [변경 범위와 남은 차이](src/localization/docs/hl_architecture_alignment.md)를 확인한다.
 
 ## 설치 및 최초 설정
@@ -195,12 +195,12 @@ src/
 메시지 패키지는 공유 타입만 제공하고, 실행 패키지는 필요한 노드를 각 패키지 안에 둔다.
 RDDF는 기존 `localization/rddf`가 소유하며 같은 패키지의 Route Provider가 ROS 메시지로
 공급한다. 별도의 `route_manager` 패키지는 만들지 않았다. `state_manager` launch는
-Provider·미션 노드·Selector·Safety Gate와 선택적인 RViz·기준점 편집기를 함께 실행한다.
+Provider·미션 노드·Selector·PP Control·Safety Gate와 선택적인 RViz·기준점 편집기를 함께 실행한다.
 
 ## ROS architecture
 
-현재 브랜치에는 RDDF 기반 State Manager, 경로 검증 Selector, 최종 차량 명령 Safety Gate가
-구현되어 있다. 실행 방법, 메시지 계약, 규정 근거와 현장 보정 절차는
+현재 브랜치에는 RDDF 기반 State Manager, 경로 검증 Selector, 기본 Pure Pursuit Control,
+최종 차량 명령 Safety Gate가 연결되어 있다. 실행 방법, 메시지 계약, 규정 근거와 현장 보정 절차는
 [State Manager 안내서](src/state_manager/README.md)를 참고한다.
 
 ```mermaid
@@ -214,12 +214,13 @@ flowchart LR
     LOC --> SM
     RDDF["Localization 소유 RDDF"] --> PROVIDER["RDDF Route Provider"]
     PROVIDER -->|"/route/map"| SM["State Manager<br/>구간 추적 · Mission FSM · 관측 공간 검사"]
-    SM -->|"/mission/state · /mission/traffic_constraint"| LOCAL["Local / Parking Planner<br/>외부 구현 필요"]
-    SM -->|"/mission/state"| SELECTOR["Selector<br/>요청 ID · 경로 · 방향 · 시각 검증"]
+    SM -->|"/mission/state"| LOCAL["Local / Parking Planner<br/>외부 구현 필요"]
+    SM -->|"/mission/state<br/>path_mode=RDDF/LOCAL/PARKING 요청"| SELECTOR["Selector<br/>요청 ID · 경로 · 방향 · 시각 검증"]
     SM -->|"/path/rddf"| SELECTOR
     LOCAL -->|"/path/local · /path/park"| SELECTOR
     LOCAL -->|"/parking/maneuver"| SM
-    SELECTOR -->|"/path/final"| CONTROL["Control<br/>PP/Stanley 구현 · 미통합"]
+    SELECTOR -->|"/path/final"| CONTROL["Control<br/>Pure Pursuit 기본"]
+    LOC -->|"/molit/localization/odometry"| CONTROL
     SELECTOR -->|"/path/selector_status"| GATE
     SM -->|"미션 속도·정지 /mission/safety"| GATE["Vehicle Safety Gate"]
     LOC -->|"valid"| GATE
@@ -241,7 +242,7 @@ State Manager는 승인된 위치가 어느 RDDF 구간에 있으며 어떤 미�
 | RDDF Route Provider | Localization 패키지가 소유한 RDDF를 공유 메시지로 제공; 활성 기본 경로는 State Manager가 발행 |
 | Local / Parking Planner | 선택한 미션과 분기에 맞는 실제 회피·주차 궤적 생성; 별도 구현 필요 |
 | Selector | 요청과 일치하는 경로만 최종 경로로 전달하고 준비 상태 발행 |
-| Control | PP/Stanley 구현 완료; Localization·Safety Gate 토픽 계약은 미통합 |
+| Control | 기본 PP(선택 Stanley); Localization Odometry 입력과 Safety Gate raw 출력 연결 완료 |
 | Vehicle Safety Gate | 미션·경로·위치·관측 공간의 유효성과 최신성을 확인하고 최종 속도·정지 제한 |
 
 State Manager는 `/path/final`을 직접 발행하지 않는다. Selector는 현재
@@ -282,7 +283,8 @@ Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 또는 `PARKING` 경�
   시작·정상 설정은 1m 안쪽 규정 범위를 유지한다. 실제 브레이크 유지는 추후 제어기 연동 영역이다.
 - 2·4번은 `GREEN`, 7번은 `LEFT_ARROW`에서 가상 벽을 해제하고 RDDF를 추종한다.
   비허용 신호에서는 정지선 앞범퍼/여유거리 이전까지만 경로를 생성한다. RViz에는 붉은 벽을 표시하고
-  `/mission/traffic_constraint`로 추후 로컬 플래너가 사용할 제약을 발행한다.
+  `/mission/traffic_constraint`를 진단·검증용으로 발행한다. 현재 신호 구간은 모두 RDDF
+  모드이므로 이 메시지를 Frenet `path_planner` 입력으로 연결하지 않는다.
   잘못된 구간의 신호, 오래된 신호, 미래 시각의 신호는 진입 허가로 사용하지 않는다.
   허가를 받아 진입한 뒤에는 신호가 바뀌었다는 이유만으로 교차로 안에서 멈추지 않는다.
 - 교차로 진입 후 3초·20초 정차 및 30초 통과 제한을 진단한다. 진입은 앞 범퍼,
@@ -301,8 +303,8 @@ RDDF에는 각 점의 ENU 좌표·위경도·누적 거리·방향이 있다. �
 있지 않다. 이 지점은 RViz 보정 도구로 선택하고 실제 기준점·범퍼/후륜 오프셋을
 검증해야 한다. 보정값이 없으면 해당 미션을 시작하지 않는다.
 
-현재 State Manager는 기존 Localization의 승인 Odometry와 유효성 신호를 연결한다.
-기존 `/current_pos` 변환 및 `/gps/status` 연결 작업과는 별개이며, Raw EKF 출력을
+현재 State Manager와 Control은 기존 Localization의 승인 Odometry를 사용하고 State Manager는
+유효성 신호도 연결한다. `/gps/status` 연결 작업과는 별개이며, Raw EKF 출력을
 승인 출력처럼 취급하지 않는다. 전체 센서, 차체 폭·앞뒤 돌출 길이, TF, 제동 성능과
 연석 검출 가능 높이도 현장에서 확인해야 한다.
 
@@ -352,9 +354,10 @@ source devel/setup.bash
 실행 호스트에서 `/opt/ros/noetic/setup.bash`를 불러오고 `catkin_make`를 실행한 뒤
 workspace의 `devel/setup.bash`를 불러온다. 이어서
 Localization → Object Detection → Traffic Light Recognition → Parking Path Planning →
-State Manager 통합 launch → Control 순서로 노드를 시작한다. `path_planner`는 아직 ROS
+State Manager 통합 launch 순서로 노드를 시작한다. 이 통합 launch가 Selector·PP Control·
+Safety Gate를 함께 실행한다. `path_planner`는 아직 ROS
 wrapper가 없는 독립 C++ 코어이므로 `run.sh` 실행 대상이 아니다.
-State Manager launch 안에서 Provider·Selector·Safety Gate를 함께 시작한다. 상시 실행 노드가
+상시 실행 노드가
 종료되면 전체 프로그램도 종료하고, `Ctrl+C`를 누르면 스크립트가 실행한 모든 노드를
 함께 종료한다.
 
@@ -386,7 +389,6 @@ rosrun object_detection object_detection_node
 rosrun traffic_light traffic_light_node
 rosrun parking_path_planning parking_path_planning_node
 ./src/state_manager/launch.sh
-rosrun control control_node
 ```
 
 예를 들어 패키지별 환경변수, 모델 경로, 파라미터 파일 등의 초기화가 필요해
@@ -401,7 +403,6 @@ rosrun control control_node
 ./src/traffic_light/launch.sh
 ./src/parking_path_planning/launch.sh
 ./src/state_manager/launch.sh
-./src/control/launch.sh
 ```
 
 ## 실차 장치 실행 명령 모음
