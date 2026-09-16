@@ -195,6 +195,7 @@ flowchart TB
 
 | 패키지 | 상태 | 역할 | 주요 출력/계약 |
 |---|---|---|---|
+| `sensor_bringup` | **통합 실행** | LiDAR·Camera·GPS·IMU와 선택적 Arduino launch 조합 | 센서 토픽을 Localization 계약에 맞춰 remap; Arduino는 기본 비활성 |
 | `lidar_bringup` | **단독** | RPLIDAR S2와 정적 TF 실행 | 기본 `/scan`, 기본 frame `laser`. 시스템 계약인 `/molit/sensors/lidar/scan`, `laser_link`로 인자 조정 필요 |
 | `cam_bringup` | **단독** | USB 카메라 실행 및 V4L2 설정 | 일반적으로 `/usb_cam/image_raw`; 현재 소비하는 인식 노드 없음 |
 | `gps_bringup` | **단독** | u-blox, NTRIP, 상태 요약, UTM 변환 실행 | u-blox fix/NavPVT/NavSTATUS, `/gps/status`, `/gps`, `/utm` |
@@ -217,6 +218,7 @@ flowchart TB
 
 | 실행 진입점 | 포함하는 구성 | 판단 |
 |---|---|---|
+| `sensor_bringup/sensors.launch` | LiDAR, Camera, GPS, IMU, 선택적 Arduino | 현재 센서 통합 진입점; Localization 토픽 계약 적용 |
 | `src/localization/launch.sh` | Localization, TF, RDDF tracking; 센서 드라이버와 RViz는 비활성 | 현재 위치 추정 진입점 |
 | `state_manager/mission.launch` | Route Provider, State Manager, Selector, Vehicle Safety Gate | 현재 미션 통합 진입점; 기본 차량 출력 비활성 |
 | `state_manager/inspection.launch` | 위 미션 구성 + Object Detection + Inspection RViz | 현재 가장 완성된 관찰·검증 진입점 |

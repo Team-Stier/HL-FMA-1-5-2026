@@ -1,0 +1,56 @@
+<launch>
+  <!-- Physical devices are independently selectable for bench and vehicle use. -->
+  <arg name="enable_lidar" default="true" />
+  <arg name="enable_cam" default="true" />
+  <arg name="enable_gps" default="true" />
+  <arg name="enable_imu" default="true" />
+  <!-- Firmware must be built with ROS enabled before opting in. -->
+  <arg name="enable_arduino" default="false" />
+
+  <arg name="camera_launch" default="cam.launch" />
+
+  <!-- Public system contracts consumed by State Manager/Object Detection. -->
+  <arg name="lidar_scan_topic" default="/molit/sensors/lidar/scan" />
+  <arg name="lidar_frame_id" default="laser_link" />
+  <!-- Localization normally owns base_link -> laser_link. -->
+  <arg name="publish_lidar_static_tf" default="false" />
+
+  <!-- LocalizationInterfaceAdapter consumes these internal driver topics. -->
+  <arg name="imu_raw_topic" default="/sensor_bringup/internal/imu/raw" />
+  <arg name="imu_driver_topic" default="/mando_localization/internal/driver/imu" />
+  <arg name="gps_fix_topic" default="/mando_localization/internal/driver/gps_fix" />
+  <arg name="gps_navpvt_topic" default="/mando_localization/internal/driver/gps_navpvt" />
+
+  <arg name="arduino_port" default="/dev/ttyACM0" />
+  <arg name="arduino_baud" default="57600" />
+  <arg name="arduino_respawn" default="true" />
+
+  <include if="$(arg enable_lidar)"
+           file="$(find lidar_bringup)/launch/rplidar_s2.launch">
+    <arg name="scan_topic" value="$(arg lidar_scan_topic)" />
+    <arg name="frame_id" value="$(arg lidar_frame_id)" />
+    <arg name="publish_static_tf" value="$(arg publish_lidar_static_tf)" />
+  </include>
+
+  <include if="$(arg enable_cam)"
+           file="$(find cam_bringup)/launch/$(arg camera_launch)" />
+
+  <include if="$(arg enable_gps)"
+           file="$(find gps_bringup)/launch/gps.launch">
+    <arg name="fix_topic" value="$(arg gps_fix_topic)" />
+    <arg name="navpvt_topic" value="$(arg gps_navpvt_topic)" />
+  </include>
+
+  <include if="$(arg enable_imu)"
+           file="$(find imu_bringup)/launch/xsens_mti.launch">
+    <arg name="raw_topic" value="$(arg imu_raw_topic)" />
+    <arg name="output_topic" value="$(arg imu_driver_topic)" />
+  </include>
+
+  <include if="$(arg enable_arduino)"
+           file="$(find vehicle_interface_bringup)/launch/arduino.launch">
+    <arg name="port" value="$(arg arduino_port)" />
+    <arg name="baud" value="$(arg arduino_baud)" />
+    <arg name="respawn" value="$(arg arduino_respawn)" />
+  </include>
+</launch>

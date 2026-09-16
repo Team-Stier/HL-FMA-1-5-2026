@@ -106,6 +106,12 @@ source devel/setup.bash
 roslaunch vehicle_interface_bringup arduino.launch
 ```
 
+센서 드라이버와 함께 실행할 때는 통합 launch에서 Arduino를 명시적으로 활성화한다.
+
+```bash
+roslaunch sensor_bringup sensors.launch enable_arduino:=true
+```
+
 다른 장치 경로나 baud를 사용할 때만 인자를 덮어쓴다.
 
 ```bash

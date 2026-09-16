@@ -1,28 +1,35 @@
 <launch>
   <arg name="nav_status_timeout" default="0.5" />
   <arg name="max_nav_status_itow_skew_ms" default="500" />
+  <arg name="fix_topic" default="/ublox_position_receiver/fix" />
+  <arg name="navpvt_topic" default="/ublox_position_receiver/navpvt" />
 
-  <include file="$(find ublox_utils)/launch/ublox.launch">
-    <arg name="device_position_receiver" value="/dev/gps" />
-    <arg name="frame_id_position_receiver" value="gps_link" />
-    <!-- 현재 수신기의 UTC stamp가 시스템 시각보다 약 1.7 s 앞서므로 수신 시각을 사용한다. -->
-    <arg name="use_ros_time_position_receiver" value="true" />
-    <arg name="ntrip_host" value="RTS1.ngii.go.kr" />
-    <arg name="ntrip_mountpoint" value="VRS-RTCM31" />
-    <arg name="use_ntrip" value="true" />
-    <arg name="ntrip_username" value="suhyeon351" />
-    <arg name="ntrip_password" value="ngii" />
-  </include>
+  <group>
+    <remap from="/ublox_position_receiver/fix" to="$(arg fix_topic)" />
+    <remap from="/ublox_position_receiver/navpvt" to="$(arg navpvt_topic)" />
 
-  <include file="$(find utm_lla)/launch/coordinate_convertion.launch" />
+    <include file="$(find ublox_utils)/launch/ublox.launch">
+      <arg name="device_position_receiver" value="/dev/gps" />
+      <arg name="frame_id_position_receiver" value="gps_link" />
+      <!-- 현재 수신기의 UTC stamp가 시스템 시각보다 약 1.7 s 앞서므로 수신 시각을 사용한다. -->
+      <arg name="use_ros_time_position_receiver" value="true" />
+      <arg name="ntrip_host" value="RTS1.ngii.go.kr" />
+      <arg name="ntrip_mountpoint" value="VRS-RTCM31" />
+      <arg name="use_ntrip" value="true" />
+      <arg name="ntrip_username" value="suhyeon351" />
+      <arg name="ntrip_password" value="ngii" />
+    </include>
 
-  <node name="gps_status"
-        pkg="gps_bringup"
-        type="gps_status_node.py"
-        output="screen">
-    <param name="frame_id" value="gps_link" />
-    <param name="nav_status_timeout" value="$(arg nav_status_timeout)" />
-    <param name="max_nav_status_itow_skew_ms"
-           value="$(arg max_nav_status_itow_skew_ms)" />
-  </node>
+    <include file="$(find utm_lla)/launch/coordinate_convertion.launch" />
+
+    <node name="gps_status"
+          pkg="gps_bringup"
+          type="gps_status_node.py"
+          output="screen">
+      <param name="frame_id" value="gps_link" />
+      <param name="nav_status_timeout" value="$(arg nav_status_timeout)" />
+      <param name="max_nav_status_itow_skew_ms"
+             value="$(arg max_nav_status_itow_skew_ms)" />
+    </node>
+  </group>
 </launch>

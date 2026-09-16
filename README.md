@@ -172,8 +172,10 @@ src/
 │   ├── sensor_interfaces/
 │   ├── planning_interfaces/
 │   └── vehicle_interface/
-│       └── erp42_msgs/
+│       ├── erp42_msgs/
+│       └── vehicle_interface_bringup/
 ├── sensor_drivers/
+│   ├── sensor_bringup/       # 센서 + 선택적 Arduino 통합 launch
 │   ├── lidar/
 │   ├── cam/
 │   ├── gps/

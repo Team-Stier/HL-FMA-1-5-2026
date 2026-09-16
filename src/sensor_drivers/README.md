@@ -5,6 +5,8 @@
 
 ```text
 sensor_drivers/
+├── sensor_bringup/
+│   └── launch/
 ├── lidar/
 │   ├── config/
 │   ├── launch/
@@ -28,6 +30,27 @@ sensor_drivers/
     ├── scripts/
     └── udev/
 ```
+
+## 센서 통합 실행
+
+`sensor_bringup`은 LiDAR, Camera, GPS, IMU와 선택적인 Arduino rosserial을 묶는다.
+통합 launch에서는 센서 토픽을 Localization과 미션 시스템의 현재 계약에 맞춰 remap한다.
+
+```bash
+source devel/setup.bash
+roslaunch sensor_bringup sensors.launch
+```
+
+Arduino는 차량별 펌웨어의 ROS 빌드를 확인한 뒤 명시적으로 켠다.
+
+```bash
+roslaunch sensor_bringup sensors.launch \
+  enable_arduino:=true arduino_port:=/dev/ttyACM0 arduino_baud:=57600
+```
+
+통합 launch는 LiDAR를 `/molit/sensors/lidar/scan`·`laser_link`, IMU와 GPS를
+Localization의 내부 driver 입력 토픽에 맞춘다. 상세 인자와 중복 실행 주의사항은
+[sensor_bringup 안내](sensor_bringup/README.md)를 참고한다.
 
 ## 장치 이름 고정
 
