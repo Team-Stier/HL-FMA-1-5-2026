@@ -1,9 +1,9 @@
 #pragma once
 
-#include "lidar_path_planning/reference_path.hpp"
-#include "lidar_path_planning/types.hpp"
+#include "path_planner/reference_path.hpp"
+#include "path_planner/types.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 // Checks sampled points along the complete, oriented vehicle perimeter against
 // the left/right bounds at their own route stations. The station window keeps
@@ -25,4 +25,4 @@ bool sweptPathWithinReferenceBounds(
     double perimeter_sample_interval_m, double maximum_translation_step_m,
     double maximum_yaw_step_rad, std::size_t* violation_index = nullptr);
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

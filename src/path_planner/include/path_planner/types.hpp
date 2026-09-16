@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 constexpr double kPi = 3.14159265358979323846;
 
@@ -91,4 +91,4 @@ double normalizeAngle(double angle);
 double interpolateAngle(double from, double to, double ratio);
 double squaredDistance(const Point2d& first, const Point2d& second);
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

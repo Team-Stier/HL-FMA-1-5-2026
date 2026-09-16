@@ -21,7 +21,7 @@ def local(path):return LOC+path
 layer('system','전체 시스템',None,[
  n('sensors','센서 드라이버','IMU · GNSS · LiDAR · Camera','센서별 bringup과 Localization 내장 드라이버 경로를 함께 탐색한다. 실제 활성화는 launch 인자와 외부 실행 상태에 따라 달라진다.',['src/sensor_drivers/README.md',local('launch/sensors.launch')],'sensors',kind='external'),
  n('localization','Localization','위치 추정 · 초기화 · 상태 · 복구','mando_localization 패키지. 두 EKF, GPS 승인, RDDF 초기화, Supervisor와 Output Gate로 구성된다. 최종 공개 Odometry와 valid를 제공한다.',[local('launch/bringup.launch'),local('config/localization_interfaces.yaml')],'localization',io=['/molit/localization/odometry','/molit/localization/valid']),
- n('planning','경로 계획·선택','플래너 뼈대 · Selector 구현','두 플래너는 package.xml/CMakeLists.txt만 있다. 현재 selector는 /path/lidar를 /path/final로 전달하며 주차 경로 선택은 구현되어 있지 않다.',['src/selector/scripts/selector_node','src/lidar_path_planning/CMakeLists.txt','src/parking_path_planning/CMakeLists.txt'],'planning',state='부분 구현'),
+ n('planning','경로 계획·선택','Path Planner 코어 · Selector 구현','path_planner는 Frenet C++ 코어이며 ROS wrapper가 없다. Parking Planner는 빈 패키지이고 Selector는 State Manager가 요청한 RDDF/LOCAL/PARKING 경로를 검증한다.',['src/selector/scripts/selector_node','src/path_planner/CMakeLists.txt','src/parking_path_planning/CMakeLists.txt'],'planning',state='부분 구현'),
  n('control','차량 제어','control · 실행 코드 없음','README는 /path/final과 /TL_label을 받아 DriveCmd를 계산하도록 설계한다. 현재 control에는 실행 노드가 없어 이 연결은 구현 완료 상태가 아니다.',['src/control/CMakeLists.txt',('README.md','### Nodes')],'control',state='설계 / 뼈대'),
  n('interfaces','인터페이스','메시지 정의 · 차량 연결','perception_interfaces, sensor_interfaces, erp42_msgs와 Arduino rosserial bringup의 계약을 확인한다.',['src/interfaces/README.md'],'interfaces',kind='messagebus'),
  n('perception','인지','객체 검출 · 신호등 인식','object_detection과 traffic_light는 패키지 뼈대다. 입출력은 README의 설계 계약이며 실행 중 ROS 연결을 의미하지 않는다.',['src/object_detection/CMakeLists.txt','src/traffic_light/CMakeLists.txt',('README.md','### Nodes')],'perception',state='설계 / 뼈대'),
@@ -56,7 +56,7 @@ layer('perception','인지: 설계와 구현 범위','system',[
 ],[e('image','traffic','Image · 설계',True),e('traffic','label','인식 결과 · 설계',True),e('scan','objects','Scan · 설계',True),e('objects','info','객체 목록 · 설계',True)],layout='rows',note='점선은 README 설계다. 설치 가능한 패키지 뼈대와 실제 실행 노드를 구분한다.')
 layer('planning','경로 계획·Selector','system',[
  n('inputs','설계 입력','객체 정보 · 현재 위치','README는 /object_info와 /current_pos를 계획 입력으로 둔다. 현 Localization 출력으로의 변환/연결 구현이 없다.',[('README.md','### Nodes'),local('config/localization_interfaces.yaml')],kind='external',state='설계'),
- n('lidar_planner','LiDAR 경로 계획','lidar_path_planning · 뼈대','장애물 회피 경로 /path/lidar 생성은 설계만 존재한다.',['src/lidar_path_planning/CMakeLists.txt','src/lidar_path_planning/package.xml'],state='설계 / 뼈대'),
+ n('lidar_planner','Path Planner','Frenet C++ 코어 · ROS wrapper 없음','장애물 회피 알고리즘은 있으나 /path/local PlannedPath를 만드는 ROS wrapper는 없다.',['src/path_planner/CMakeLists.txt','src/path_planner/README.md'],state='코어 / 미연결'),
  n('selector','Selector','/path/lidar → /path/final','현재 Python 노드는 Path를 그대로 전달한다. 위치·주차·상태 토픽 구독이나 주행 모드 분기는 없다.',['src/selector/scripts/selector_node'],io=['/path/lidar · nav_msgs/Path','/path/final · nav_msgs/Path']),
  n('final','최종 경로','nav_msgs/Path','Selector의 실제 발행 토픽이다. 이 토픽을 소비하는 control 실행 노드는 저장소에서 확인되지 않는다.',['src/selector/scripts/selector_node'],kind='messagebus'),
  n('parking','주차 경로 계획','parking_path_planning · 뼈대','README에 /path/park 출력과 Selector 연결이 설계되어 있으나 실제 생성·선택 코드는 없다.',['src/parking_path_planning/CMakeLists.txt','src/parking_path_planning/package.xml'],state='설계 / 뼈대')

@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "lidar_path_planning/types.hpp"
+#include "path_planner/types.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 class ReferencePath {
  public:
@@ -35,4 +35,4 @@ class ReferencePath {
   std::vector<ReferencePoint> points_;
 };
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

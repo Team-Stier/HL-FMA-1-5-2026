@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "lidar_path_planning/planner_backend.hpp"
+#include "path_planner/planner_backend.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 struct FrenetPlannerConfig {
   VehicleGeometry vehicle;
@@ -48,4 +48,4 @@ class FrenetPlanner final : public PlannerBackend {
 bool interpolatePathLateralOffset(const std::vector<PathPoint>& path,
                                   double route_s, double* lateral_offset);
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

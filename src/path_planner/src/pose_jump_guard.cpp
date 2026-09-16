@@ -1,8 +1,8 @@
-#include "lidar_path_planning/pose_jump_guard.hpp"
+#include "path_planner/pose_jump_guard.hpp"
 
 #include <cmath>
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 PoseJumpGuard::PoseJumpGuard(const PoseJumpGuardConfig& config)
     : config_(config) {}
@@ -91,4 +91,4 @@ void PoseJumpGuard::reset() {
   map_odom_initialized_ = false;
 }
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

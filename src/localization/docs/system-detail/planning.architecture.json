@@ -27,8 +27,8 @@
     {
       "id": "lidar_planner",
       "type": "backend",
-      "label": "LiDAR 경로 계획",
-      "sublabel": "lidar_path_planning · 뼈대",
+      "label": "Path Planner",
+      "sublabel": "Frenet 코어 · wrapper 없음",
       "pos": [
         455,
         70
@@ -42,7 +42,7 @@
       "id": "selector",
       "type": "backend",
       "label": "Selector",
-      "sublabel": "/path/lidar → /path/final",
+      "sublabel": "요청 경로 → /path/final",
       "pos": [
         850,
         70
@@ -93,7 +93,7 @@
       "id": "lidar_planner-to-selector",
       "from": "lidar_planner",
       "to": "selector",
-      "label": "/path/lidar · 설계",
+      "label": "/path/local · wrapper 미구현",
       "variant": "dashed"
     },
     {
@@ -111,7 +111,7 @@
       "id": "parking-to-selector",
       "from": "parking",
       "to": "selector",
-      "label": "주차 선택 미구현",
+      "label": "/path/park · 미구현",
       "variant": "dashed"
     }
   ]

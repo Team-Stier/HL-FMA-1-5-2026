@@ -1,10 +1,10 @@
-#include "lidar_path_planning/collision_checker.hpp"
+#include "path_planner/collision_checker.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace lidar_path_planning {
+namespace path_planner {
 namespace {
 
 bool overlapsOnAxis(const Polygon4& first, const Polygon4& second,
@@ -175,4 +175,4 @@ bool pathHasCollision(const std::vector<PathPoint>& path,
   return false;
 }
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

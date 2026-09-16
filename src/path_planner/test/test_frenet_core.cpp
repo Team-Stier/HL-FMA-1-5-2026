@@ -1,15 +1,15 @@
-#include "lidar_path_planning/boundary_checker.hpp"
-#include "lidar_path_planning/collision_checker.hpp"
-#include "lidar_path_planning/frenet_planner.hpp"
-#include "lidar_path_planning/obstacle_projection.hpp"
-#include "lidar_path_planning/pose_jump_guard.hpp"
+#include "path_planner/boundary_checker.hpp"
+#include "path_planner/collision_checker.hpp"
+#include "path_planner/frenet_planner.hpp"
+#include "path_planner/obstacle_projection.hpp"
+#include "path_planner/pose_jump_guard.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 
-namespace lp = lidar_path_planning;
+namespace lp = path_planner;
 #define CHECK(condition) do { if (!(condition)) throw std::runtime_error( \
     std::string(__func__) + ":" + std::to_string(__LINE__) + " " #condition); } while (false)
 lp::ReferencePath reference() {

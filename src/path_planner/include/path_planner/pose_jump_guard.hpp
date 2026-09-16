@@ -2,9 +2,9 @@
 
 #include <string>
 
-#include "lidar_path_planning/types.hpp"
+#include "path_planner/types.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 struct PoseJumpGuardConfig {
   double translation_tolerance_m{0.25};
@@ -35,4 +35,4 @@ class PoseJumpGuard {
   Pose2d previous_map_to_odom_;
 };
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

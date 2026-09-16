@@ -1,11 +1,11 @@
-#include "lidar_path_planning/boundary_checker.hpp"
+#include "path_planner/boundary_checker.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "lidar_path_planning/collision_checker.hpp"
+#include "path_planner/collision_checker.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 bool vehicleWithinReferenceBounds(const ReferencePath& reference,
                                   const Pose2d& rear_axle_pose,
@@ -124,4 +124,4 @@ bool sweptPathWithinReferenceBounds(
   return true;
 }
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

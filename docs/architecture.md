@@ -21,8 +21,8 @@
 
 하지만 **인지 → 지역 경로 계획 → 제어 → Safety Gate → 차량**은 아직 연결되지 않았다.
 
-- `lidar_path_planning`, `parking_path_planning`, `traffic_light`는 실행 코드가 없는 빈 패키지다.
-- `frenet_logic`, `frenet_lane_selection`은 ROS 노드가 아닌 독립 C++ 라이브러리다.
+- `parking_path_planning`, `traffic_light`는 실행 코드가 없는 빈 패키지다.
+- `path_planner`, `frenet_lane_selection`은 ROS 노드가 아닌 독립 C++ 라이브러리다.
 - `control`에는 PP/Stanley가 구현되어 있지만 Localization 및 Safety Gate의 현재 토픽 계약과 다르다.
 - Object Detection 출력은 Inspection/RViz에서만 사용하며 Planner 입력으로 연결되지 않았다.
 - State Manager의 LiDAR 안전 판단은 Object Detection이 아니라 원본 `LaserScan`을 직접 사용한다.
@@ -46,10 +46,9 @@
 
 | 패키지 | 판정 | 이유 |
 |---|---|---|
-| `lidar_path_planning` | **미사용·빈 패키지** | 실행 노드가 없고 `/path/local`을 발행하지 않음 |
 | `parking_path_planning` | **미사용·빈 패키지** | 실행 노드가 없고 `/path/park`, `/parking/maneuver`를 발행하지 않음 |
-| `traffic_light` | **미사용·빈 패키지** | 실행 노드가 없고 `/perception/*` 또는 `/TL_label`을 발행하지 않음 |
-| `frenet_logic` | **미연결 코어** | 알고리즘과 테스트는 있으나 ROS 노드·토픽 wrapper가 없음 |
+| `traffic_light` | **미사용·빈 패키지** | 카메라 신호등 인식 전용 자리지만 실행 노드가 없고 `/perception/traffic_signal` 또는 `/TL_label`을 발행하지 않음 |
+| `path_planner` | **미연결 코어** | Frenet 경로 계획 알고리즘과 테스트는 있으나 ROS 노드·토픽 wrapper가 없음 |
 | `frenet_lane_selection` | **미연결 코어** | 차선 선택 알고리즘은 있으나 LiDAR/Planner 연결과 ROS wrapper가 없음 |
 | `control` | **미통합 실행 코드** | PP/Stanley는 구현됐으나 위치 입력과 Safety Gate 출력 계약이 불일치 |
 | `object_detection` | **미션 미사용·검사용** | `inspection.launch`와 RViz에서는 쓰지만 출력이 Planner로 전달되지 않음 |
@@ -121,25 +120,27 @@ flowchart TB
     CAM[Camera]:::support
     LIDAR[2D LiDAR]:::support
     DET[object_detection<br/>ROI + DBSCAN]:::partial
-    PERCEPTION[traffic_light<br/>실행 코드 없음]:::missing
+    TRAFFIC[traffic_light<br/>카메라 신호등 인식 전용<br/>실행 코드 없음]:::missing
+    LANEOBS[차로 제어 신호 입력<br/>센서·구현 미정]:::missing
+    DYNAMIC[동적 장애물 판단<br/>구현 미정]:::missing
     ADAPTER[Cluster / 단면 변환<br/>구현 없음]:::missing
     LANESEL[frenet_lane_selection<br/>ROS wrapper 없음]:::partial
-    FRENET[frenet_logic<br/>ROS wrapper 없음]:::partial
-    LOCAL[lidar_path_planning<br/>빈 패키지]:::missing
+    PLANNER[path_planner<br/>Frenet 코어 · ROS wrapper 없음]:::partial
     PARK[parking_path_planning<br/>빈 패키지]:::missing
     SM[State Manager]:::endpoint
     SELECTOR[Selector]:::endpoint
 
-    CAM -.->|영상 소비 노드 없음| PERCEPTION
-    PERCEPTION -.->|/perception/* 미발행| SM
+    CAM -.->|영상 소비 노드 없음| TRAFFIC
+    TRAFFIC -.->|/perception/traffic_signal 미발행| SM
+    LANEOBS -.->|/perception/lane_signals 미발행| SM
+    DYNAMIC -.->|/perception/dynamic_obstacle 미발행| SM
     LIDAR --> DET
     DET -.->|cluster polygon 변환 없음| ADAPTER
     LIDAR -.->|Frenet 단면 변환 없음| ADAPTER
-    ADAPTER -.-> FRENET
-    LANESEL -.->|target d 연결 없음| FRENET
-    SM -.->|MissionState + TrafficConstraint| FRENET
-    FRENET -.->|PlannedPath wrapper 없음| LOCAL
-    LOCAL -.->|/path/local 미발행| SELECTOR
+    ADAPTER -.-> PLANNER
+    LANESEL -.->|target d 연결 없음| PLANNER
+    SM -.->|MissionState + TrafficConstraint| PLANNER
+    PLANNER -.->|/path/local wrapper 미구현| SELECTOR
     PARK -.->|/path/park 미발행| SELECTOR
     PARK -.->|/parking/maneuver 미발행| SM
 ```
@@ -154,11 +155,10 @@ flowchart TB
 | `vehicle_safety` | **통합** | 미션·경로·Localization·원시 제어 명령의 일관성과 timeout 검사 | `/mission/state`, `/mission/safety`, `/path/selector_status`, `/molit/localization/valid`, `/pure_pursuit/raw_drive` | 항상 `/vehicle_safety/preview_drive`; 명시적 opt-in 시 `/erp42_serial/drive`; `/vehicle_safety/status` |
 | `object_detection` | **단독/Inspection** | 현재 RDDF 주변 또는 차량 전방 LiDAR ROI, self-filter, DBSCAN 군집화 | `/molit/sensors/lidar/scan`, `/molit/localization/rddf/current`, TF | `/object_detection/roi_points`, `/object_detection/roi_markers`, `/dbscan_clusters` |
 | `control` | **단독** | `/path/final`을 PP 또는 Stanley로 추종하고 T870 명령 생성 | `/path/final`, `/current_pos` (`PoseStamped`), `/erp42_serial/feedback`, `/TL_label` | 현재 기본 `/erp42_serial/drive`, 디버그 `/control/*` |
-| `frenet_logic` | **코어** | 기준 RDDF의 Frenet `(s,d)`에서 충돌·경계·곡률을 검사하며 회피 후보 선택 | C++ API: 기준선, 후륜축 pose, 차량 치수, 장애물 polygon | C++ `PlannerResult`; ROS 토픽 없음 |
+| `path_planner` | **코어** | 기준 RDDF의 Frenet `(s,d)`에서 충돌·경계·곡률을 검사하며 회피 후보 선택 | C++ API: 기준선, 후륜축 pose, 차량 치수, 장애물 polygon | C++ `PlannerResult`; ROS 토픽 없음 |
 | `frenet_lane_selection` | **코어** | LiDAR 단면에서 양쪽 도로 경계를 찾고 허용된 좌/우 차선 중심 계산 | C++ API: 단면별 `s,d` 관측, 차선 허가, 현재 차선 | C++ lane target 목록; ROS 토픽 없음 |
-| `lidar_path_planning` | **빈 패키지** | 향후 Local Planner/ROS wrapper 자리 | 없음 | 없음 |
 | `parking_path_planning` | **빈 패키지** | 향후 주차 궤적과 전·후진 leg 생성 자리 | 없음 | 없음 |
-| `traffic_light` | **빈 패키지** | 향후 신호등·차로 제어 신호 인식 자리 | 없음 | 없음 |
+| `traffic_light` | **빈 패키지** | 향후 카메라 신호등 인식 전용 자리 | 카메라 영상 예정 | `/perception/traffic_signal` 예정 |
 
 ### Control이 아직 통합되지 않은 이유
 
@@ -234,11 +234,13 @@ flowchart TB
     classDef todo fill:#fff8c5,stroke:#9a6700,color:#1f2328
 
     SENSORS[GPS · IMU · Encoder · LiDAR]:::ready --> LOC[Localization]:::ready
-    CAMERA[Camera]:::ready --> PERCEPTION[신호·차로·동적 장애물 인지]:::todo
+    CAMERA[Camera]:::ready --> TRAFFIC[신호등 인식]:::todo
     LOC -->|Odometry · valid · TF · RDDF match| MISSION[State Manager]:::ready
-    PERCEPTION -->|SignalObservation · LaneSignals · DynamicObservation| MISSION
+    TRAFFIC -->|SignalObservation| MISSION
+    LANEOBS[차로 제어 신호 입력<br/>센서·구현 미정]:::todo -->|LaneSignals| MISSION
+    DYNAMIC[동적 장애물 판단<br/>구현 미정]:::todo -->|DynamicObservation| MISSION
     LIDAR[LiDAR + DBSCAN clusters]:::ready --> ADAPTER[cluster polygon / 단면 어댑터]:::todo
-    ADAPTER --> PLANNER[Frenet Local Planner ROS node]:::todo
+    ADAPTER --> PLANNER[path_planner<br/>Frenet Local Planner ROS node]:::todo
     MISSION -->|MissionState · TrafficConstraint| PLANNER
     MISSION -->|RDDF path| SELECTOR[Selector]:::ready
     PLANNER -->|/path/local PlannedPath| SELECTOR
@@ -255,10 +257,10 @@ flowchart TB
 
 1. Control 입력을 Localization `Odometry`에 맞추고 출력을 `/pure_pursuit/raw_drive`로 변경한다.
 2. `mission.launch`가 수정된 Control을 선택적으로 실행하도록 연결한다.
-3. Object Detection cluster를 `frenet_logic::Obstacle2d`로 변환하는 timestamp·TF 검증 어댑터를 만든다.
-4. `frenet_logic` ROS wrapper가 `/mission/state`, `/mission/traffic_constraint`를 받아
+3. Object Detection cluster를 `path_planner::Obstacle2d`로 변환하는 timestamp·TF 검증 어댑터를 만든다.
+4. `path_planner` ROS wrapper가 `/mission/state`, `/mission/traffic_constraint`를 받아
    `/path/local` `PlannedPath`를 발행하도록 구현한다.
 5. `frenet_lane_selection`의 목표 `d`를 Frenet 기준선 또는 명시적 target profile에 연결한다.
 6. Parking Planner와 전·후진 기어 메시지/펌웨어 계약을 추가한다.
-7. 신호등·차로 신호·동적 장애물 인지 Publisher를 구현한다.
+7. 카메라 신호등 Publisher를 구현하고, 차로 신호·동적 장애물 입력원은 별도로 결정한다.
 8. 마지막에 센서, Localization, Mission, Planning, Control을 하나의 검증된 bringup으로 묶는다.

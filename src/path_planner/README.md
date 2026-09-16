@@ -1,7 +1,7 @@
-# Frenet 로직
+# Path Planner
 
 **기존 로컬 Frenet의 ROS 비의존 C++14 코어만 추린 통합용 라이브러리**다.
-기존 `lidar_path_planning` namespace를 보존하며 라이브러리 target 이름은 `frenet_logic`이다.
+공개 namespace와 라이브러리 target 이름은 모두 `path_planner`다.
 ROS 노드, launch, selector, localization, 센서, 검출기, 제어기, RRT 비교 백엔드는 포함하지 않는다.
 차량 실측 설정·RDDF/rosbag·개인 경로도 포함하지 않는다. 테스트 치수/장애물은 합성 조건이다.
 `catkin_make`가 자동 시작하는 패키지가 아니며 통합자가 자신의 빌드에서 연결한다.
@@ -54,12 +54,12 @@ wrapper가 하던 안전 검사가 자동으로 이 라이브러리에 들어온
 - GPS가 천천히 치우치거나 연석이 가려지면 점프 검사/관측만으로 해결되지 않는다.
   측량·위치·추종·치수 오차를 고려한 주행 가능 경계와 여유거리 관리가 필요하다.
 
-기존 `src/lidar_path_planning/src/lidar_path_planning_node.cpp`는 이 책임의 참고 구현이지만
-이번 알고리즘 전달 목록에는 넣지 않는다. 통합자는 자신의 노드에서 동일 의미를 구현해야 한다.
+현재 ROS wrapper는 포함하지 않는다. 통합자는 자신의 노드에서 동일 의미를 구현해야 한다.
 
 ## 장애물 구간 전용 / 전체 전진 구간
 
-두 방식에서 **코어는 동일**하다. 미션별 호출 여부·경로 선택은 외부 path manager/selector가 결정한다.
+두 방식에서 **코어는 동일**하다. 미션별 호출 여부는 State Manager가 `path_mode`로 결정하고,
+Selector는 요청된 경로가 맞는지 검증한다.
 좋은 RDDF를 유지하면서 전체 전진 구간에서 호출하면 장애물이 없을 때 기준선 추종 후보를 고른다.
 장애물 구간에서만 사용할 때는 진입 준비·s/방향·위치 연속성·복귀 확인을 전환 조건으로 둔다.
 GPS 좌표 하나를 경계로 토글하거나 실패 시 막힌 일반 경로로 돌아가는 정책은 구현하지 않는다.
@@ -76,21 +76,12 @@ GPS 좌표 하나를 경계로 토글하거나 실패 시 막힌 일반 경로�
 
 ## 빌드·시험
 
-전달된 `src/frenet_logic` 폴더에서:
+`src/path_planner` 폴더에서:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j2
 (cd build && ctest --output-on-failure -V)
-```
-
-원본 개발 workspace에서는 복제 없이 같은 소스를 시험한다:
-
-```bash
-cmake -S src/lidar_path_planning/standalone -B build/frenet_logic \
-  -DFRENET_SOURCE_ROOT="$PWD/src/lidar_path_planning" -DCMAKE_BUILD_TYPE=Release
-cmake --build build/frenet_logic -j2
-(cd build/frenet_logic && ctest --output-on-failure -V)
 ```
 
 시험은 ROS 설치/GTest 다운로드 없이 빈 도로, 라바콘 회피, 전폭 차단·reset, 잘못된 치수/방향,

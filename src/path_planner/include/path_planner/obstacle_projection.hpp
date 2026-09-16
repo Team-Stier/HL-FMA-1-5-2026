@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "lidar_path_planning/reference_path.hpp"
-#include "lidar_path_planning/types.hpp"
+#include "path_planner/reference_path.hpp"
+#include "path_planner/types.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 // Projects only onto the active route station window. Obstacle corners are
 // expressed in the center projection's tangent frame so a corner cannot jump
@@ -15,4 +15,4 @@ std::vector<FrenetObstacle> projectObstaclesToFrenet(
     double minimum_s, double maximum_s, double maximum_distance_m,
     double anchor_s, double station_tolerance_m);
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

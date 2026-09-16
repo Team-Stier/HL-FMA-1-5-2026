@@ -2,10 +2,10 @@
 
 #include <string>
 
-#include "lidar_path_planning/reference_path.hpp"
-#include "lidar_path_planning/types.hpp"
+#include "path_planner/reference_path.hpp"
+#include "path_planner/types.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 class PlannerBackend {
  public:
@@ -16,4 +16,4 @@ class PlannerBackend {
                              const PlannerInput& input) = 0;
 };
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

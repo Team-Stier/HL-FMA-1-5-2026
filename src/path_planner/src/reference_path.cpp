@@ -1,4 +1,4 @@
-#include "lidar_path_planning/reference_path.hpp"
+#include "path_planner/reference_path.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace lidar_path_planning {
+namespace path_planner {
 namespace {
 
 std::string trim(const std::string& value) {
@@ -371,4 +371,4 @@ Projection ReferencePath::project(const Point2d& point, bool use_heading,
   return best;
 }
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

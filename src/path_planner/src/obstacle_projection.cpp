@@ -1,10 +1,10 @@
-#include "lidar_path_planning/obstacle_projection.hpp"
+#include "path_planner/obstacle_projection.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 std::vector<FrenetObstacle> projectObstaclesToFrenet(
     const ReferencePath& reference, const std::vector<Obstacle2d>& obstacles,
@@ -53,4 +53,4 @@ std::vector<FrenetObstacle> projectObstaclesToFrenet(
   return output;
 }
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

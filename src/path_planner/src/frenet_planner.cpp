@@ -1,4 +1,4 @@
-#include "lidar_path_planning/frenet_planner.hpp"
+#include "path_planner/frenet_planner.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -8,10 +8,10 @@
 #include <utility>
 #include <vector>
 
-#include "lidar_path_planning/boundary_checker.hpp"
-#include "lidar_path_planning/collision_checker.hpp"
+#include "path_planner/boundary_checker.hpp"
+#include "path_planner/collision_checker.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 namespace {
 
 struct QuinticPolynomial {
@@ -502,4 +502,4 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
   return result;
 }
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner

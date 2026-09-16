@@ -185,7 +185,7 @@ src/
 ├── localization/
 ├── object_detection/
 ├── state_manager/              # 구간·미션·LiDAR 관측 검사·RViz
-├── lidar_path_planning/
+├── path_planner/               # Frenet 기반 ROS 비의존 경로 계획 코어
 ├── parking_path_planning/
 ├── selector/
 ├── vehicle_safety/             # 최종 명령 제한·기본 미리보기
@@ -206,9 +206,11 @@ Provider·미션 노드·Selector·Safety Gate와 선택적인 RViz·기준점 �
 ```mermaid
 flowchart LR
     GPS["GPS · IMU · Encoder"] --> LOC["Localization<br/>승인 Odometry + valid"]
-    CAM["Camera"] --> VISION["신호·차선 신호 인식<br/>외부 구현 필요"]
+    CAM["Camera"] --> TRAFFIC["신호등 인식<br/>외부 구현 필요"]
+    LANE["차로 제어 신호 입력<br/>센서·구현 미정"] --> SM
+    DYNAMIC["동적 장애물 판단<br/>구현 미정"] --> SM
     LIDAR["LiDAR · TF"] --> SM
-    VISION --> SM
+    TRAFFIC -->|"/perception/traffic_signal"| SM
     LOC --> SM
     RDDF["Localization 소유 RDDF"] --> PROVIDER["RDDF Route Provider"]
     PROVIDER -->|"/route/map"| SM["State Manager<br/>구간 추적 · Mission FSM · 관측 공간 검사"]
@@ -309,7 +311,8 @@ LiDAR는 모든 구간에서 계속 사용한다. 관측된 장애물이나 확�
 연석까지 소프트웨어만으로 충돌 방지를 보장할 수는 없으므로, 차량·센서 검증 전에는
 실차 출력을 활성화하지 않는다. 기본 실행은 차량 명령 미리보기다.
 
-신호등·차로 제어 신호 Vision, 동적 장애물의 중앙 정지 판정, 실제 Local/Parking
+카메라 기반 신호등 인식, 별도 입력원으로 둘 차로 제어 신호, 동적 장애물의 중앙 정지 판정,
+실제 Local/Parking
 Planner와 Control은 외부 연동 지점으로 남아 있다. 이번 구현은 이 입력을 검사하고
 미션을 실행하는 뼈대이며, 입력이 없거나 유효하지 않을 때 임의로 통과시키지 않는다.
 [상세 실행·보정·테스트 안내](src/state_manager/README.md)에서 남은 연동 항목을 확인한다.
@@ -348,8 +351,9 @@ source devel/setup.bash
 수행해 호출한 셸의 옵션, 작업 디렉터리, trap을 변경하지 않아야 한다. Ubuntu 20.04
 실행 호스트에서 `/opt/ros/noetic/setup.bash`를 불러오고 `catkin_make`를 실행한 뒤
 workspace의 `devel/setup.bash`를 불러온다. 이어서
-Localization → Object Detection → Traffic Light Recognition → LiDAR Path Planning →
-Parking Path Planning → State Manager 통합 launch → Control 순서로 노드를 시작한다.
+Localization → Object Detection → Traffic Light Recognition → Parking Path Planning →
+State Manager 통합 launch → Control 순서로 노드를 시작한다. `path_planner`는 아직 ROS
+wrapper가 없는 독립 C++ 코어이므로 `run.sh` 실행 대상이 아니다.
 State Manager launch 안에서 Provider·Selector·Safety Gate를 함께 시작한다. 상시 실행 노드가
 종료되면 전체 프로그램도 종료하고, `Ctrl+C`를 누르면 스크립트가 실행한 모든 노드를
 함께 종료한다.
@@ -380,7 +384,6 @@ roslaunch state_manager mission.launch start_rviz:=true
 ./src/localization/launch.sh
 rosrun object_detection object_detection_node
 rosrun traffic_light traffic_light_node
-rosrun lidar_path_planning lidar_path_planning_node
 rosrun parking_path_planning parking_path_planning_node
 ./src/state_manager/launch.sh
 rosrun control control_node
@@ -396,7 +399,6 @@ rosrun control control_node
 ./src/localization/launch.sh
 ./src/object_detection/launch.sh
 ./src/traffic_light/launch.sh
-./src/lidar_path_planning/launch.sh
 ./src/parking_path_planning/launch.sh
 ./src/state_manager/launch.sh
 ./src/control/launch.sh

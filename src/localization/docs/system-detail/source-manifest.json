@@ -24,9 +24,9 @@
     "line_count": 15,
     "redacted_lines": []
   },
-  "src/lidar_path_planning/CMakeLists.txt": {
-    "sha256": "800209b19b6b2eae3cdf48fb07f5ed6ff2b1028923253d2b7f581dcc24c19b92",
-    "line_count": 5,
+  "src/path_planner/CMakeLists.txt": {
+    "sha256": "7cb7a2db927e9cae228224e3452d2faa9887b02fe791119668b7c1512ef94c7d",
+    "line_count": 21,
     "redacted_lines": []
   },
   "src/parking_path_planning/CMakeLists.txt": {
@@ -190,11 +190,6 @@
   "src/interfaces/perception_interfaces/msg/ObjectInfo.msg": {
     "sha256": "4062a4592d07557c3b34beb60a554358be1f7a7dc7e796bdf493cb959252f690",
     "line_count": 16,
-    "redacted_lines": []
-  },
-  "src/lidar_path_planning/package.xml": {
-    "sha256": "3ab22bfe49e3c4da149c51964c874465f4c91cfde135a3c4300ba0c87a1af7a9",
-    "line_count": 11,
     "redacted_lines": []
   },
   "src/parking_path_planning/package.xml": {

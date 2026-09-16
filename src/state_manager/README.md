@@ -18,7 +18,10 @@ S자 회피 플래너, 주차 기어 전환 플래너, 경로 추종 제어기�
 flowchart LR
   L[Localization 승인 위치·유효성] --> S[State Manager]
   R[Localization RDDF Provider] -->|RouteMap| S
-  V[신호·차로·어린이 인식기] --> S
+  C[Camera] --> T[신호등 인식기]
+  T -->|SignalObservation| S
+  LANE[차로 제어 신호 입력<br/>센서·구현 미정] -->|LaneSignals| S
+  DYN[동적 장애물 판단<br/>구현 미정] -->|DynamicObservation| S
   D[상시 LiDAR + 시각별 TF] --> S
   S -->|MissionState + TrafficConstraint| P[Local / Parking Planner]
   S -->|PlannedPath RDDF| X[Selector]
@@ -89,9 +92,10 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 청록색 강조를 지운다. 검사 노드는 제어·미션 토픽을 발행하지 않으며 marker만 발행한다.
 위치가 갱신되지 않으면 RViz 카메라를 수동으로 이동해 화면의 상태 문구를 확인한다.
 
-신호/동적장애물 입력은 DBSCAN 결과를 그대로 연결하는 항목이 아니다. 인식 노드가
-`SignalObservation`, `LaneSignals`, `DynamicObservation`을 발행하면 매니저의 기존 구독부로
-들어간다. 현재 미연결 입력은 비어 있는 채 표시하며 가짜 신호로 주행 조건을 통과시키지 않는다.
+카메라는 신호등 인식에만 사용하고 결과를 `SignalObservation`으로 전달한다.
+`LaneSignals`와 `DynamicObservation`은 카메라 경로에 묶지 않으며 입력 센서와 생산 노드를
+별도로 결정한다. 이 입력들은 DBSCAN 결과를 그대로 연결하는 항목도 아니다. 현재 미연결
+입력은 비어 있는 채 표시하며 가짜 신호로 주행 조건을 통과시키지 않는다.
 
 검증: 순수 marker 테스트 및 ROS transport 테스트에서 미설정 매니저 S01과 관측 S07의
 분리, 미수신 입력, stale 강조 제거를 검사한다. CI의 Localization은 실제 메시지 정의를

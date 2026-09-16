@@ -4,9 +4,9 @@
 #include <cstddef>
 #include <vector>
 
-#include "lidar_path_planning/types.hpp"
+#include "path_planner/types.hpp"
 
-namespace lidar_path_planning {
+namespace path_planner {
 
 using Polygon4 = std::array<Point2d, 4U>;
 
@@ -30,4 +30,4 @@ bool pathHasCollision(const std::vector<PathPoint>& path,
                       double maximum_yaw_step_rad,
                       std::size_t* collision_index = nullptr);
 
-}  // namespace lidar_path_planning
+}  // namespace path_planner
