@@ -367,6 +367,7 @@ class ConfigurationContractTest(unittest.TestCase):
             "roslaunch mando_localization map_data_collection.launch", command
         )
         self.assertIn("start_lidar_driver", command)
+        self.assertIn('enable_gps_fusion:="${GPS_ARG}"', command)
         self.assertIn("start_rviz:=true", command)
         self.assertIn("start_recording:=false", command)
         self.assertGreater(
@@ -393,6 +394,7 @@ class ConfigurationContractTest(unittest.TestCase):
             for item in collection.findall("arg")
         }
         self.assertEqual("true", arguments["start_lidar_driver"])
+        self.assertEqual("$(arg start_gps_driver)", arguments["enable_gps_fusion"])
         self.assertEqual("true", arguments["start_recording"])
         self.assertEqual("/dev/lidar", arguments["lidar_serial_port"])
         self.assertEqual("laser_link", arguments["lidar_frame_id"])
@@ -418,6 +420,7 @@ class ConfigurationContractTest(unittest.TestCase):
             for item in bringup.findall("arg")
         }
         self.assertEqual("true", included_args["start_static_tf_publisher"])
+        self.assertEqual("$(arg enable_gps_fusion)", included_args["enable_gps_fusion"])
         self.assertEqual("$(arg rviz_config)", included_args["rviz_config"])
 
         visualization = ET.parse(PACKAGE / "launch" / "visualization.launch").getroot()

@@ -116,6 +116,12 @@ healthy GPS pose와 최신 Global Odometry의 XY 거리가 `max_global_consisten
 
 마지막 fresh 절대 pose가 승인된 receipt time을 기준으로 시간과 이동거리를 관리합니다. healthy 절대 소스가 0개일 때 Global Odometry XY 증분을 누적합니다.
 
+GPS를 활성화한 세션에서 GPS가 끊긴 경우에는 아래 예산을 적용합니다. 반대로
+`enable_gps_fusion:=false`로 시작하고 수동 RDDF anchor를 확정한 세션은 GPS가
+의도적으로 없는 모드이므로, IMU·엔코더와 Local/Global EKF가 정상인 동안 이 예산으로
+차단하지 않고 `DEAD_RECKONING`, `valid=true`를 유지합니다. 절대 보정이 없으므로 오차는
+계속 누적됩니다.
+
 ```text
 seconds_since_absolute <= 2.0 s
 AND
@@ -159,6 +165,7 @@ Supervisor의 `valid=true`만으로는 공개하지 않습니다. Output Gate는
 
 ```text
 INITIALIZING --local motion + 최초 절대 후보 3회--> TRACKING
+INITIALIZING --GPS 비활성 + 수동 RDDF anchor--> DEAD_RECKONING(valid)
 TRACKING --GPS 무응답 timeout--> DEAD_RECKONING
 DEAD_RECKONING --2초 또는 10 m 초과--> FAULT
 ANY --소스 복구 gate/Global 불일치--> RELOCALIZING

@@ -239,6 +239,9 @@ localization start_rviz:=false  # 화면이 필요 없는 경우
 
 현재 `localization` 명령은 `map_data_collection.launch`를 사용하되
 `start_recording:=false`를 강제합니다. raw LiDAR와 정적 TF를 실행하며 위치 추정은 IMU·엔코더·GPS를 사용합니다.
+GPS 장치가 없으면 스크립트가 `enable_gps_fusion:=false`로 실행하고, RViz에서 수동
+RDDF 초기위치를 확정한 뒤 IMU·엔코더 기반 Local/Global EKF 결과를 최종 Odometry로
+출력합니다. 이 모드는 절대 위치·방향 보정이 없으므로 이동할수록 drift가 누적됩니다.
 
 LiDAR는 `lidar_front_scan_visualizer`가 만든
 `/mando_localization/visualization/lidar/front_scan`을 청록색으로 표시합니다.
