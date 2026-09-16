@@ -95,6 +95,34 @@ def dbscan(points, eps=0.3, min_samples=4):
     return labels
 
 
+def filter_clusters_by_extent(points, labels, max_extent_m):
+    """Relabel clusters wider or longer than ``max_extent_m`` as noise.
+
+    The extent is the larger of the cluster's X and Y spans. A value of zero
+    disables this filter. Cluster identifiers are preserved for accepted
+    clusters so marker colors remain stable within the scan.
+    """
+    points = np.asarray(points, dtype=float)
+    labels = np.asarray(labels)
+    if (points.ndim != 2 or points.shape[1] < 2 or not np.isfinite(points).all()):
+        raise ValueError("points must be a finite Nx2-or-greater array")
+    if (labels.ndim != 1 or len(labels) != len(points)):
+        raise ValueError("labels must be a vector matching points")
+    if (not isinstance(max_extent_m, (int, float)) or isinstance(max_extent_m, bool)
+            or not math.isfinite(max_extent_m) or max_extent_m < 0):
+        raise ValueError("max_extent_m must be a nonnegative finite number")
+
+    filtered = labels.astype(np.int32, copy=True)
+    if max_extent_m == 0 or len(points) == 0:
+        return filtered
+    for cluster_id in set(filtered.tolist()) - {NOISE}:
+        member_mask = filtered == cluster_id
+        spans = np.ptp(points[member_mask, :2], axis=0)
+        if float(np.max(spans)) > max_extent_m:
+            filtered[member_mask] = NOISE
+    return filtered
+
+
 def voxel_downsample(points, voxel_size_m):
     """Replace points in each XY voxel with their centroid."""
     points = np.asarray(points, dtype=float)

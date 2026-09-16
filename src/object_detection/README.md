@@ -28,7 +28,10 @@ LiDAR 원점 앞에서 제외할 거리와 사용 여부는 `config/rddf_roi.yam
 
 RDDF 원 판정과 DBSCAN 이웃 검색은 SciPy가 설치되어 있으면 KD-tree를 사용한다. ROI를
 통과한 점은 기본 5 cm XY voxel로 줄인 뒤 DBSCAN에 넣는다. `voxel_size_m: 0`이면
-다운샘플링을 끌 수 있다. RViz 표시 구성과 토픽 이름은 바뀌지 않는다.
+다운샘플링을 끌 수 있다. DBSCAN 이후 X 또는 Y 방향 길이가
+`max_cluster_extent_m`보다 큰 군집은 바닥·벽 반사로 보고 장애물 출력에서 제외한다.
+`max_cluster_extent_m: 0`이면 이 필터를 끈다. RViz 표시 구성과 토픽 이름은 바뀌지
+않는다.
 
 파라미터와 한글 튜닝 설명은 `config/rddf_roi.yaml`과 `config/dbscan.yaml`에 있다.
 기본 출력은 다음과 같다.

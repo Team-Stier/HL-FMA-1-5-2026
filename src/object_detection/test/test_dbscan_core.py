@@ -2,7 +2,12 @@ import unittest
 
 import numpy as np
 
-from object_detection_core import NOISE, dbscan, voxel_downsample
+from object_detection_core import (
+    NOISE,
+    dbscan,
+    filter_clusters_by_extent,
+    voxel_downsample,
+)
 
 
 class DbscanTest(unittest.TestCase):
@@ -49,6 +54,29 @@ class DbscanTest(unittest.TestCase):
                              ([(0, 0)], 0), ([(0, 0)], True)):
             with self.assertRaises(ValueError):
                 voxel_downsample(points, size)
+
+    def test_filter_clusters_by_extent_rejects_only_oversized_cluster(self):
+        points = np.asarray(((0, 0), (0.5, 0), (1.0, 0),
+                             (5, 5), (5.4, 5.3), (5.8, 5.6)))
+        labels = np.asarray((0, 0, 0, 1, 1, 1), dtype=np.int32)
+        result = filter_clusters_by_extent(points, labels, 0.9)
+        self.assertEqual(result.tolist(), [NOISE, NOISE, NOISE, 1, 1, 1])
+
+    def test_filter_clusters_by_extent_zero_disables_filter(self):
+        labels = np.asarray((0, 0), dtype=np.int32)
+        result = filter_clusters_by_extent(((0, 0), (100, 0)), labels, 0)
+        self.assertEqual(result.tolist(), labels.tolist())
+
+    def test_filter_clusters_by_extent_validates_input(self):
+        invalid_cases = (
+            ([(0, 0, 0)], [0, 0], 1.0),
+            ([(0, float("nan"))], [0], 1.0),
+            ([(0, 0)], [0], -1.0),
+            ([(0, 0)], [0], True),
+        )
+        for points, labels, maximum in invalid_cases:
+            with self.assertRaises(ValueError):
+                filter_clusters_by_extent(points, labels, maximum)
 
 
 if __name__ == '__main__':
