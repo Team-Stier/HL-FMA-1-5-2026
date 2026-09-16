@@ -46,17 +46,18 @@ angular_roi:
 
 # base_link 기준 차량 자체 반사 제거 영역
 # base_link 원점은 뒷바퀴 축 중심이고 +X 전방, +Y 왼쪽이다.
-# 현재 값은 LiDAR가 전방 1.05 m에 있다는 장착값을 포함한 잠정 영역이다.
-# 팀 뷰어의 기존 차량 외곽과 실제 차체를 보고 각 방향으로 5~10 cm 크게 맞춘다.
+# 현장 Frenet 테스트의 차체 형상(길이 1.40 m, 폭 0.775 m,
+# 후륜축에서 차체 중심까지 0.38 m)에 약 2 cm 여유를 더한 영역이다.
+# LiDAR는 앞차축 0.75 m보다 0.30 m 앞인 X=1.05 m에 표시된다.
 self_filter:
   enabled: true
   # true면 실제 제거 영역을 /object_detection/roi_markers에 빨간 박스로 표시한다.
   visualize: true
   # base_link 원점에서 차량 맨 뒤까지의 거리. 뒤쪽 차량점이 남으면 키운다.
-  rear_extent_m: 0.70
+  rear_extent_m: 0.35
   # base_link 원점에서 차량 맨 앞까지의 거리. 앞쪽 차량점이 남으면 키운다.
-  front_extent_m: 2.0
+  front_extent_m: 1.10
   # 차량 오른쪽 폭. RViz에서 오른쪽 차량점이 남으면 키운다.
-  right_extent_m: 0.7
+  right_extent_m: 0.40
   # 차량 왼쪽 폭. RViz에서 왼쪽 차량점이 남으면 키운다.
-  left_extent_m: 0.7
+  left_extent_m: 0.40

@@ -14,7 +14,7 @@ from planning_interfaces.msg import (
     Route,
     RouteMap,
 )
-from std_msgs.msg import String
+from std_msgs.msg import ColorRGBA, String
 from std_srvs.srv import SetBool, SetBoolResponse
 from visualization_msgs.msg import Marker, MarkerArray
 
@@ -35,6 +35,12 @@ class FrenetFieldTestNode:
         self.speed_limit_mps = float(rospy.get_param("~speed_limit_mps", 1.40))
         self.road_left_m = float(rospy.get_param("~road_left_bound_m", 3.0))
         self.road_right_m = float(rospy.get_param("~road_right_bound_m", 3.0))
+        self.vehicle_length_m = float(rospy.get_param("~vehicle_length_m", 1.40))
+        self.vehicle_width_m = float(rospy.get_param("~vehicle_width_m", 0.775))
+        self.wheelbase_m = float(rospy.get_param("~wheelbase_m", 0.75))
+        self.rear_axle_to_center_m = float(
+            rospy.get_param("~rear_axle_to_center_m", 0.38)
+        )
 
         self.route_pub = rospy.Publisher("/route/map", RouteMap, queue_size=1, latch=True)
         self.mission_pub = rospy.Publisher("/mission/state", MissionState, queue_size=1)
@@ -210,6 +216,48 @@ class FrenetFieldTestNode:
                 (0.2, 0.7, 1.0, 0.9),
             )
         )
+        half_length = self.vehicle_length_m * 0.5
+        half_width = self.vehicle_width_m * 0.5
+        rear = self.rear_axle_to_center_m - half_length
+        front = self.rear_axle_to_center_m + half_length
+        body = Marker()
+        body.header.stamp = stamp
+        body.header.frame_id = FRAME_ID
+        body.ns = "field_test_vehicle_body"
+        body.id = 0
+        body.type = Marker.LINE_STRIP
+        body.action = Marker.ADD
+        body.pose.orientation.w = 1.0
+        body.scale.x = 0.045
+        body.color = ColorRGBA(0.85, 0.88, 0.92, 1.0)
+        body.points = [
+            Point(rear, -half_width, 0.08),
+            Point(front, -half_width, 0.08),
+            Point(front, half_width, 0.08),
+            Point(rear, half_width, 0.08),
+            Point(rear, -half_width, 0.08),
+        ]
+        output.markers.append(body)
+
+        rear_axle = self._line(
+            stamp, 0, "field_test_rear_axle", 0.0, (0.2, 0.85, 1.0, 1.0)
+        )
+        rear_axle.points = [
+            Point(0.0, -half_width, 0.10),
+            Point(0.0, half_width, 0.10),
+        ]
+        rear_axle.scale.x = 0.07
+        output.markers.append(rear_axle)
+
+        front_axle = self._line(
+            stamp, 0, "field_test_front_axle", 0.0, (0.25, 1.0, 0.35, 1.0)
+        )
+        front_axle.points = [
+            Point(self.wheelbase_m, -half_width, 0.10),
+            Point(self.wheelbase_m, half_width, 0.10),
+        ]
+        front_axle.scale.x = 0.07
+        output.markers.append(front_axle)
         with self.lock:
             armed = self.armed
             planner_reason = self.planner_reason
