@@ -1,0 +1,20 @@
+<launch>
+  <!-- Use existing live/replay localization and sensors. Never enables vehicle output. -->
+  <arg name="start_mission" default="true"/>
+  <arg name="start_detection" default="true"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="config_file" default="$(find state_manager)/config/missions.json"/>
+  <arg name="calibration_file" default="$(env HOME)/.ros/stier/landmarks.json"/>
+  <include if="$(arg start_mission)" file="$(find state_manager)/launch/mission.launch">
+    <arg name="config_file" value="$(arg config_file)"/>
+    <arg name="calibration_file" value="$(arg calibration_file)"/>
+    <arg name="enable_vehicle_output" value="false"/>
+    <arg name="start_rviz" value="false"/>
+  </include>
+  <include if="$(arg start_detection)" file="$(find object_detection)/launch/rddf_roi_detection.launch">
+    <arg name="start_viewer" value="false"/>
+  </include>
+  <node pkg="state_manager" type="mission_inspection_node" name="mission_inspection" output="screen" required="true"/>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="inspection_rviz"
+        args="-d $(find state_manager)/rviz/state_manager.rviz"/>
+</launch>

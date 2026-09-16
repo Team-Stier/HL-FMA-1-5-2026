@@ -1,0 +1,68 @@
+control_node:
+  path_topic: /path/final
+  pose_topic: /current_pos
+  feedback_topic: /erp42_serial/feedback
+  traffic_light_topic: /TL_label
+  command_topic: /erp42_serial/drive
+  state_topic: /control/state
+  lookahead_point_topic: /control/lookahead_point
+  stanley_projection_point_topic: /control/stanley_projection_point
+  cross_track_error_topic: /control/cross_track_error
+  heading_error_topic: /control/heading_error
+  steering_angle_topic: /control/steering_angle_rad
+
+  expected_frame_id: map
+  vehicle_frame_id: base_link
+  lateral_controller: pure_pursuit  # pure_pursuit | stanley
+
+  control_rate_hz: 20.0
+  path_timeout_sec: 0.50
+  pose_timeout_sec: 0.25
+  feedback_timeout_sec: 0.30
+  maximum_control_dt_sec: 0.20
+
+  # 2026-08-23 현장 간이 측정 후 실차 기준값으로 승인한 값이다.
+  wheelbase_m: 0.75
+  # /current_pos가 나타내는 pose 기준점이 rear axle보다 앞에 있으면 양수다.
+  # 현재 base_link 원점 위치가 확정되지 않아 0.0을 유지한다.
+  rear_axle_to_pose_reference_m: 0.0
+
+  # 간이 확인된 실제 road-wheel 범위와 Uno DriveCmd 범위는 모두 +/-25 deg다.
+  maximum_road_wheel_steering_deg: 25.0
+  road_wheel_angle_at_command_limit_deg: 25.0
+  steering_command_limit_deg: 25
+  # 현재 Uno firmware는 DriveCmd.Deg=-25를 좌측 ADC 끝으로 매핑한다.
+  # 제어기 내부 REP-103 조향각(좌회전 +)을 Uno 명령 부호로 변환한다.
+  steering_command_sign: -1
+  maximum_steering_rate_deg_per_sec: 45.0
+
+  # 상위 종방향 계층은 고정 목표속도와 절대 상한만 결정한다. 속도 PI, PWM 포화,
+  # 출력 램프는 Uno 하위제어기가 담당한다. Uno는 ROS 목표를 15 km/h로 클램프하고
+  # 별도 실측속도 ceiling도 15 km/h로 적용한다.
+  target_speed_kph: 5
+  maximum_speed_kph: 10
+  require_ros_mode: true
+  stop_on_red: true
+  stop_on_yellow: false
+
+  # Pure Pursuit 저속 시작값. 0.75 m wheelbase 기준이며 실차 기록으로 조정한다.
+  lookahead_base_m: 1.00
+  lookahead_speed_gain_sec: 0.50
+  lookahead_curvature_gain_m: 1.00
+  lookahead_min_m: 0.80
+  lookahead_max_m: 1.80
+  minimum_target_distance_m: 0.20
+  curvature_preview_distance_m: 2.00
+
+  # Stanley 저속 시작값. yaw-rate 입력을 아직 연결하지 않았으므로 damping은 0이다.
+  stanley_gain: 0.80
+  stanley_softening_speed_mps: 0.50
+  stanley_minimum_control_speed_mps: 0.20
+  stanley_heading_window_m: 0.80
+  stanley_heading_error_gain: 1.00
+  stanley_curvature_feedforward_gain: 0.00
+  stanley_curvature_preview_distance_m: 1.50
+  stanley_yaw_rate_damping_gain_sec: 0.00
+
+  # 현장 실측값을 현재 차량 기준으로 사용한다. 정밀 재측정 시 위 값을 갱신한다.
+  calibration_required: false

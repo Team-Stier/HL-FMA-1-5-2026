@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Preview by default; actual vehicle publication requires explicit opt-in."""
+
+import json
+import threading
+
+import rospy
+from erp42_msgs.msg import DriveCmd
+from planning_interfaces.msg import MissionState, PathStatus, SafetyStatus
+from std_msgs.msg import Bool, String
+from vehicle_safety.core import Mission, PathReady, RawCommand, SafetyGate, SafetyInput
+
+
+class VehicleSafetyNode:
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.core = SafetyGate(
+            input_timeout=rospy.get_param('~input_timeout', 0.5),
+            command_timeout=rospy.get_param('~command_timeout', 0.25),
+            future_tolerance=rospy.get_param('~future_tolerance', 0.05),
+            steering_limit_deg=rospy.get_param('~steering_limit_deg', 25))
+        self.preview_pub = rospy.Publisher('/vehicle_safety/preview_drive', DriveCmd, queue_size=1)
+        self.status_pub = rospy.Publisher('/vehicle_safety/status', String, queue_size=1)
+        self.vehicle_pub = None
+        if rospy.get_param('~enable_vehicle_output', False):
+            self.vehicle_pub = rospy.Publisher('/erp42_serial/drive', DriveCmd, queue_size=1)
+            rospy.logwarn('Vehicle Safety Gate vehicle output ENABLED; reverse remains unsupported')
+        else:
+            rospy.loginfo('Vehicle Safety Gate preview only; no /erp42_serial/drive publisher')
+        subscriptions = [
+            ('mission_topic', '/mission/state', MissionState, self.on_mission),
+            ('safety_topic', '/mission/safety', SafetyStatus, self.on_safety),
+            ('path_status_topic', '/path/selector_status', PathStatus, self.on_path),
+            ('localization_valid_topic', '/molit/localization/valid', Bool, self.on_localization),
+            ('raw_drive_topic', '/pure_pursuit/raw_drive', DriveCmd, self.on_raw),
+        ]
+        self.subscribers = [rospy.Subscriber(rospy.get_param('~' + name, default),
+                                            message, callback, queue_size=1)
+                            for name, default, message, callback in subscriptions]
+        self.timer = rospy.Timer(rospy.Duration(0.05), self.tick, reset=True)
+        rospy.on_shutdown(self.on_shutdown)
+
+    def on_mission(self, msg):
+        with self.lock:
+            self.core.update_mission(Mission(
+                msg.header.stamp.to_sec(), msg.decision_id, msg.route_name,
+                msg.path_mode, msg.direction, msg.speed_limit_mps,
+                msg.stop_requested, msg.valid, msg.finished), rospy.Time.now().to_sec())
+
+    def on_safety(self, msg):
+        with self.lock:
+            self.core.update_safety(SafetyInput(msg.header.stamp.to_sec(), msg.stop,
+                                               msg.sensor_valid, msg.reason,
+                                               msg.clearance_m, msg.path_fingerprint), rospy.Time.now().to_sec())
+
+    def on_path(self, msg):
+        with self.lock:
+            self.core.update_path(PathReady(msg.header.stamp.to_sec(), msg.decision_id,
+                                            msg.route_name, msg.source, msg.direction,
+                                            msg.ready, msg.path_fingerprint), rospy.Time.now().to_sec())
+
+    def on_localization(self, msg):
+        with self.lock:
+            self.core.update_localization(msg.data, rospy.Time.now().to_sec())
+
+    def on_raw(self, msg):
+        with self.lock:
+            self.core.update_raw(RawCommand(msg.KPH, msg.Deg, msg.brake), rospy.Time.now().to_sec())
+
+    def tick(self, _event):
+        with self.lock:
+            decision = self.core.evaluate(rospy.Time.now().to_sec())
+            msg = DriveCmd()
+            msg.KPH, msg.Deg, msg.brake = decision.kph, decision.deg, decision.brake
+            self.preview_pub.publish(msg)
+            if self.vehicle_pub is not None:
+                self.vehicle_pub.publish(msg)
+            self.status_pub.publish(String(data=json.dumps({
+                'allowed': decision.allowed, 'reason': decision.reason,
+                'vehicle_output_enabled': self.vehicle_pub is not None,
+                'KPH': decision.kph, 'Deg': decision.deg, 'brake': decision.brake})))
+
+    def on_shutdown(self):
+        if self.vehicle_pub is not None:
+            msg = DriveCmd()
+            msg.KPH, msg.Deg, msg.brake = 0, 0, 1
+            self.vehicle_pub.publish(msg)
+
+
+def main():
+    rospy.init_node('vehicle_safety')
+    node = VehicleSafetyNode()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

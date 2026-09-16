@@ -38,3 +38,6 @@ __pycache__/
 .vscode/
 .DS_Store
 *~
+
+# Local model weights
+/models/

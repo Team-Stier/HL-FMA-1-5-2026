@@ -1,0 +1,11 @@
+<launch>
+  <arg name="enable_vehicle_output" default="false"/>
+  <arg name="localization_valid_topic" default="/molit/localization/valid"/>
+  <node pkg="vehicle_safety" type="vehicle_safety_node" name="vehicle_safety" output="screen">
+    <param name="enable_vehicle_output" value="$(arg enable_vehicle_output)"/>
+    <param name="localization_valid_topic" value="$(arg localization_valid_topic)"/>
+    <param name="input_timeout" value="0.5"/>
+    <param name="command_timeout" value="0.25"/>
+    <param name="steering_limit_deg" value="25"/>
+  </node>
+</launch>

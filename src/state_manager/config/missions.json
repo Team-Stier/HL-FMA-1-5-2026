@@ -1,0 +1,155 @@
+{
+  "start_route": "1_right",
+  "map_origin": {
+    "latitude": 37.288731,
+    "longitude": 127.1072336
+  },
+  "input_timeout_s": 0.5,
+  "max_pose_scan_skew_s": 0.2,
+  "max_position_variance_m2": 0.25,
+  "max_yaw_variance_rad2": 0.08,
+  "min_confidence": 0.8,
+  "max_lidar_plane_tilt_rad": 0.2,
+  "max_scan_duration_s": 0.2,
+  "rate_hz": 10,
+  "path_lookahead_m": 20,
+  "stop_buffer_m": 0.05,
+  "landmarks_validated": false,
+  "vehicle": {
+    "validated": false,
+    "curb_visibility_validated": false,
+    "width_m": null,
+    "front_m": null,
+    "rear_m": null,
+    "deceleration_mps2": null,
+    "reaction_s": null,
+    "margin_m": 0.25,
+    "max_speed_mps": null,
+    "max_yaw_rate_rps": null
+  },
+  "rules": {
+    "hill_hold_s": 3.0,
+    "dynamic_hold_s": 3.0,
+    "standstill_speed_mps": 0.05,
+    "stop_tolerance_m": 0.2,
+    "front_bumper_offset_m": 0.0,
+    "rear_axle_offset_m": 0.0,
+    "parking_stable_observations": 3,
+    "lane_stable_observations": 3,
+    "allow_dynamic_bypass": false,
+    "hill_hold_position_tolerance_m": 0.02
+  },
+  "speeds": {
+    "normal": 2.0,
+    "hill": 1.0,
+    "static": 1.0,
+    "intersection": 1.0,
+    "dynamic": 1.0,
+    "parking": 0.5
+  },
+  "tracker": {
+    "max_cross_track_m": 2.0,
+    "acquire_radius_m": 2.0,
+    "acquire_window_m": 3.0,
+    "max_heading_error_rad": 1.0,
+    "max_speed_mps": 8.0,
+    "progress_slack_m": 0.8,
+    "end_tolerance_m": 0.8,
+    "branch_13_left_s_m": 13.258
+  },
+  "landmarks": {
+    "10_parallel-left-in": {
+      "parking_confirm_s": null,
+      "parking_yaw_rad": null
+    },
+    "10_parallel-right-in": {
+      "parking_confirm_s": null,
+      "parking_yaw_rad": null
+    },
+    "11-parallel-left-out": {
+      "parking_exit_s": null
+    },
+    "11_parallel-right-out": {
+      "parking_exit_s": null
+    },
+    "12": {
+      "lane_decision_s": null
+    },
+    "13_left": {
+      "finish_s": null
+    },
+    "13_right": {
+      "finish_s": null
+    },
+    "1_left": {
+      "hill_start_s": null,
+      "hill_stop_s": null,
+      "hill_top_s": null,
+      "hill_zone_start_s": 25.9294712343,
+      "hill_zone_end_s": 36.1281013511
+    },
+    "1_right": {
+      "hill_start_s": null,
+      "hill_stop_s": null,
+      "hill_top_s": null,
+      "hill_zone_start_s": 25.7682296748,
+      "hill_zone_end_s": 35.9868936586
+    },
+    "2": {
+      "stop_line_s": 58.0297205375,
+      "intersection_exit_s": null
+    },
+    "3_s-static-obstacle": {},
+    "4": {
+      "stop_line_s": 33.898125592,
+      "intersection_exit_s": null
+    },
+    "5_T-left-in": {
+      "parking_confirm_s": null,
+      "parking_yaw_rad": null
+    },
+    "5_T-right-in": {
+      "parking_confirm_s": null,
+      "parking_yaw_rad": null
+    },
+    "6-T-left-out": {
+      "parking_exit_s": null
+    },
+    "6_T-right-out": {
+      "parking_exit_s": null
+    },
+    "7": {
+      "stop_line_s": 93.4368413704,
+      "intersection_exit_s": null
+    },
+    "8_dynamic-obstacle": {},
+    "9": {}
+  },
+  "landmark_hints": {
+    "12": {
+      "lane_decision_s": {
+        "index": 36,
+        "distance_m": 13.258,
+        "note": "RDDF geometric fork only; confirm on site before validation."
+      }
+    }
+  },
+  "landmark_provenance": {
+    "source": "src/localization/rddf/yongin_mission_landmarks.json",
+    "confirmed_2026_09_16": [
+      "1_left.hill_zone_start_s",
+      "1_left.hill_zone_end_s",
+      "1_right.hill_zone_start_s",
+      "1_right.hill_zone_end_s",
+      "2.stop_line_s",
+      "4.stop_line_s",
+      "7.stop_line_s"
+    ],
+    "pending": [
+      "2.intersection_exit_s",
+      "4.intersection_exit_s",
+      "7.intersection_exit_s"
+    ]
+  },
+  "localization_sigma_margin": 2.0
+}

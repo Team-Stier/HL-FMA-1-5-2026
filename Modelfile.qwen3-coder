@@ -1,0 +1,3 @@
+FROM /home/paik/mando1-5/HL-FMA2026-stier/models/Qwen3-Coder-30B-A3B-Instruct-GGUF/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.2

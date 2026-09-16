@@ -1,0 +1,27 @@
+<launch>
+  <!-- Sensor drivers and localization run separately. Default is preview only. -->
+  <arg name="config_file" default="$(find state_manager)/config/missions.json"/>
+  <arg name="calibration_file" default="$(env HOME)/.ros/stier/landmarks.json"/>
+  <arg name="calibration_mode" default="false"/>
+  <arg name="enable_vehicle_output" default="false"/>
+  <arg name="start_rviz" default="false"/>
+  <node pkg="mando_localization" type="rddf_route_provider.py" name="rddf_route_provider" output="screen" required="true">
+    <param name="rddf_directory" value="$(find mando_localization)/rddf"/>
+  </node>
+  <node pkg="state_manager" type="state_manager_node" name="state_manager" output="screen" required="true">
+    <param name="config_file" value="$(arg config_file)"/>
+    <param name="calibration_file" value="$(arg calibration_file)"/>
+    <param name="calibration_mode" value="$(arg calibration_mode)"/>
+  </node>
+  <include file="$(find selector)/launch/selector.launch"/>
+  <include file="$(find vehicle_safety)/launch/vehicle_safety.launch">
+    <arg name="enable_vehicle_output" value="$(eval arg('enable_vehicle_output') and not arg('calibration_mode'))"/>
+  </include>
+  <node if="$(arg calibration_mode)" pkg="state_manager" type="landmark_editor_node" name="landmark_editor" output="screen">
+    <param name="config_file" value="$(arg config_file)"/>
+    <param name="calibration_mode" value="true"/>
+    <param name="enable_vehicle_output" value="false"/>
+    <param name="calibration_file" value="$(arg calibration_file)"/>
+  </node>
+  <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="mission_rviz" args="-d $(find state_manager)/rviz/state_manager.rviz"/>
+</launch>

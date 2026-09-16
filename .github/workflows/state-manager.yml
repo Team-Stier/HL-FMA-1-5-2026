@@ -1,0 +1,46 @@
+name: State manager
+
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - 'src/state_manager/**'
+      - 'src/selector/**'
+      - 'src/vehicle_safety/**'
+      - 'src/interfaces/**'
+      - 'src/localization/rddf/**'
+      - 'src/localization/scripts/rddf_route_provider.py'
+      - '.github/workflows/state-manager.yml'
+  pull_request:
+    paths:
+      - 'src/state_manager/**'
+      - 'src/selector/**'
+      - 'src/vehicle_safety/**'
+      - 'src/interfaces/**'
+      - 'src/localization/rddf/**'
+      - 'src/localization/scripts/rddf_route_provider.py'
+      - '.github/workflows/state-manager.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: state-manager-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  noetic:
+    runs-on: ubuntu-24.04
+    container: ros:noetic-ros-base-focal
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ros-noetic-tf2-ros ros-noetic-visualization-msgs ros-noetic-rostest
+      - name: Build messages and mission nodes, then run tests
+        shell: bash
+        run: bash src/state_manager/scripts/verify_noetic.sh

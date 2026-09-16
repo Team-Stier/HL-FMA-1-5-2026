@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""ROS adapters for timestamped missions, RDDF selection and RViz status."""
+import copy
+import json
+import math
+import os
+import secrets
+import threading
+
+import rospy
+import tf2_ros
+from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry, Path
+from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Bool, String
+from visualization_msgs.msg import MarkerArray
+from planning_interfaces.msg import (DynamicObservation, LaneSignals, MissionState, ParkingManeuver,
+                                    PlannedPath, RouteMap, SafetyStatus, SignalObservation, TrafficConstraint)
+from selector.core import Candidate, Pose
+from stier_state_manager.geometry import Route, transform_scan_to_geometry
+from stier_state_manager.calibration import validate_landmarks
+from stier_state_manager.mission import PARKING_ROUTES, ROUTES
+from stier_state_manager.runtime import MissionRuntime
+from stier_state_manager.visualization import marker_specs, to_marker_array
+
+
+def merge_overlay(base, overlay):
+    result = copy.deepcopy(base)
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = merge_overlay(result[key], value)
+        else:
+            result[key] = copy.deepcopy(value)
+    return result
+
+
+def quaternion_yaw(q):
+    values = (q.x, q.y, q.z, q.w)
+    if not all(math.isfinite(v) for v in values) or abs(sum(v*v for v in values) - 1.0) > .002:
+        raise ValueError('quaternion must be finite and normalized')
+    return math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z))
+
+
+class StateManagerNode:
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.data, self.candidates, self.routes = {}, {}, {}
+        self.runtime, self.map_fingerprint = None, None
+        self.map_fault, self.configuration_fault = '', ''
+        self.last_decision = None
+        self.last_clock = None
+        self.clock_fault = ''
+        with open(rospy.get_param('~config_file'), encoding='utf-8') as stream:
+            self.config = json.load(stream)
+        calibration_file = rospy.get_param('~calibration_file', '')
+        if calibration_file and os.path.isfile(calibration_file):
+            with open(calibration_file, encoding='utf-8') as stream:
+                self.config = merge_overlay(self.config, json.load(stream))
+        elif calibration_file:
+            rospy.logwarn('Calibration overlay missing: %s; measured calibration remains required', calibration_file)
+            self.config['landmarks_validated'] = False
+            self.config.setdefault('vehicle', {})['validated'] = False
+        if rospy.get_param('~calibration_mode', False):
+            self.config['calibration_mode'] = True
+        self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(10))
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+        self.state_pub = rospy.Publisher('/mission/state', MissionState, queue_size=1)
+        self.safety_pub = rospy.Publisher('/mission/safety', SafetyStatus, queue_size=1)
+        self.constraint_pub = rospy.Publisher('/mission/traffic_constraint', TrafficConstraint, queue_size=1)
+        self.path_pub = rospy.Publisher('/path/rddf', PlannedPath, queue_size=1)
+        self.marker_pub = rospy.Publisher('/mission/markers', MarkerArray, queue_size=1)
+        self.diagnostics_pub = rospy.Publisher('/mission/diagnostics', String, queue_size=1)
+        self.subscribers = [
+            rospy.Subscriber('/route/map', RouteMap, self.on_route_map, queue_size=1),
+            rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
+            rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
+            rospy.Subscriber('/molit/sensors/lidar/scan', LaserScan, self.on_scan, queue_size=1),
+            rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
+            rospy.Subscriber('/perception/lane_signals', LaneSignals, self.on_lane, queue_size=1),
+            rospy.Subscriber('/perception/dynamic_obstacle', DynamicObservation, self.on_dynamic, queue_size=1),
+            rospy.Subscriber('/parking/maneuver', ParkingManeuver, self.on_parking_maneuver, queue_size=1),
+            rospy.Subscriber('/path/local', PlannedPath, self.on_path, callback_args='LOCAL', queue_size=1),
+            rospy.Subscriber('/path/park', PlannedPath, self.on_path, callback_args='PARKING', queue_size=1),
+        ]
+        rate = float(self.config.get('rate_hz', 10))
+        if not math.isfinite(rate) or not 0 < rate <= 50:
+            raise ValueError('rate_hz must be finite and in (0, 50]')
+        self.timer = rospy.Timer(rospy.Duration(1.0 / rate), self.tick, reset=True)
+        rospy.on_shutdown(self.shutdown)
+
+    def on_route_map(self, msg):
+        try:
+            expected = self.config['map_origin']
+            if msg.header.frame_id != 'map':
+                raise ValueError('RouteMap frame must be map')
+            for measured, key in ((msg.origin_latitude, 'latitude'), (msg.origin_longitude, 'longitude')):
+                if not math.isfinite(measured) or abs(measured - expected[key]) > 1e-8:
+                    raise ValueError('RDDF map origin does not match configured datum')
+            routes = {}
+            for source in msg.routes:
+                if source.name in routes or source.path.header.frame_id != 'map':
+                    raise ValueError('duplicate route or invalid route frame')
+                points = []
+                for pose in source.path.poses:
+                    if pose.header.frame_id != 'map':
+                        raise ValueError('RDDF pose frame must be map')
+                    p = pose.pose.position
+                    if not all(math.isfinite(v) for v in (p.x, p.y, p.z)):
+                        raise ValueError('nonfinite RDDF point')
+                    points.append((p.x, p.y, quaternion_yaw(pose.pose.orientation)))
+                route = Route(source.name, points, source.direction)
+                if source.section != route.section:
+                    raise ValueError('route section metadata mismatch')
+                routes[source.name] = route
+            required = set(ROUTES.values()) | {'1_left', '1_right', '13_left', '13_right'}
+            required.update(name for sides in PARKING_ROUTES.values() for pair in sides.values() for name in pair)
+            if not required.issubset(routes):
+                raise ValueError('RouteMap is missing routes: ' + ', '.join(sorted(required - set(routes))))
+            fingerprint = tuple((name, route.direction, tuple(route.points)) for name, route in sorted(routes.items()))
+            with self.lock:
+                if self.runtime is not None:
+                    if fingerprint != self.map_fingerprint:
+                        self.map_fault = 'ROUTE_MAP_CHANGED_RESTART_REQUIRED'
+                    return
+                self.routes = routes
+                if self.config.get('landmarks_validated') is True:
+                    errors = validate_landmarks(self.config, routes)
+                    if errors:
+                        self.configuration_fault = 'LANDMARK_CALIBRATION_INVALID:' + '; '.join(errors)
+                        rospy.logerr_throttle(2.0, self.configuration_fault)
+                runtime = MissionRuntime(routes, self.config)
+                # A restarted manager must not accept delayed planner replies
+                # from the previous run even when their route names coincide.
+                runtime.decision_id = secrets.randbits(48)
+                self.routes, self.runtime, self.map_fingerprint = routes, runtime, fingerprint
+                self.map_fault = ''
+        except (ValueError, KeyError, TypeError) as error:
+            with self.lock:
+                self.map_fault = 'ROUTE_MAP_INVALID:' + str(error)
+            rospy.logerr_throttle(2.0, self.map_fault)
+
+    def on_odom(self, msg):
+        observation = {'stamp': msg.header.stamp.to_sec(), 'frame': msg.header.frame_id,
+                       'child_frame': msg.child_frame_id}
+        try:
+            yaw = quaternion_yaw(msg.pose.pose.orientation)
+            covariance = msg.pose.covariance
+            if len(covariance) != 36 or not all(math.isfinite(v) for v in covariance):
+                raise ValueError('invalid pose covariance')
+            if any(covariance[i] < 0 for i in (0, 7, 14, 21, 28, 35)):
+                raise ValueError('negative covariance diagonal')
+            p, velocity = msg.pose.pose.position, msg.twist.twist.linear
+            yaw_rate = msg.twist.twist.angular.z
+            if not all(math.isfinite(v) for v in (p.x, p.y, p.z, velocity.x, velocity.y, velocity.z, yaw_rate)):
+                raise ValueError('nonfinite odometry')
+            speed = math.copysign(math.hypot(velocity.x, velocity.y), velocity.x or 1)
+            observation.update(x=p.x, y=p.y, yaw=yaw, speed=speed, yaw_rate=yaw_rate,
+                               position_variance=max(covariance[0], covariance[7]), yaw_variance=covariance[35])
+        except (ValueError, TypeError) as error:
+            observation.update(x=math.nan, reason=str(error))
+            rospy.logwarn_throttle(2.0, 'Odometry rejected: %s', error)
+        with self.lock:
+            self.clock_now()
+            self.data['odom'] = observation
+
+    def on_localization_valid(self, msg):
+        # Bool has no source header: receipt freshness is explicitly distinct
+        # from stamped odometry freshness; both are required by the runtime.
+        with self.lock:
+            self.data['localization'] = {'stamp': self.clock_now(), 'valid': bool(msg.data)}
+
+    def clock_now(self):
+        """Called with the node lock held; clock regression requires restart."""
+        now = rospy.Time.now().to_sec()
+        if self.last_clock is not None and now < self.last_clock:
+            self.data.clear()
+            self.candidates.clear()
+            self.clock_fault = 'CLOCK_REGRESSION_RESTART_REQUIRED'
+        self.last_clock = now
+        return now
+
+    def on_scan(self, msg):
+        stamp, now = msg.header.stamp.to_sec(), rospy.Time.now().to_sec()
+        observation = {'stamp': stamp, 'valid': False, 'reason': 'LIDAR_INVALID', 'hits': [], 'rays': []}
+        try:
+            duration = ((len(msg.ranges) - 1) * msg.time_increment
+                        if msg.time_increment > 0 else msg.scan_time)
+            values = (stamp, duration, msg.time_increment, msg.scan_time)
+            if (not all(math.isfinite(v) for v in values) or stamp <= 0 or duration <= 0
+                    or msg.time_increment < 0 or msg.scan_time < 0 or len(msg.ranges) < 2):
+                raise ValueError('LIDAR_TIMING_INVALID')
+            if now - stamp < 0 or now - stamp > self.config.get('input_timeout_s', .5) or stamp + duration > now:
+                raise ValueError('LIDAR_ACQUISITION_STALE_OR_FUTURE')
+            if duration > self.config.get('max_scan_duration_s', .2):
+                raise ValueError('LIDAR_ACQUISITION_TOO_LONG')
+            if not msg.header.frame_id:
+                raise ValueError('LIDAR_FRAME_MISSING')
+            transform = self.tf_buffer.lookup_transform('map', msg.header.frame_id, msg.header.stamp, rospy.Duration(.05))
+            t, q = transform.transform.translation, transform.transform.rotation
+            # Sensor observations retain their original acquisition timestamps;
+            # callback/timer time is never substituted for scan time.
+            hits, rays = transform_scan_to_geometry(msg.ranges, msg.angle_min, msg.angle_increment,
+                msg.range_min, msg.range_max, translation=(t.x, t.y, t.z),
+                rotation=(q.x, q.y, q.z, q.w), max_range=self.config.get('lidar_max_range_m'))
+            if len(rays) < 2 or not hasattr(rays, 'plane_normal'):
+                raise ValueError('LIDAR_NO_VALID_RAYS')
+            tilt = math.acos(min(1.0, abs(rays.plane_normal[2])))
+            if tilt > self.config.get('max_lidar_plane_tilt_rad', .2):
+                raise ValueError('LIDAR_PLANE_TILT_OUTSIDE_VALIDATION')
+            # Optional limits are measured map-height limits, not a claim that
+            # map z equals local ground height on the slope.
+            low, high = self.config.get('lidar_height_min_m'), self.config.get('lidar_height_max_m')
+            if ((low is not None and t.z < low) or (high is not None and t.z > high)):
+                raise ValueError('LIDAR_HEIGHT_OUTSIDE_VALIDATION')
+            observation.update(valid=True, reason='OK', hits=hits, rays=rays,
+                               duration=duration, end_stamp=stamp + duration, plane_tilt_rad=tilt,
+                               range_max=msg.range_max)
+        except (ValueError, TypeError, tf2_ros.LookupException,
+                tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as error:
+            observation['reason'] = str(error)
+            rospy.logwarn_throttle(2.0, 'LiDAR rejected: %s', error)
+        with self.lock:
+            self.clock_now()
+            self.data['scan'] = observation
+
+    def confident(self, value):
+        return math.isfinite(value) and self.config.get('min_confidence', .8) <= value <= 1.0
+
+    def on_signal(self, msg):
+        value = msg.value if self.confident(msg.confidence) and msg.value in ('GREEN', 'RED', 'YELLOW', 'LEFT_ARROW') else 'UNKNOWN'
+        with self.lock:
+            self.clock_now()
+            self.data['signal'] = {'stamp': msg.header.stamp.to_sec(), 'route': msg.route_name,
+                                   'junction_id': msg.junction_id, 'value': value}
+
+    def on_lane(self, msg):
+        confident = self.confident(msg.confidence)
+        with self.lock:
+            self.clock_now()
+            self.data['lane'] = {'stamp': msg.header.stamp.to_sec(),
+                'left': msg.left if confident and msg.left in ('DOWN', 'X') else 'UNKNOWN',
+                'right': msg.right if confident and msg.right in ('DOWN', 'X') else 'UNKNOWN'}
+
+    def on_dynamic(self, msg):
+        confident = self.confident(msg.confidence)
+        with self.lock:
+            self.clock_now()
+            self.data['dynamic'] = {'stamp': msg.header.stamp.to_sec(),
+                'blocked': bool(msg.detected) if confident else None,
+                'central_stopped': bool(msg.central_stopped) if confident else False}
+
+    def on_parking_maneuver(self, msg):
+        with self.lock:
+            self.clock_now()
+            self.data['parking_maneuver'] = {
+                'stamp': msg.header.stamp.to_sec(), 'decision_id': msg.decision_id,
+                'route': msg.route_name, 'leg_index': msg.leg_index,
+                'phase': msg.phase if msg.header.frame_id == 'map' else 'UNKNOWN',
+                'direction': msg.direction, 'start_s': msg.start_s,
+                'target_s': msg.target_s, 'final_leg': msg.final_leg,
+            }
+
+    @staticmethod
+    def candidate(msg, received):
+        poses = tuple(Pose(p.header.frame_id, (p.pose.position.x, p.pose.position.y, p.pose.position.z),
+                          (p.pose.orientation.x, p.pose.orientation.y, p.pose.orientation.z, p.pose.orientation.w))
+                      for p in msg.path.poses)
+        return Candidate(msg.header.stamp.to_sec(), received, msg.decision_id, msg.route_name,
+                         msg.direction, msg.header.frame_id, msg.path.header.frame_id,
+                         msg.path.header.stamp.to_sec(), poses)
+
+    def on_path(self, msg, source):
+        with self.lock:
+            self.candidates[source] = self.candidate(msg, self.clock_now())
+
+    def rddf_candidate(self, now):
+        self.candidates.pop('RDDF', None)
+        runtime = self.runtime
+        if runtime is None or runtime.request is None:
+            return
+        name, mode, direction = runtime.request
+        if mode != 'RDDF' or direction != 1:
+            return
+        points = runtime.rddf_points(now, self.data.get('signal', {}))
+        wrapper = PlannedPath()
+        wrapper.header.stamp, wrapper.header.frame_id = rospy.Time.from_sec(now), 'map'
+        wrapper.decision_id, wrapper.route_name, wrapper.direction = runtime.decision_id, name, 1
+        wrapper.path = Path()
+        wrapper.path.header = wrapper.header
+        for x, y, yaw in points:
+            pose = PoseStamped()
+            pose.header = wrapper.header
+            pose.pose.position.x, pose.pose.position.y = x, y
+            pose.pose.orientation.z, pose.pose.orientation.w = math.sin(yaw / 2), math.cos(yaw / 2)
+            wrapper.path.poses.append(pose)
+        self.candidates['RDDF'] = self.candidate(wrapper, now)
+        self.path_pub.publish(wrapper)
+
+    def fault_decision(self, reason):
+        runtime = self.runtime
+        route = runtime.tracker.current if runtime else None
+        return {'route': route.name if route else '', 'section': route.section if route else 0,
+                'mission': 'INITIALIZATION', 'phase': 'FAULT', 'reason': reason,
+                'path_mode': runtime.request[1] if runtime and runtime.request else 'RDDF',
+                'direction': runtime.request[2] if runtime and runtime.request else 1,
+                'decision_id': runtime.decision_id if runtime else 0, 'valid': False,
+                'progress': runtime.tracker.s / route.length if route else 0,
+                'distance_m': runtime.tracker.s if runtime else 0,
+                'speed_limit': 0.0, 'stop_requested': True, 'finished': False,
+                'safety': {'stop': True, 'sensor_valid': False, 'reason': reason, 'clearance_m': -1}}
+
+    def publish(self, decision, now):
+        state = MissionState()
+        state.header.stamp, state.header.frame_id = rospy.Time.from_sec(now), 'map'
+        state.decision_id = decision.get('decision_id', 0)
+        state.route_name, state.section = decision.get('route', ''), decision.get('section', 0)
+        for field in ('mission', 'phase', 'path_mode', 'reason'):
+            setattr(state, field, decision.get(field, ''))
+        state.selected_branch = decision.get('selected_branch') or ''
+        state.direction = decision.get('direction', 1)
+        state.progress, state.distance_m = decision.get('progress', 0), decision.get('distance_m', 0)
+        state.speed_limit_mps = decision.get('speed_limit', 0)
+        state.remaining_stop_m = decision.get('remaining_stop_m') if decision.get('remaining_stop_m') is not None else -1
+        state.stop_requested, state.valid = decision.get('stop_requested', True), decision.get('valid', False)
+        state.finished = decision.get('finished', False)
+        state.parking_leg_index = decision.get('parking_leg_index', -1)
+        state.parking_leg_phase = decision.get('parking_leg_phase', '')
+        state.parking_leg_target_s = decision.get('parking_leg_target_s') if decision.get('parking_leg_target_s') is not None else -1.0
+        safety = SafetyStatus()
+        safety.header = state.header
+        details = decision.get('safety', {})
+        safety.stop, safety.sensor_valid = details.get('stop', True), details.get('sensor_valid', False)
+        safety.reason = details.get('reason', 'WAIT_INPUT')
+        safety.clearance_m = details.get('clearance_m', -1)
+        safety.path_fingerprint = details.get('path_fingerprint', '')
+        constraint = TrafficConstraint()
+        constraint.header = state.header
+        constraint.decision_id, constraint.route_name = state.decision_id, state.route_name
+        wall = decision.get('virtual_stop') or {}
+        constraint.valid = state.valid and bool(wall.get('valid', state.section not in (2, 4, 7)))
+        constraint.active = not constraint.valid or wall.get('active', False)
+        constraint.stop_line_s = wall.get('stop_line_s') if wall.get('stop_line_s') is not None else -1.0
+        constraint.target_s = wall.get('target_s') if wall.get('target_s') is not None else -1.0
+        constraint.required_signal, constraint.reason = wall.get('required_signal', ''), wall.get('reason', state.reason)
+        x, y, yaw = wall.get('pose', (0.0, 0.0, 0.0))
+        constraint.stop_line_pose.position.x, constraint.stop_line_pose.position.y = x, y
+        constraint.stop_line_pose.orientation.z, constraint.stop_line_pose.orientation.w = math.sin(yaw/2), math.cos(yaw/2)
+        self.constraint_pub.publish(constraint)
+        self.state_pub.publish(state)
+        self.safety_pub.publish(safety)
+        diagnostics = {'stamp': now, 'route': state.route_name, 'phase': state.phase,
+                       'valid': state.valid, 'reason': state.reason,
+                       'run_started': decision.get('run_started', False),
+                       'elapsed_time_s': decision.get('elapsed_time_s'),
+                       'excluded_signal_wait_s': decision.get('excluded_signal_wait_s', 0.0),
+                       'counters': decision.get('counters', {}),
+                       'completed_missions': decision.get('completed_missions', {}),
+                       'parking_leg_index': state.parking_leg_index,
+                       'parking_leg_phase': state.parking_leg_phase,
+                       'diagnostics': decision.get('diagnostics', []),
+                       'virtual_stop': decision.get('virtual_stop'),
+                       'hill_target_s': decision.get('hill_target_s'),
+                       'hill_hold_elapsed_s': decision.get('hill_hold_elapsed_s', 0.0)}
+        self.diagnostics_pub.publish(String(data=json.dumps(diagnostics, ensure_ascii=False, sort_keys=True, allow_nan=False)))
+        self.marker_pub.publish(to_marker_array(marker_specs(self.routes, decision, self.data.get('odom'), self.config), state.header.stamp))
+
+    def tick(self, _event):
+        with self.lock:
+            now = self.clock_now()
+            try:
+                if self.runtime is None or self.map_fault or self.configuration_fault or self.clock_fault:
+                    decision = self.fault_decision(self.clock_fault or self.map_fault or self.configuration_fault or 'WAIT_ROUTE_MAP')
+                else:
+                    self.rddf_candidate(now)
+                    decision = self.runtime.step(now, self.data, self.candidates)
+                self.last_decision = decision
+                self.publish(decision, now)
+            except Exception as error:  # Keep the heartbeat fail-closed on adapter/runtime failure.
+                rospy.logerr_throttle(2.0, 'State Manager exception: %s', error)
+                self.publish(self.fault_decision('STATE_MANAGER_EXCEPTION:' + str(error)), now)
+
+    def shutdown(self):
+        with self.lock:
+            self.publish(self.fault_decision('STATE_MANAGER_SHUTDOWN'), rospy.Time.now().to_sec())
+
+
+if __name__ == '__main__':
+    rospy.init_node('state_manager')
+    node = StateManagerNode()
+    rospy.spin()

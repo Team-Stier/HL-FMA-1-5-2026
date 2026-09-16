@@ -51,7 +51,7 @@ rospack find rosserial_arduino
 `erp42_msgs`를 빌드하고 워크스페이스 환경을 불러온 뒤 Arduino 라이브러리를 생성한다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 catkin_make --pkg erp42_msgs
 source devel/setup.bash
@@ -88,45 +88,19 @@ ROS 시험 중에는 Arduino IDE의 시리얼 모니터도 닫는다.
 
 ## Arduino 연결과 rosserial 실행
 
-launch의 기본 포트는 `src/sensor_drivers/arduino/ros/config/serial.yaml`에서 설정한다.
-현재 기본값은 `/dev/ttyACM1`, 57600 baud이며, 필요하면 등록된 `/dev/arduino`로 변경할 수 있다. 현재 등록된 보드는 CH340 USB 시리얼
-`1a86:7523`이며 고유 시리얼 번호가 없다. 따라서 장치 ID와 USB 연결 위치
-`pci-0000:00:14.0-usb-0:9:1.0`을 함께 검사한다. 이 PC에서는 등록할 때 사용한
-USB 포트에 연결해야 한다. 다른 PC나 USB 포트로 옮기면 `ID_PATH`를 다시 확인해
-`src/sensor_drivers/arduino/ros/udev/99-stier-arduino.rules`를 수정하고 재설치한다.
-같은 CH340 보드를 같은 포트에 연결하면 구분할 수 없으므로 해당 포트는 Arduino 전용으로 사용한다.
-
-```bash
-cd ~/HL-FMA2026-suhyeon
-./src/sensor_drivers/arduino/ros/scripts/install_udev_rules.sh
-ls -l /dev/arduino
-```
-
-새 보드를 등록할 때는 연결한 뒤 실제 포트를 찾는다.
+현재 Arduino용 udev 고정 이름은 아직 등록하지 않았다. Uno를 연결한 뒤 실제 포트를 찾는다.
 
 ```bash
 ls -l /dev/serial/by-id/
 find /dev -maxdepth 1 \( -name 'ttyACM*' -o -name 'ttyUSB*' \) -print
 ```
 
-`ttyACM0`, `ttyUSB0`의 번호는 연결 순서에 따라 바뀐다. 실제 Arduino 포트에 대해
-`udevadm info --attribute-walk --name=/dev/ttyACM0`처럼 조회하고 USB의 `idVendor`,
-`idProduct`, 고유 `serial`을 함께 사용해 `/dev/arduino`를 지정한다.
-규칙은 `SUBSYSTEM=="tty"`를 기준으로 작성하면 ttyACM과 ttyUSB 모두를 대상으로
-식별 정보를 비교할 수 있다. 모델 ID만으로 모든 USB 시리얼 장치를 Arduino로 지정하지 않는다.
-서로 다른 보드는 각각 등록하고, 같은 `/dev/arduino` 이름에 등록된 보드는 한 번에 한 대만 연결한다.
-
-고유 시리얼이 없거나 중복되는 보드는 `/dev/serial/by-path/`의 USB 연결 위치로 구분한다.
-이 경우 지정한 USB 포트와 허브 연결 위치를 유지해야 한다.
-udev 등록 전에는 확인한 `/dev/serial/by-id/...` 또는 `/dev/serial/by-path/...` 경로를
-launch의 `port` 인자로 직접 지정할 수 있다.
-
-YAML에 실제 제어용 아두이노 포트를 지정한 뒤 다음처럼 실행한다. Arduino `ros_lib`의 기본 baud와
+예를 들어 Uno가 `/dev/ttyACM0`이면 다음처럼 실행한다. Arduino `ros_lib`의 기본 baud와
 PC 측 baud를 모두 `57600`으로 맞춘다. `roslaunch`가 실행 중인 ROS Master가 없으면
 Master도 함께 시작한다.
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
 source devel/setup.bash
 roslaunch vehicle_interface_bringup arduino.launch
@@ -136,7 +110,7 @@ roslaunch vehicle_interface_bringup arduino.launch
 
 ```bash
 roslaunch vehicle_interface_bringup arduino.launch \
-  port:=/dev/serial/by-id/실제_아두이노_ID baud:=57600
+  port:=/dev/ttyACM1 baud:=57600
 ```
 
 연결되면 다른 터미널에서 토픽과 피드백을 확인한다.
@@ -187,10 +161,13 @@ Arduino는 명령을 무효화하고 출력을 차단한다.
 
 ## 제어 노드 연결
 
-현재 Arduino가 직접 구독하는 최종 명령 토픽은 `/erp42_serial/drive`다. 루트 설계 문서의
-`/pure_pursuit/raw_drive`를 계속 사용할 경우에는 나중에 해당 토픽을 검증·제한한 뒤
-`/erp42_serial/drive`로 전달하는 변환 노드 또는 토픽 구성을 추가해야 한다. 제어기가 처음부터
-`erp42_msgs/DriveCmd`를 `/erp42_serial/drive`로 발행한다면 별도 변환 노드는 필요 없다.
+현재 Arduino의 최종 명령 토픽은 `/erp42_serial/drive`다. 미션 주행에서는 제어기가
+`/pure_pursuit/raw_drive`로 발행하고 `vehicle_safety`가 위치·미션·LiDAR·경로 준비
+조건을 확인한 뒤 최종 토픽으로 전달한다. Safety Gate는 기본 preview 전용이며
+`enable_vehicle_output`을 켜야 실제 출력한다. 제어기가 최종 토픽으로 직접 발행하면
+이 검사를 우회하므로 미션 통합에서는 사용하지 않는다. 기존 직접 발행 예시는 정지
+상태에서의 별도 인터페이스 점검용이다. 후진 기어 필드는 아직 없으므로 주차 후진은
+현재 명령으로 실행할 수 없다. 자세한 연결은 [State Manager 안내](../../state_manager/README.md)를 참고한다.
 
 ## rosserial 문제 해결
 

@@ -5,8 +5,6 @@
   <arg name="bag"/>
   <arg name="rate" default="1.0"/>
   <arg name="start" default="0.0"/>
-  <arg name="loop" default="false"/>
-  <arg name="loop_arg" default="$(eval '--loop' if arg('loop') else '')"/>
   <arg name="start_rviz" default="true"/>
   <arg name="initialize_heading" default="true"/>
   <arg name="initial_heading_config" default="$(find mando_localization)/config/initial_heading.yaml"/>
@@ -22,5 +20,5 @@
     <arg name="start_rviz" value="$(arg start_rviz)"/>
   </include>
   <node pkg="rosbag" type="play" name="localization_replay" output="screen"
-        args="--clock --hz 100 --delay 3 --rate $(arg rate) --start $(arg start) $(arg loop_arg) &quot;$(arg bag)&quot; --topics /mando_localization/internal/driver/imu /mando_localization/internal/driver/gps_fix /mando_localization/internal/driver/gps_navpvt /erp42_serial/feedback /molit/sensors/lidar/scan"/>
+        args="--clock --hz 100 --delay 3 --rate $(arg rate) --start $(arg start) &quot;$(arg bag)&quot; --topics /mando_localization/internal/driver/imu /mando_localization/internal/driver/gps_fix /mando_localization/internal/driver/gps_navpvt /erp42_serial/feedback /molit/sensors/lidar/scan"/>
 </launch>

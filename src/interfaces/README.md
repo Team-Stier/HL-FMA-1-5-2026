@@ -7,6 +7,8 @@
 interfaces/
 ├── perception_interfaces/
 │   └── ObjectInfo.msg, TLLabel.msg
+├── planning_interfaces/
+│   └── 미션·경로·인지 관측 메시지 및 위치 지정 서비스
 ├── sensor_interfaces/
 │   └── GpsStatus.msg
 └── vehicle_interface/
@@ -18,19 +20,22 @@ interfaces/
 
 - `perception_interfaces`: 장애물과 신호등 인식 결과
 - `sensor_interfaces`: localization 등에서 공통으로 사용하는 센서 상태
+- `planning_interfaces`: RDDF/미션/계획 경로/안전 상태와 미션 인지 관측. [계약과 토픽](../state_manager/README.md) 참고
 - `erp42_msgs`: 상위 제어기와 Arduino 하위제어기 사이의 명령 및 피드백
 
 ## 빌드와 확인
 
 ```bash
-cd ~/HL-FMA2026-suhyeon
+cd ~/HL-FMA2026-stier
 source /opt/ros/noetic/setup.bash
-catkin_make --pkg perception_interfaces sensor_interfaces erp42_msgs
+catkin_make --pkg perception_interfaces sensor_interfaces planning_interfaces erp42_msgs
 source devel/setup.bash
 
 rosmsg show perception_interfaces/ObjectInfo
 rosmsg show perception_interfaces/TLLabel
 rosmsg show sensor_interfaces/GpsStatus
+rosmsg show planning_interfaces/MissionState
+rosmsg show planning_interfaces/PlannedPath
 rosmsg show erp42_msgs/DriveCmd
 ```
 

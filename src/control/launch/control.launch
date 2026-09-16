@@ -1,0 +1,18 @@
+<launch>
+  <arg name="config"
+       default="$(find control)/config/t870_path_tracking.yaml"/>
+  <arg name="lateral_controller" default="pure_pursuit"/>
+  <arg name="calibration_required" default="false"/>
+
+  <rosparam command="load" file="$(arg config)"/>
+  <param name="control_node/lateral_controller"
+         value="$(arg lateral_controller)"/>
+  <param name="control_node/calibration_required"
+         value="$(arg calibration_required)"/>
+
+  <node pkg="control"
+        type="control_node"
+        name="control_node"
+        output="screen"
+        required="true"/>
+</launch>

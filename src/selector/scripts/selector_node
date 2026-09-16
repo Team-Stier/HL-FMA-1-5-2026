@@ -2,12 +2,94 @@
 
 import rospy
 from nav_msgs.msg import Path
+from planning_interfaces.msg import MissionState, PlannedPath, PathStatus
+from selector.core import Candidate, Pose, SelectorCore, State, path_fingerprint
+import threading
+
+
+class SelectorNode:
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.core = SelectorCore(
+            timeout=rospy.get_param('~input_timeout', 0.5),
+            future_tolerance=rospy.get_param('~future_tolerance', 0.05),
+            frame_id=rospy.get_param('~frame_id', 'map'),
+            max_pose_spacing_m=rospy.get_param('~max_pose_spacing_m', 2.0),
+            max_path_heading_error_rad=rospy.get_param('~max_path_heading_error_rad', 1.0))
+        self.state = None
+        self.candidates = {}
+        self.messages = {}
+        self.last_time = None
+        self.path_pub = rospy.Publisher('/path/final', Path, queue_size=1)
+        self.status_pub = rospy.Publisher('/path/selector_status', PathStatus, queue_size=1)
+        self.subscribers = [rospy.Subscriber('/mission/state', MissionState,
+                                             self.on_state, queue_size=1)]
+        for source, topic in [('RDDF', '/path/rddf'), ('LOCAL', '/path/local'),
+                              ('PARKING', '/path/park')]:
+            self.subscribers.append(rospy.Subscriber(topic, PlannedPath, self.on_path,
+                                                      callback_args=source, queue_size=1))
+        self.timer = rospy.Timer(rospy.Duration(0.1), self.tick, reset=True)
+
+    def clock(self):
+        now = rospy.Time.now().to_sec()
+        if self.last_time is not None and now < self.last_time:
+            self.state = None
+            self.candidates.clear()
+            self.messages.clear()
+        self.last_time = now
+        return now
+
+    def on_state(self, msg):
+        with self.lock:
+            now = self.clock()
+            self.state = State(msg.header.stamp.to_sec(), now, msg.decision_id,
+                               msg.route_name, msg.path_mode, msg.direction,
+                               msg.valid, msg.stop_requested)
+
+    def on_path(self, msg, source):
+        with self.lock:
+            now = self.clock()
+            poses = tuple(Pose(p.header.frame_id,
+                               (p.pose.position.x, p.pose.position.y, p.pose.position.z),
+                               (p.pose.orientation.x, p.pose.orientation.y,
+                                p.pose.orientation.z, p.pose.orientation.w))
+                          for p in msg.path.poses)
+            self.candidates[source] = Candidate(
+                msg.header.stamp.to_sec(), now, msg.decision_id, msg.route_name,
+                msg.direction, msg.header.frame_id, msg.path.header.frame_id,
+                msg.path.header.stamp.to_sec(), poses)
+            self.messages[source] = msg
+
+    def tick(self, _event):
+        with self.lock:
+            now = self.clock()
+            result = self.core.evaluate(self.state, self.candidates, now)
+            status = PathStatus()
+            status.header.stamp = rospy.Time.from_sec(now)
+            status.header.frame_id = self.core.frame_id
+            if self.state:
+                status.decision_id = self.state.decision_id
+                status.route_name = self.state.route_name
+                status.direction = self.state.direction
+            status.source, status.ready, status.reason = result.source, result.ready, result.reason
+            status.path_fingerprint = path_fingerprint(result.candidate) if result.ready else ''
+            # Empty messages actively invalidate any path cached by Control.
+            path = Path()
+            path.header = status.header
+            if result.ready and self.state.valid:
+                path = self.messages[result.source].path
+            self.path_pub.publish(path)
+            self.status_pub.publish(status)
 
 
 def main():
     rospy.init_node("selector_node")
-    publisher = rospy.Publisher("/path/final", Path, queue_size=1)
-    rospy.Subscriber("/path/lidar", Path, publisher.publish, queue_size=1)
+    if rospy.get_param('~legacy_mode', False):
+        rospy.logwarn('Legacy /path/lidar passthrough enabled; mission validation is disabled')
+        publisher = rospy.Publisher('/path/final', Path, queue_size=1)
+        rospy.Subscriber('/path/lidar', Path, publisher.publish, queue_size=1)
+    else:
+        node = SelectorNode()
     rospy.spin()
 
 

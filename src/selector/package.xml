@@ -9,5 +9,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>nav_msgs</depend>
+  <depend>planning_interfaces</depend>
   <depend>rospy</depend>
 </package>

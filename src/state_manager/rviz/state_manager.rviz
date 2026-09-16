@@ -1,0 +1,107 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+  - Class: rviz/Views
+    Name: Views
+  - Class: rviz/Tool Properties
+    Name: Tool Properties
+Visualization Manager:
+  Class: ""
+  Global Options:
+    Background Color: 24; 29; 37
+    Fixed Frame: map
+    Frame Rate: 30
+  Displays:
+    - Class: rviz/Grid
+      Name: Ground grid (1 m)
+      Enabled: true
+      Plane: XY
+      Cell Size: 1
+      Plane Cell Count: 100
+      Color: 72; 80; 94
+      Alpha: 0.35
+    - Class: rviz/MarkerArray
+      Name: Mission / route / progress / landmarks
+      Enabled: true
+      Marker Topic: /mission/markers
+      Queue Size: 1
+    - Class: rviz/Path
+      Name: Selected output path (may be empty before calibration)
+      Enabled: true
+      Topic: /path/final
+      Color: 255; 238; 40
+      Line Style: Lines
+      Line Width: 0.18
+      Buffer Length: 1
+      Pose Style: None
+    - Class: rviz/MarkerArray
+      Name: Inspection / observed RDDF / candidate paths / input freshness
+      Enabled: true
+      Marker Topic: /mission/inspection_markers
+      Queue Size: 1
+    - Class: rviz/MarkerArray
+      Name: RDDF detection ROI / vehicle self filter
+      Enabled: true
+      Marker Topic: /object_detection/roi_markers
+      Queue Size: 1
+    - Class: rviz/MarkerArray
+      Name: DBSCAN obstacle groups (not tracked objects)
+      Enabled: true
+      Marker Topic: /dbscan_clusters
+      Queue Size: 1
+    - Class: rviz/PointCloud2
+      Name: RDDF ROI LiDAR points
+      Enabled: true
+      Topic: /object_detection/roi_points
+      Queue Size: 1
+      Style: Points
+      Size (m): 0.08
+      Color Transformer: FlatColor
+      Color: 50; 230; 230
+      Position Transformer: XYZ
+      Decay Time: 0
+    - Class: rviz/Odometry
+      Name: Global localization observation
+      Enabled: true
+      Topic: /molit/localization/global/odometry
+      Keep: 1
+      Shape: Arrow
+      Color: 50; 230; 230
+    - Class: rviz/LaserScan
+      Name: Continuous LiDAR returns
+      Enabled: true
+      Topic: /molit/sensors/lidar/scan
+      Queue Size: 2
+      Size (m): 0.06
+      Style: Points
+      Decay Time: 0
+      Color Transformer: FlatColor
+      Color: 255; 132; 62
+      Position Transformer: XYZ
+    - Class: rviz/Odometry
+      Name: Approved localization
+      Enabled: true
+      Topic: /molit/localization/odometry
+      Keep: 1
+      Shape: Arrow
+      Color: 87; 243; 133
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/Measure
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Name: RDDF course overview
+      Target Frame: map
+      Angle: 0
+      Scale: 11
+      X: 5
+      Y: -30
+Window Geometry:
+  Width: 1500
+  Height: 1000

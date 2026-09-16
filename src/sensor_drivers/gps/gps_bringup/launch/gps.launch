@@ -1,6 +1,4 @@
 <launch>
-  <arg name="ntrip_username" default="$(optenv STIER_NTRIP_USERNAME)" />
-  <arg name="ntrip_password" default="$(optenv STIER_NTRIP_PASSWORD)" />
   <arg name="nav_status_timeout" default="0.5" />
   <arg name="max_nav_status_itow_skew_ms" default="500" />
 
@@ -12,8 +10,8 @@
     <arg name="ntrip_host" value="RTS1.ngii.go.kr" />
     <arg name="ntrip_mountpoint" value="VRS-RTCM31" />
     <arg name="use_ntrip" value="true" />
-    <arg name="ntrip_username" value="$(arg ntrip_username)" />
-    <arg name="ntrip_password" value="$(arg ntrip_password)" />
+    <arg name="ntrip_username" value="suhyeon351" />
+    <arg name="ntrip_password" value="ngii" />
   </include>
 
   <include file="$(find utm_lla)/launch/coordinate_convertion.launch" />

@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""RViz click calibration; this node must run only in stopped calibration mode.
+
+Example services (node name ``landmark_editor``):
+  rosservice call /landmark_editor/set_target "route_name: '2'\nlandmark: 'stop_line_s'"
+  # RViz Publish Point tool on /clicked_point, Fixed Frame = map.
+  # Enter independently measured parking_yaw_rad values in calibration JSON.
+  rosservice call /landmark_editor/validate "{}"
+
+The validate call explicitly confirms the measured physical landmark meanings:
+parking confirmation and hill-stop position use the rear-axle tracking reference;
+hill_start/top are real ramp boundaries, not arbitrary points of the RDDF.
+Alternatively hill_zone_start_s/end_s delimit the permitted stopping area;
+the rear-axle target is their arc-length midpoint.
+Successful validation enables a later run after restart, never live editing.
+Optional ~config_file supplies base JSON rules/tracker settings. The calibration
+overlay is merged over that base for validation, while writes modify only the
+configured ~calibration_file and preserve all other existing overlay fields.
+"""
+
+import json
+import math
+import threading
+from pathlib import Path
+
+import rospy
+from geometry_msgs.msg import PointStamped
+from planning_interfaces.msg import MissionState, RouteMap
+from planning_interfaces.srv import SetLandmarkTarget, SetLandmarkTargetResponse
+from std_msgs.msg import String
+from std_srvs.srv import Trigger, TriggerResponse
+
+from stier_state_manager.calibration import (atomic_update, merge_overlay, record_landmark,
+                                            route_catalogue_digest, snap_landmark,
+                                            target_route, validate_landmarks)
+from stier_state_manager.geometry import Route
+
+
+class LandmarkEditor:
+    def __init__(self):
+        if rospy.get_param('~calibration_mode', False) is not True:
+            raise ValueError('landmark_editor requires explicit ~calibration_mode=true')
+        if rospy.get_param('~enable_vehicle_output', False) is not False:
+            raise ValueError('Vehicle output must be disabled during landmark calibration')
+        self.lock = threading.RLock()
+        self.filename = rospy.get_param('~calibration_file')
+        self.config_file = rospy.get_param('~config_file', '')
+        self.max_distance = rospy.get_param('~max_snap_distance_m', 2.0)
+        if not math.isfinite(self.max_distance) or not 0 < self.max_distance <= 2.0:
+            raise ValueError('~max_snap_distance_m must be within (0, 2] metres')
+        self.routes = {}
+        self.target = None
+        self.blocked = ''
+        self.status = rospy.Publisher('~status', String, queue_size=1, latch=True)
+        self.subscribers = [
+            rospy.Subscriber('/route/map', RouteMap, self.on_map, queue_size=1),
+            rospy.Subscriber('/clicked_point', PointStamped, self.on_click, queue_size=1),
+            rospy.Subscriber('/mission/state', MissionState, self.on_mission, queue_size=1),
+            rospy.Subscriber('/vehicle_safety/status', String, self.on_vehicle_status, queue_size=1),
+        ]
+        self.target_service = rospy.Service('~set_target', SetLandmarkTarget, self.set_target)
+        self.validate_service = rospy.Service('~validate', Trigger, self.validate)
+        self.report('Waiting for /route/map. Physical landmarks require measured annotations.')
+
+    def report(self, message):
+        self.status.publish(String(data=message))
+        rospy.loginfo(message)
+
+    def block(self, reason):
+        if not self.blocked:
+            self.blocked = reason
+            self.target = None
+            self.report(reason)
+
+    def writable(self):
+        if self.blocked:
+            raise ValueError(self.blocked)
+        if (rospy.get_param('~calibration_mode', False) is not True
+                or rospy.get_param('~enable_vehicle_output', False) is not False):
+            self.blocked = 'Calibration mode disabled or vehicle output enabled; restart required'
+            raise ValueError(self.blocked)
+        if not self.routes:
+            raise ValueError('Valid /route/map catalogue is not available')
+
+    def on_mission(self, msg):
+        with self.lock:
+            if msg.valid:
+                self.block('A valid mission has been observed; restart in calibration mode before editing')
+
+    def on_vehicle_status(self, msg):
+        with self.lock:
+            try:
+                status = json.loads(msg.data)
+            except (ValueError, TypeError):
+                self.block('Vehicle safety status is unreadable; restart in calibration mode')
+                return
+            if not isinstance(status, dict) or status.get('vehicle_output_enabled') is not False:
+                self.block('Vehicle output may be enabled; restart with physical output disabled')
+
+    def on_map(self, msg):
+        with self.lock:
+            try:
+                if msg.header.frame_id != 'map':
+                    raise ValueError('RouteMap frame must be map')
+                routes = {}
+                for item in msg.routes:
+                    if item.path.header.frame_id != 'map' or item.name in routes:
+                        raise ValueError('Route frame invalid or duplicate route name')
+                    points = []
+                    for pose in item.path.poses:
+                        p, q = pose.pose.position, pose.pose.orientation
+                        values = (p.x, p.y, p.z, q.x, q.y, q.z, q.w)
+                        if (pose.header.frame_id != 'map' or not all(math.isfinite(v) for v in values)
+                                or abs(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w - 1) > 0.002):
+                            raise ValueError('Route pose/frame/quaternion is invalid')
+                        yaw = math.atan2(2*(q.w*q.z + q.x*q.y), 1-2*(q.y*q.y + q.z*q.z))
+                        points.append((p.x, p.y, yaw))
+                    route = Route(item.name, points, item.direction)
+                    if route.section != item.section:
+                        raise ValueError('Route name and section metadata do not agree')
+                    routes[item.name] = route
+                if not routes:
+                    raise ValueError('RouteMap is empty')
+                self.routes = routes
+                if self.target:
+                    target_route(routes, *self.target)
+                self.report('Loaded {} routes; set a route/landmark target before clicking.'.format(len(routes)))
+            except (ValueError, TypeError, OverflowError) as error:
+                self.routes = {}
+                self.target = None
+                self.report('RouteMap rejected: ' + str(error))
+
+    def set_target(self, req):
+        with self.lock:
+            try:
+                self.writable()
+                target_route(self.routes, req.route_name, req.landmark)
+                self.target = (req.route_name, req.landmark)
+                message = 'Target {} / {}; publish a map point in RViz'.format(*self.target)
+                self.report(message)
+                return SetLandmarkTargetResponse(success=True, message=message)
+            except (ValueError, TypeError) as error:
+                self.target = None
+                return SetLandmarkTargetResponse(success=False, message=str(error))
+
+    def on_click(self, msg):
+        with self.lock:
+            try:
+                self.writable()
+                if self.target is None:
+                    raise ValueError('Use ~set_target before each click')
+                if msg.header.frame_id != 'map' or not math.isfinite(msg.point.z):
+                    raise ValueError('Clicked point must be finite in frame map')
+                route_name, landmark = self.target
+                point = snap_landmark(self.routes, route_name, landmark,
+                                      msg.point.x, msg.point.y, self.max_distance)
+                atomic_update(self.filename, lambda cfg: record_landmark(
+                    cfg, self.routes, route_name, landmark, point))
+                self.target = None
+                self.report('Saved {} / {}: index={}, s={:.3f} m, ENU=({:.3f}, {:.3f}); '
+                            'validation revoked until explicit ~validate'.format(
+                                route_name, landmark, point['index'], point['distance_m'],
+                                point['east_m'], point['north_m']))
+            except (ValueError, TypeError, OSError) as error:
+                self.report('Landmark not written: ' + str(error))
+
+    def validate(self, _req):
+        with self.lock:
+            try:
+                self.writable()
+                errors = []
+                base = {}
+                if self.config_file:
+                    with Path(self.config_file).expanduser().open(encoding='utf-8') as stream:
+                        base = json.load(stream)
+
+                def checked(config):
+                    errors.extend(validate_landmarks(merge_overlay(base, config), self.routes,
+                                                      explicit_validation=True))
+                    config['landmarks_validated'] = not errors
+                    if not errors:
+                        config['route_catalogue_digest'] = route_catalogue_digest(self.routes)
+                    return config
+
+                atomic_update(self.filename, checked)
+                if errors:
+                    message = 'Calibration incomplete: ' + '; '.join(errors)
+                else:
+                    message = ('All route landmarks validated. Rear-axle/body references must '
+                               'have been physically verified; restart outside calibration mode '
+                               'to load this configuration.')
+                self.report(message)
+                return TriggerResponse(success=not errors, message=message)
+            except (ValueError, TypeError, OSError) as error:
+                return TriggerResponse(success=False, message=str(error))
+
+
+def main():
+    rospy.init_node('landmark_editor')
+    node = LandmarkEditor()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Subscribe to real inputs and publish inspection markers only."""
+import math
+import threading
+
+import rospy
+from mando_localization.msg import RddfMatch
+from nav_msgs.msg import Odometry
+from planning_interfaces.msg import (RouteMap, MissionState, SafetyStatus, PathStatus,
+                                    PlannedPath, SignalObservation, LaneSignals, DynamicObservation)
+from sensor_msgs.msg import LaserScan, PointCloud2
+from std_msgs.msg import Bool
+from visualization_msgs.msg import Marker, MarkerArray
+from stier_state_manager.geometry import Route
+from stier_state_manager.inspection import inspection_specs
+from stier_state_manager.visualization import to_marker_array
+
+
+class InspectionNode:
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.samples, self.routes = {}, {}
+        self.last_now = None
+        self.timeout = float(rospy.get_param('~input_timeout_s', .5))
+        if not math.isfinite(self.timeout) or self.timeout <= 0:
+            raise ValueError('input_timeout_s must be positive')
+        self.publisher = rospy.Publisher('/mission/inspection_markers', MarkerArray, queue_size=1)
+        bindings = [('/route/map', RouteMap, 'map'),
+                    ('/molit/localization/rddf/current', RddfMatch, 'observed'),
+                    ('/molit/localization/global/odometry', Odometry, 'pose'),
+                    ('/molit/localization/valid', Bool, 'localization_valid'),
+                    ('/mission/state', MissionState, 'mission'),
+                    ('/mission/safety', SafetyStatus, 'safety'),
+                    ('/path/selector_status', PathStatus, 'selection'),
+                    ('/molit/sensors/lidar/scan', LaserScan, 'scan'),
+                    ('/object_detection/roi_points', PointCloud2, 'roi'),
+                    ('/dbscan_clusters', MarkerArray, 'clusters'),
+                    ('/perception/traffic_signal', SignalObservation, 'signal'),
+                    ('/perception/lane_signals', LaneSignals, 'lane'),
+                    ('/perception/dynamic_obstacle', DynamicObservation, 'dynamic')]
+        bindings += [('/path/' + name, PlannedPath, name) for name in ('rddf', 'local', 'park')]
+        self.subscribers = [rospy.Subscriber(topic, kind, self.receive, callback_args=key, queue_size=1)
+                            for topic, kind, key in bindings]
+        self.timer = rospy.Timer(rospy.Duration(.1), self.tick)
+
+    def clock(self):
+        now = rospy.Time.now().to_sec()
+        if self.last_now is not None and now < self.last_now:
+            self.samples.clear()
+        self.last_now = now
+        return now
+
+    def receive(self, msg, key):
+        with self.lock:
+            now = self.clock()
+            if key == 'map':
+                if msg.header.frame_id != 'map':
+                    self.routes = {}
+                    return
+                try:
+                    self.routes = {r.name: Route(r.name, [(p.pose.position.x, p.pose.position.y, 0.)
+                                                        for p in r.path.poses]) for r in msg.routes}
+                except (ValueError, IndexError):
+                    self.routes = {}
+                return
+            stamp = msg.header.stamp.to_sec() if hasattr(msg, 'header') else now
+            sample = {'stamp': stamp, 'received': now}
+            if key == 'observed':
+                sample.update(stamp=msg.pose_stamp.to_sec(), frame=msg.header.frame_id,
+                              matched=msg.matched, has_nearest=msg.has_nearest,
+                              source=msg.source_route_name, reason=msg.reason)
+            elif key == 'pose':
+                sample.update(frame=msg.header.frame_id, x=msg.pose.pose.position.x, y=msg.pose.pose.position.y)
+            elif key == 'localization_valid':
+                sample['value'] = msg.data
+            elif key == 'mission':
+                sample['text'] = 'S%02d %s | %s | valid=%s | branch=%s | %s' % (
+                    msg.section, msg.route_name, msg.phase, msg.valid, msg.selected_branch or 'NONE', msg.reason)
+            elif key == 'safety':
+                sample['text'] = 'stop=%s | %s' % (msg.stop, msg.reason)
+            elif key == 'selection':
+                sample['text'] = '%s ready=%s | %s' % (msg.source, msg.ready, msg.reason)
+            elif key == 'signal':
+                sample['text'] = '%s | route=%s junction=%s confidence=%.2f' % (
+                    msg.value, msg.route_name, msg.junction_id, msg.confidence)
+            elif key == 'lane':
+                sample['text'] = 'left=%s right=%s confidence=%.2f' % (msg.left, msg.right, msg.confidence)
+            elif key == 'dynamic':
+                sample['text'] = 'detected=%s central_stopped=%s confidence=%.2f' % (
+                    msg.detected, msg.central_stopped, msg.confidence)
+            elif key == 'scan':
+                sample['text'] = '%d rays | %s' % (len(msg.ranges), msg.header.frame_id)
+            elif key == 'roi':
+                sample['text'] = '%d points (not a free-space verdict)' % (msg.width * msg.height)
+            elif key == 'clusters':
+                additions = [m for m in msg.markers if m.action == Marker.ADD]
+                # DELETEALL-only messages have no observation stamp: do not call them clear.
+                sample['stamp'] = min((m.header.stamp.to_sec() for m in additions), default=0.)
+                count = sum(m.ns == 'dbscan_clusters' for m in additions)
+                sample['text'] = '%d groups (no object class / motion tracking)' % count
+            else:
+                sample.update(stamp=min(stamp, msg.path.header.stamp.to_sec()),
+                              frame=msg.path.header.frame_id if msg.header.frame_id == 'map' else '',
+                              route=msg.route_name, decision_id=msg.decision_id,
+                              points=[(p.pose.position.x, p.pose.position.y, .3) for p in msg.path.poses])
+                if any(p.header.frame_id != 'map' for p in msg.path.poses):
+                    sample['frame'] = ''
+            self.samples[key] = sample
+
+    def tick(self, _):
+        with self.lock:
+            now = self.clock()
+            markers = to_marker_array(inspection_specs(self.routes, self.samples, now, self.timeout),
+                                      rospy.Time.from_sec(now))
+            for marker in markers.markers:
+                if marker.action == Marker.ADD:
+                    marker.lifetime = rospy.Duration(.5)
+            self.publisher.publish(markers)
+
+
+if __name__ == '__main__':
+    rospy.init_node('mission_inspection')
+    node = InspectionNode()
+    rospy.spin()
