@@ -26,7 +26,8 @@ ROUTE_NAME = "frenet_field_test"
 class FrenetFieldTestNode:
     def __init__(self):
         self.lock = threading.RLock()
-        self.armed = False
+        self.auto_start = bool(rospy.get_param("~auto_start", True))
+        self.armed = self.auto_start
         self.planner_ready = False
         self.planner_reason = "WAITING_FOR_PATH_PLANNER"
         self.planner_status_time = rospy.Time(0)
@@ -62,10 +63,16 @@ class FrenetFieldTestNode:
         self._publish_route()
         self.reference_pub.publish(self.reference_path)
         self.timer = rospy.Timer(rospy.Duration(0.05), self._timer_callback)
-        rospy.logwarn(
-            "Frenet field test is DISARMED. No localization is used; all planning "
-            "runs in base_link. Call /frenet_test/run with data=true after RViz checks."
-        )
+        if self.auto_start:
+            rospy.logwarn(
+                "Frenet field test auto-start is enabled. The vehicle can move at "
+                "5 km/h when the planner is ready and the controller enters ROS mode."
+            )
+        else:
+            rospy.logwarn(
+                "Frenet field test is DISARMED. No localization is used; all planning "
+                "runs in base_link. Call /frenet_test/run with data=true after RViz checks."
+            )
 
     @staticmethod
     def _pose(x, y, stamp):

@@ -6,6 +6,7 @@
   <arg name="start_arduino" default="true"/>
   <arg name="start_rviz" default="true"/>
   <arg name="publish_lidar_static_tf" default="true"/>
+  <arg name="auto_start" default="true"/>
   <arg name="arduino_port" default=""/>
   <arg name="arduino_baud" default=""/>
 
@@ -46,6 +47,7 @@
         required="true">
     <!-- 1.40 m/s is slightly above 5 km/h so integer KPH limiting remains 5. -->
     <param name="speed_limit_mps" value="1.40"/>
+    <param name="auto_start" value="$(arg auto_start)"/>
     <param name="road_left_bound_m" value="3.0"/>
     <param name="road_right_bound_m" value="3.0"/>
   </node>
