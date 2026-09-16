@@ -24,12 +24,12 @@
   </include>
 
   <!-- base_link is the rear axle. LiDAR is 0.30 m ahead of the 0.75 m
-       front axle. Preserve the already verified yaw-only mounting direction. -->
+       front axle and mounted 180 degrees about the forward X axis. -->
   <node if="$(arg publish_lidar_static_tf)"
         pkg="tf2_ros"
         type="static_transform_publisher"
         name="frenet_field_lidar_tf"
-        args="1.05 0.0 0.0 3.141592653589793 0.0 0.0 base_link laser_link"/>
+        args="1.05 0.0 0.0 0.0 0.0 3.141592653589793 base_link laser_link"/>
 
   <!-- RDDF corridor is disabled: DBSCAN uses the real forward LiDAR points. -->
   <include if="$(arg start_object_detection)"
