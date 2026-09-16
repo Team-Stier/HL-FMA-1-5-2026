@@ -172,10 +172,11 @@ src/
 │   ├── sensor_interfaces/
 │   ├── planning_interfaces/
 │   └── vehicle_interface/
-│       ├── erp42_msgs/
-│       └── vehicle_interface_bringup/
+│       └── erp42_msgs/
 ├── sensor_drivers/
 │   ├── sensor_bringup/       # 센서 + 선택적 Arduino 통합 launch
+│   ├── arduino/
+│   │   └── ros/              # vehicle_interface_bringup + 직렬 포트 설정
 │   ├── lidar/
 │   ├── cam/
 │   ├── gps/
@@ -467,10 +468,15 @@ Arduino용 ROS 헤더는 메시지 정의가 변경될 때 다시 생성한다.
 rosrun rosserial_arduino make_libraries.py ~/Arduino/libraries erp42_msgs std_msgs
 ```
 
-Arduino 펌웨어를 ROS 모드로 컴파일하고 업로드한 뒤, 실제 연결 포트에 맞춰 실행한다.
+Arduino 펌웨어를 ROS 모드로 컴파일하고 업로드한 뒤, 기본 포트 설정 또는 실제 연결 포트를
+지정해 실행한다.
 
 ```bash
-rosrun rosserial_python serial_node.py _port:=/dev/ttyACM0 _baud:=57600
+roslaunch vehicle_interface_bringup arduino.launch
+
+# 이번 실행에만 설정 덮어쓰기
+roslaunch vehicle_interface_bringup arduino.launch \
+  port:=/dev/ttyUSB0 baud:=57600
 ```
 
 무출력 상태에서 다음 명령으로 통신을 확인한다.
@@ -482,5 +488,6 @@ rostopic pub -r 10 /erp42_serial/drive erp42_msgs/DriveCmd \
   "{KPH: 0, Deg: 0, brake: 1}"
 ```
 
-Arduino용 고정 udev 이름과 `arduino_bringup` 패키지는 아직 구현하지 않았다. 실차 교정과
+기본값은 `src/sensor_drivers/arduino/ros/config/serial.yaml`에서 바꾸며
+`/dev/ttyACM*`, `/dev/ttyUSB*`, `/dev/serial/by-id/*` 경로를 사용할 수 있다. 실차 교정과
 E-stop 극성 확인 전에는 Arduino의 액추에이터 출력 잠금을 해제하지 않는다.

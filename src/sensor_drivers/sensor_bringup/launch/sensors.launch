@@ -21,8 +21,11 @@
   <arg name="gps_fix_topic" default="/mando_localization/internal/driver/gps_fix" />
   <arg name="gps_navpvt_topic" default="/mando_localization/internal/driver/gps_navpvt" />
 
-  <arg name="arduino_port" default="/dev/ttyACM0" />
-  <arg name="arduino_baud" default="57600" />
+  <!-- Empty port/baud values use the defaults in arduino_config. -->
+  <arg name="arduino_config"
+       default="$(find vehicle_interface_bringup)/config/serial.yaml" />
+  <arg name="arduino_port" default="" />
+  <arg name="arduino_baud" default="" />
   <arg name="arduino_respawn" default="true" />
 
   <include if="$(arg enable_lidar)"
@@ -49,6 +52,7 @@
 
   <include if="$(arg enable_arduino)"
            file="$(find vehicle_interface_bringup)/launch/arduino.launch">
+    <arg name="config" value="$(arg arduino_config)" />
     <arg name="port" value="$(arg arduino_port)" />
     <arg name="baud" value="$(arg arduino_baud)" />
     <arg name="respawn" value="$(arg arduino_respawn)" />

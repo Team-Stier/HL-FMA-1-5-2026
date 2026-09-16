@@ -7,6 +7,10 @@
 sensor_drivers/
 ├── sensor_bringup/
 │   └── launch/
+├── arduino/
+│   └── ros/
+│       ├── config/
+│       └── launch/
 ├── lidar/
 │   ├── config/
 │   ├── launch/
@@ -45,8 +49,12 @@ Arduino는 차량별 펌웨어의 ROS 빌드를 확인한 뒤 명시적으로 �
 
 ```bash
 roslaunch sensor_bringup sensors.launch \
-  enable_arduino:=true arduino_port:=/dev/ttyACM0 arduino_baud:=57600
+  enable_arduino:=true arduino_port:=/dev/ttyUSB0 arduino_baud:=57600
 ```
+
+`arduino_port`와 `arduino_baud`를 생략하면
+`arduino/ros/config/serial.yaml`의 값을 사용한다. `/dev/ttyACM*`, `/dev/ttyUSB*`,
+`/dev/serial/by-id/*` 중 실제 연결 경로를 쓸 수 있으며 안정적인 `by-id` 경로를 우선한다.
 
 통합 launch는 LiDAR를 `/molit/sensors/lidar/scan`·`laser_link`, IMU와 GPS를
 Localization의 내부 driver 입력 토픽에 맞춘다. 상세 인자와 중복 실행 주의사항은
@@ -54,8 +62,9 @@ Localization의 내부 driver 입력 토픽에 맞춘다. 상세 인자와 중�
 
 ## 장치 이름 고정
 
-`/dev/ttyUSB*` 번호는 연결 순서에 따라 바뀌므로 사용하지 않는다. udev 규칙에서 센서의
-USB 고유 시리얼을 확인해 역할별 고정 이름을 만든다.
+`/dev/ttyUSB*`와 `/dev/ttyACM*` 번호는 연결 순서에 따라 바뀔 수 있다. 장기 운용 센서는
+udev 규칙에서 USB 고유 시리얼을 확인해 역할별 고정 이름을 만들고, Arduino는 가능한 경우
+`/dev/serial/by-id/*` 경로를 설정한다.
 
 - LiDAR: `/dev/lidar`
 - GPS: `/dev/gps`
@@ -111,6 +120,7 @@ roslaunch gps_bringup gps.launch
 | u-blox ZED-F9P | 드라이버·NTRIP·UTM·상태·udev 구성 완료 | `/dev/gps` | `gps_bringup` | `/ublox_position_receiver/fix`, `/gps/status`, `/utm` |
 | Xsens MTi-3-0L-DK | 드라이버·udev 구성 완료 | `/dev/imu` | `imu_bringup` | `/imu/data` |
 | USB Camera | bringup·udev 구성 완료 | `/dev/cam` | `cam_bringup` | `/usb_cam/image_raw` |
+| Arduino Uno | rosserial bringup·포트 설정 구성 완료 | 설정 파일 값 | `vehicle_interface_bringup` | `/erp42_serial/drive`, `/erp42_serial/feedback` |
 
 상세 장치 식별 방법은 [LiDAR README](lidar/README.md), [Camera README](cam/README.md),
 [GPS README](gps/README.md), [IMU README](imu/README.md)를 참고한다.

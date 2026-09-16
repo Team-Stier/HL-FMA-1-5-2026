@@ -5,6 +5,14 @@ find_package(catkin REQUIRED)
 
 catkin_package()
 
+install(DIRECTORY config/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
+)
+
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_launch_contract.py)
+endif()

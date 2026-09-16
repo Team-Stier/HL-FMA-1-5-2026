@@ -200,7 +200,7 @@ flowchart TB
 | `cam_bringup` | **단독** | USB 카메라 실행 및 V4L2 설정 | 일반적으로 `/usb_cam/image_raw`; 현재 소비하는 인식 노드 없음 |
 | `gps_bringup` | **단독** | u-blox, NTRIP, 상태 요약, UTM 변환 실행 | u-blox fix/NavPVT/NavSTATUS, `/gps/status`, `/gps`, `/utm` |
 | `imu_bringup` | **단독** | Xsens 실행 및 측정 covariance 적용 | 기본 `/imu/data`; Localization 내부 드라이버 방식과 별도 구성 |
-| `vehicle_interface_bringup` | **단독** | Arduino rosserial 연결 | MCU가 `/erp42_serial/feedback` 발행 및 `/erp42_serial/drive` 구독 |
+| `vehicle_interface_bringup` | **단독** | `sensor_drivers/arduino/ros`의 Arduino rosserial 연결; YAML 또는 launch 인자로 ACM/USB/by-id 포트 선택 | MCU가 `/erp42_serial/feedback` 발행 및 `/erp42_serial/drive` 구독 |
 | `ublox_gps`, `ublox_utils`, `ntrip_client`, `utm_lla` | **지원** | GNSS 수신, RTCM 보정, 좌표 변환 | GPS bringup 내부에서 사용 |
 | `ublox_msgs`, `ublox_serialization`, `ublox` | **지원** | u-blox 메시지·직렬화·메타패키지 | 직접 실행 대상 아님 |
 | `xsens_mti_driver` | **지원** | Xsens 장치 드라이버 | `imu_bringup` 또는 Localization 내부 launch가 실행 |

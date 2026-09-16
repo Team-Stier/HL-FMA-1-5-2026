@@ -1,8 +1,9 @@
 # Vehicle interface
 
 ROS 상위 제어 명령과 BROON T870 Arduino Uno 하위제어기 사이의 통신 구성을 모아 둔다.
-현재 Catkin 패키지는 Arduino 펌웨어와 동일한 메시지 정의를 제공하는 `erp42_msgs`이며,
-별도의 명령 변환 노드와 `arduino_bringup` 패키지는 아직 구현하지 않았다.
+이 디렉터리에는 Arduino 펌웨어와 동일한 메시지 정의를 제공하는 `erp42_msgs`를 둔다.
+PC 측 rosserial 실행 패키지 `vehicle_interface_bringup`은 장치 드라이버 구조에 맞춰
+`src/sensor_drivers/arduino/ros`에 둔다. 별도의 명령 변환 노드는 아직 구현하지 않았다.
 
 ## 통신 구조
 
@@ -95,9 +96,15 @@ ls -l /dev/serial/by-id/
 find /dev -maxdepth 1 \( -name 'ttyACM*' -o -name 'ttyUSB*' \) -print
 ```
 
-예를 들어 Uno가 `/dev/ttyACM0`이면 다음처럼 실행한다. Arduino `ros_lib`의 기본 baud와
-PC 측 baud를 모두 `57600`으로 맞춘다. `roslaunch`가 실행 중인 ROS Master가 없으면
-Master도 함께 시작한다.
+기본 포트와 baud는 `src/sensor_drivers/arduino/ros/config/serial.yaml`에서 지정한다.
+`port`에는 `/dev/ttyACM*`, `/dev/ttyUSB*`, `/dev/serial/by-id/*` 경로를 사용할 수 있다.
+Arduino `ros_lib`와 PC 측 baud를 모두 같은 값으로 맞춘다. `roslaunch`가 실행 중인 ROS
+Master가 없으면 Master도 함께 시작한다.
+
+```yaml
+port: /dev/ttyACM0
+baud: 57600
+```
 
 ```bash
 cd ~/HL-FMA2026-stier
@@ -112,11 +119,14 @@ roslaunch vehicle_interface_bringup arduino.launch
 roslaunch sensor_bringup sensors.launch enable_arduino:=true
 ```
 
-다른 장치 경로나 baud를 사용할 때만 인자를 덮어쓴다.
+다른 장치 경로나 baud를 이번 실행에만 사용할 때는 인자를 덮어쓴다.
 
 ```bash
 roslaunch vehicle_interface_bringup arduino.launch \
-  port:=/dev/ttyACM1 baud:=57600
+  port:=/dev/ttyUSB0 baud:=57600
+
+roslaunch sensor_bringup sensors.launch \
+  enable_arduino:=true arduino_port:=/dev/serial/by-id/usb-DEVICE_ID
 ```
 
 연결되면 다른 터미널에서 토픽과 피드백을 확인한다.

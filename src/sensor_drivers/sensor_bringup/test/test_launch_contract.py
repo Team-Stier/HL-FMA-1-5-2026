@@ -19,11 +19,21 @@ class SensorBringupContractTest(unittest.TestCase):
 
     def test_arduino_is_explicit_opt_in(self):
         self.assertEqual("false", self.arguments["enable_arduino"])
+        self.assertEqual("", self.arguments["arduino_port"])
+        self.assertEqual("", self.arguments["arduino_baud"])
         include = next(
             element for element in self.root.findall("include")
             if "vehicle_interface_bringup" in element.attrib["file"]
         )
         self.assertEqual("$(arg enable_arduino)", include.attrib["if"])
+        forwarded = {
+            element.attrib["name"]: element.attrib["value"]
+            for element in include.findall("arg")
+        }
+        self.assertEqual("$(arg arduino_config)", forwarded["config"])
+        self.assertEqual("$(arg arduino_port)", forwarded["port"])
+        self.assertEqual("$(arg arduino_baud)", forwarded["baud"])
+        self.assertEqual("$(arg arduino_respawn)", forwarded["respawn"])
 
     def test_lidar_uses_system_contract(self):
         self.assertEqual(

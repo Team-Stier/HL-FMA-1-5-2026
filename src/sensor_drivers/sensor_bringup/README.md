@@ -14,8 +14,13 @@ roslaunch sensor_bringup sensors.launch
 
 ```bash
 roslaunch sensor_bringup sensors.launch \
-  enable_arduino:=true arduino_port:=/dev/ttyACM0 arduino_baud:=57600
+  enable_arduino:=true
 ```
+
+Arduino 기본 포트와 baud는
+`src/sensor_drivers/arduino/ros/config/serial.yaml`에서 설정한다. 실행 시에만 바꾸려면
+`arduino_port:=/dev/ttyUSB0 arduino_baud:=57600`을 추가한다. 별도 YAML은
+`arduino_config:=/absolute/path/serial.yaml`로 선택할 수 있다.
 
 통합 launch는 다음 Localization 계약으로 센서 출력을 정렬한다.
 
