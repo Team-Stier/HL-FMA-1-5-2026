@@ -26,57 +26,52 @@ flowchart TB
     classDef control fill:#fbefff,stroke:#8250df,color:#1f2328
     classDef later fill:#ffebe9,stroke:#cf222e,color:#1f2328
 
-    subgraph INPUT[센서 · 경로 원본]
+    subgraph INPUT[1. 센서 · 경로 입력과 1차 처리]
         direction LR
-        MOTION[GPS · IMU]:::sensor
-        LIDAR[2D LiDAR]:::sensor
-        CAMERA[USB Camera]:::sensor
-        FILES[RDDF CSV 파일]:::sensor
-        ESTOP[Emergency Stop]:::sensor
+        CAMERA[USB Camera]:::sensor --> TL[Traffic Light<br/>launch 기본 OFF]:::gated
+        MOTION[GPS · IMU · Encoder]:::sensor --> LOC[Localization<br/>Odometry · valid · TF<br/>RDDF match]:::active
+        LIDAR[2D LiDAR]:::sensor --> OD[Object Detection<br/>RDDF ROI + DBSCAN]:::active
+        FILES[RDDF CSV]:::sensor --> LOADER[RDDF 파일 로더<br/>rddf_route_provider]:::active
     end
 
-    LOC[Localization<br/>Odometry · valid · TF · RDDF match]:::active
-    TL[Traffic Light<br/>신호등 인식<br/>launch 기본 OFF]:::gated
-    OD[Object Detection<br/>RDDF ROI + DBSCAN]:::active
-    LOADER[RDDF 파일 로더<br/>코드: rddf_route_provider]:::active
-    SM[State Manager<br/>Mission FSM · route 선택<br/>RDDF 구간 절단]:::active
-    LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
-    PARK[Parking Planner<br/>아직 미구현]:::later
-    SEL[Selector<br/>요청된 경로 후보 선택]:::active
-    PP[control_node<br/>Pure Pursuit PP]:::control
+    subgraph PLAN[2. 미션 판단 · 경로 후보 생성]
+        direction LR
+        SM[State Manager<br/>Mission FSM · route 선택<br/>RDDF 구간 절단]:::active
+        LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
+        PARK[Parking Planner<br/>아직 미구현]:::later
+    end
+
+    SEL[3. Selector<br/>요청 모드에 맞는 경로 하나 선택]:::active
+    PP[4. control_node<br/>Pure Pursuit PP]:::control
+    ESTOP[Emergency Stop]:::sensor
     CAR[Arduino / T870<br/>차량 구동]:::active
 
-    MOTION --> LOC
-    CAMERA -->|/usb_cam/image_raw| TL
-    TL -->|/perception/traffic_signal| SM
-
-    LIDAR -->|LaserScan| OD
-    LOC -->|RDDF match + TF| OD
-    OD -->|/dbscan_clusters| LP
-
-    FILES --> LOADER
+    TL -->|traffic signal| SM
+    LOC -->|RDDF match · TF| OD
+    LOC -->|Odometry · valid| SM
     LOADER -->|/route/map| SM
-    LOADER -->|/route/map| LP
-    LOC -->|Odometry + valid| SM
-    LIDAR -->|원본 LaserScan| SM
-    LOC -->|Odometry| LP
-    SM -->|/mission/state<br/>LOCAL 요청| LP
-    LP -->|/path/local<br/>안전 검사| SM
 
-    SM -->|/path/rddf| SEL
+    OD -->|/dbscan_clusters| LP
+    LOC -->|Odometry| LP
+    LOADER -->|/route/map| LP
+    SM -->|/mission/state · LOCAL 요청| LP
+
+    SM -->|/path/rddf + 선택 요청| SEL
     LP -->|/path/local| SEL
     PARK -.->|/path/park| SEL
     PARK -.->|/parking/maneuver| SM
-    SM -->|/mission/state<br/>RDDF · LOCAL · PARKING 요청| SEL
 
-    SEL -->|/path/final<br/>PP의 유일한 경로 입력| PP
+    SEL -->|/path/final · 유일한 경로 입력| PP
     LOC -->|Odometry| PP
-    SM -.->|/mission/state<br/>속도 · 정지 · 방향<br/>경로가 아님| PP
+    SM -.->|속도 · 정지 · 방향<br/>경로 아님| PP
     ESTOP --> PP
-    CAR -->|/erp42_serial/feedback| PP
-    CAR -->|Encoder feedback| LOC
-    PP -->|/erp42_serial/drive<br/>속도 · 조향 · 브레이크 · 기어 · E-Stop| CAR
+    CAR -->|feedback| PP
+    PP -->|/erp42_serial/drive| CAR
 ```
+
+선 교차를 줄이기 위해 판단 결과에 영향을 주지 않는 검증용 역방향 선은 그림에서
+생략했다. State Manager는 원본 LiDAR와 `/path/local`도 받아 선택 경로 충돌 여부를
+검증하지만, 이 입력들은 새로운 경로를 생성하거나 Selector를 우회하지 않는다.
 
 **PP는 State Manager의 `/path/rddf`를 직접 받지 않는다.** State Manager가 잘라서 만든
 `/path/rddf`는 반드시 Selector를 통과하고, PP는 Selector가 내보낸 `/path/final`만
