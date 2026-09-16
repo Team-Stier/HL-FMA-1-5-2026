@@ -386,10 +386,10 @@ class MissionTests(unittest.TestCase):
         result = self.run_at(6, now=0.3, s=20, at_end=True)
         self.assertEqual(result["reason"], "PARKING_ENTRY_NOT_COMPLETED")
 
-    def test_section_eight_is_normal_rddf_transit(self):
+    def test_section_eight_keeps_rddf_mode_for_dynamic_monitoring(self):
         before = self.run_at(8, s=10)
-        self.assertEqual(before["mission"], "RDDF_TRANSIT")
-        self.assertEqual(before["phase"], "FOLLOW_RDDF")
+        self.assertEqual(before["mission"], "DYNAMIC_OBSTACLE")
+        self.assertEqual(before["phase"], "MONITORING_DYNAMIC")
         self.assertFalse(before["stop_requested"])
         result = self.run_at(8, s=20, at_end=True)
         self.assertEqual(result["next_route"], "9")

@@ -13,6 +13,15 @@
   "max_scan_duration_s": 0.2,
   "rate_hz": 10,
   "path_lookahead_m": 20,
+  "dynamic_obstacle": {
+    "route_token": "dynamic",
+    "input_timeout_s": 0.5,
+    "lookahead_m": 20.0,
+    "path_margin_m": 0.25,
+    "maximum_cluster_extent_m": 5.0,
+    "maximum_cluster_count": 100,
+    "maximum_point_count": 10000
+  },
   "stop_buffer_m": 0.05,
   "landmarks_validated": false,
   "vehicle": {

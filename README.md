@@ -205,22 +205,24 @@ Provider·미션 노드·Selector·PP Control과 선택적인 RViz·기준점 �
 ```mermaid
 flowchart LR
     GPS["GPS · IMU · Encoder"] --> LOC["Localization<br/>승인 Odometry + valid"]
-    CAM["Camera"] --> TRAFFIC["신호등 인식<br/>외부 구현 필요"]
-    LANE["차로 제어 신호 입력<br/>센서·구현 미정"] --> SM
-    DYNAMIC["동적 장애물 판단<br/>구현 미정"] --> SM
+    CAM["Camera"] --> TRAFFIC["신호등 인식"]
     LIDAR["LiDAR · TF"] --> SM
+    LIDAR --> OBJECTS["Object Detection<br/>ROI + DBSCAN"]
+    OBJECTS -->|"/dbscan_clusters<br/>dynamic RDDF E-Stop"| SM
+    OBJECTS -->|"/dbscan_clusters"| LOCAL["Path Planner<br/>Frenet 정적 회피"]
     TRAFFIC -->|"/perception/traffic_signal"| SM
     LOC --> SM
     RDDF["Localization 소유 RDDF"] --> PROVIDER["RDDF Route Provider"]
     PROVIDER -->|"/route/map"| SM["State Manager<br/>구간 추적 · Mission FSM · 관측 공간 검사"]
-    SM -->|"/mission/state"| LOCAL["Local / Parking Planner<br/>외부 구현 필요"]
+    SM -->|"/mission/state"| LOCAL
     SM -->|"/mission/state<br/>path_mode=RDDF/LOCAL/PARKING 요청"| SELECTOR["Selector<br/>요청 ID · 경로 · 방향 · 시각 검증"]
     SM -->|"/path/rddf"| SELECTOR
-    LOCAL -->|"/path/local · /path/park"| SELECTOR
-    LOCAL -->|"/parking/maneuver"| SM
+    LOCAL -->|"/path/local"| SELECTOR
+    PARKING["Parking Planner<br/>미구현"] -.->|"/path/park"| SELECTOR
+    PARKING -.->|"/parking/maneuver"| SM
     SELECTOR -->|"/path/final"| CONTROL["Control<br/>Pure Pursuit 기본"]
     LOC -->|"/molit/localization/odometry"| CONTROL
-    SM -->|"/mission/state<br/>속도 · 정지 · 방향"| CONTROL
+    SM -->|"/mission/state<br/>속도 · 정지 · 방향 · E-Stop"| CONTROL
     ESTOP["/vehicle/emergency_stop"] --> CONTROL
     CONTROL -->|"/erp42_serial/drive<br/>Gear · brake · EStop"| VEHICLE["Arduino · 차량"]
     VEHICLE -->|"/erp42_serial/feedback"| CONTROL
@@ -236,9 +238,9 @@ State Manager는 승인된 위치가 어느 RDDF 구간에 있으며 어떤 미�
 | 구성요소 | 현재 책임 |
 |---|---|
 | Route Tracker | 활성 RDDF 투영, 진행률·방향 확인, 허용된 다음 구간으로 전이 |
-| Mission Engine | 구간별 미션 단계, 신호 대기, 정차 시간, 주차·차선 분기와 규정 진단 |
+| Mission Engine | 구간별 미션 단계, 신호 대기, 정차 시간, 주차·종료 분기와 규정 진단 |
 | RDDF Route Provider | Localization 패키지가 소유한 RDDF를 공유 메시지로 제공; 활성 기본 경로는 State Manager가 발행 |
-| Local / Parking Planner | 선택한 미션과 분기에 맞는 실제 회피·주차 궤적 생성; 별도 구현 필요 |
+| Local / Parking Planner | Local Planner는 정적 회피 궤적 생성까지 연결; Parking Planner는 미구현 |
 | Selector | 요청과 일치하는 경로만 최종 경로로 전달하고 준비 상태 발행 |
 | Control | 기본 PP(선택 Stanley); 경로·Odometry·MissionState를 받아 Arduino 최종 명령 발행 |
 
@@ -257,11 +259,11 @@ Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 또는 `PARKING` 경�
 | 4 | 초록불에 교차로 통과하면서 다음 T자 주차 후보를 LiDAR로 미리 평가 |
 | 5-L/R → 6-L/R | 비어 있는 T자 후보 선택, 주차 확인 정차 후 같은 쪽 탈출 경로 사용 |
 | 7 | 가상 벽 앞에서 대기, 좌회전 화살표 신호에 RDDF 좌회전 |
-| 8 | 동적 장애물 감지 즉시 정지 요청, 중앙 정지 관측 후 차량 3초 이상 연속 정차, 통로 해제 확인 후 재출발 |
+| 8 | RDDF 이름의 `dynamic` 조건에서 DBSCAN 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 사라지면 RDDF 추종 재개 |
 | 9 | RDDF 추종과 함께 다음 평행주차 좌우 후보를 미리 평가 |
 | 10-L/R → 11-L/R | 비어 있는 평행주차 후보 선택, 주차 확인 정차 후 같은 쪽 탈출 경로 사용 |
-| 12 | RDDF 추종 중 다음 차로 신호를 미리 판독; 왼쪽은 구간 내부 분기점에서, 오른쪽은 끝점에서 13번으로 연결 |
-| 13-L/R | 일반 신호등과 구분되는 차로 제어 신호의 아래쪽 화살표로 허가된 경로를 주행하고 후륜 기준으로 종료선 통과 |
+| 12 | `finish_branch` 고정 설정을 따라 왼쪽은 구간 내부 분기점에서, 오른쪽은 끝점에서 13번으로 연결 |
+| 13-L/R | 선택된 RDDF를 따라 후륜 기준 종료선을 통과하고 정지 |
 
 주차 후보는 좌우 RDDF 진입·탈출에 필요한 차량 공간을 LiDAR 관측과 비교한다.
 확인된 빈 공간 `CLEAR`가 서로 다른 관측 시각으로 연속 확인되어야 선택할 수 있다.
@@ -276,7 +278,7 @@ Arduino 0속도 기어 전환 인터록은 추가됐지만 실차 방향 검증�
 
 ### 규정과 전이 처리
 
-- 경사로는 추후 마킹할 허용 정지구역 앞·뒤 경계의 RDDF 중앙을 목표로 연속 3초 이상 정차한다.
+- 경사로는 확정된 허용 정지구역 앞·뒤 경계의 RDDF 중앙을 목표로 연속 3초 이상 정차한다.
   속도와 실제 위치 변화로 밀림을 감시하고 연속 정차 시간을 초기화한다. 기존 경사로 전체
   시작·정상 설정은 1m 안쪽 규정 범위를 유지한다. 실제 브레이크 유지는 추후 제어기 연동 영역이다.
 - 2·4번은 `GREEN`, 7번은 `LEFT_ARROW`에서 가상 벽을 해제하고 RDDF를 추종한다.
@@ -289,8 +291,8 @@ Arduino 0속도 기어 전환 인터록은 추가됐지만 실차 방향 검증�
   통과는 후륜 기준이다. 제한 시간이 임박해도 장애물·위치·경로 검사를 생략하지 않는다.
 - 유효한 위치로 실제 출발한 시점부터 전체 480초 제한을 감시하며, 앞 범퍼가 정지선 1 m 이내인 실제 적색 신호 대기 시간은
   관측이 연속적으로 유효한 동안 제외한다. 60초 무이동도 별도로 진단한다.
-- 8번에서 동적 장애물 미션을 관측하지 못하면 끝점에 도달해도 조용히 완료 처리하지 않는다.
-  정차 후 우회 주행은 기본 비활성이며 명시적인 안전한 로컬 경로 연동이 필요하다.
+- 8번은 객체 종류·속도를 별도로 분류하지 않는다. fresh DBSCAN 군집이 현재 RDDF의
+  설정된 전방 lookahead와 차량 폭·여유 폭 안에 들어오는지를 State Manager가 판단한다.
 - 12번에서 13-left로 가는 연결은 12번 끝점과 다르다. 구간 연결, 진행 방향과 관측
   이력을 함께 사용하므로 가까운 다른 구간으로 최근접 검색만으로 전이하지 않는다.
 
@@ -311,10 +313,8 @@ LiDAR는 모든 구간에서 계속 사용한다. 관측된 장애물이나 확�
 연석까지 소프트웨어만으로 충돌 방지를 보장할 수는 없으므로, 차량·센서 검증 전에는
 실차 출력을 활성화하지 않는다. 기본 실행은 차량 명령 미리보기다.
 
-카메라 기반 신호등 인식, 별도 입력원으로 둘 차로 제어 신호, 동적 장애물의 중앙 정지 판정,
-실제 Local/Parking
-Planner와 Control은 외부 연동 지점으로 남아 있다. 이번 구현은 이 입력을 검사하고
-미션을 실행하는 뼈대이며, 입력이 없거나 유효하지 않을 때 임의로 통과시키지 않는다.
+카메라 기반 차로 제어는 사용하지 않는다. Traffic Light, Object Detection, Local Planner,
+Selector와 Control은 연결됐고 실제 Parking Planner는 외부 연동 지점으로 남아 있다.
 [상세 실행·보정·테스트 안내](src/state_manager/README.md)에서 남은 연동 항목을 확인한다.
 
 ### 주요 인터페이스
@@ -325,7 +325,8 @@ Planner와 Control은 외부 연동 지점으로 남아 있다. 이번 구현은
 | 토픽 | 타입 | 용도 |
 |---|---|---|
 | `/route/map` | `planning_interfaces/RouteMap` | RDDF geometry와 방향 제공 |
-| `/mission/state` | `planning_interfaces/MissionState` | 요청 ID, 구간·미션·진행률, 분기·모드·방향, 속도·정지 제약 |
+| `/dbscan_clusters` | `visualization_msgs/MarkerArray` | Local Planner와 dynamic RDDF E-Stop이 공유하는 stamped 군집 |
+| `/mission/state` | `planning_interfaces/MissionState` | 요청 ID, 구간·미션·진행률, 분기·모드·방향, 속도·정지·E-Stop 제약 |
 | `/mission/safety` | `planning_interfaces/SafetyStatus` | 관측 공간 검사 및 정지 요구 |
 | `/path/rddf` | `planning_interfaces/PlannedPath` | 현재 요청에 맞춘 기본 RDDF 경로 |
 | `/path/local` | `planning_interfaces/PlannedPath` | Local Planner의 회피 경로 |

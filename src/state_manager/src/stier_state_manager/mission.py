@@ -240,7 +240,7 @@ class MissionEngine:
         mission = {
             1: "HILL_STOP", 2: "TRAFFIC_STRAIGHT", 3: "STATIC_AVOIDANCE",
             4: "TRAFFIC_STRAIGHT", 5: "T_PARKING", 6: "T_PARKING",
-            7: "TRAFFIC_LEFT", 8: "RDDF_TRANSIT", 9: "PARALLEL_APPROACH",
+            7: "TRAFFIC_LEFT", 8: "DYNAMIC_OBSTACLE", 9: "PARALLEL_APPROACH",
             10: "PARALLEL_PARKING", 11: "PARALLEL_PARKING",
             12: "FINISH_APPROACH", 13: "FINISH",
         }.get(section, "UNKNOWN")
@@ -258,7 +258,8 @@ class MissionEngine:
             "route": route, "section": section, "mission": mission,
             "phase": "APPROACH", "selected_branch": _branch(route),
             "branch": _branch(route), "path_mode": mode,
-            "stop_requested": False, "speed_limit": float(self.speeds[speed_name]),
+            "stop_requested": False, "emergency_stop_requested": False,
+            "speed_limit": float(self.speeds[speed_name]),
             "direction": self.parking_leg(route).get("direction", 1),
             "reason": "", "next_route": None, "remaining_stop_m": None,
             "counters": {}, "diagnostics": [], "completed_missions": {},
@@ -386,7 +387,7 @@ class MissionEngine:
         elif section in (5, 6, 10, 11):
             self._parking(snapshot, landmarks, state, out, standing)
         elif section == 8:
-            out["phase"] = "FOLLOW_RDDF"
+            out["phase"] = "MONITORING_DYNAMIC"
             if snapshot.get("at_end"):
                 self._complete("section_8_transit", now)
                 out["phase"] = "COMPLETE"

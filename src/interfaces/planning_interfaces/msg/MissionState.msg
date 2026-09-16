@@ -15,6 +15,9 @@ float64 speed_limit_mps
 # Distance from the relevant body reference to the required stop; -1 if none.
 float64 remaining_stop_m
 bool stop_requested
+# Reserved for an actual emergency-stop command. Normal traffic, hill and
+# parking holds use stop_requested without asserting the vehicle E-Stop line.
+bool emergency_stop_requested
 bool valid
 bool finished
 string reason

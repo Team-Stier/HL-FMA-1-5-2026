@@ -422,6 +422,12 @@ class ControlNode {
       publishSafe("EMERGENCY_STOP_REQUESTED", true);
       return;
     }
+    // A mission E-Stop stays asserted even if its message later becomes stale.
+    // Only a fresh MissionState with this bit cleared may release it.
+    if (has_mission_ && latest_mission_->emergency_stop_requested) {
+      publishSafe("MISSION_EMERGENCY_STOP_REQUESTED", true);
+      return;
+    }
     if (!positiveFinite(dt_sec) || dt_sec > config_.maximum_control_dt_sec) {
       publishSafe("INVALID_CONTROL_DT");
       return;

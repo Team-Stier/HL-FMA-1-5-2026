@@ -37,6 +37,11 @@ RDDF 원 판정과 DBSCAN 이웃 검색은 SciPy가 설치되어 있으면 KD-tr
 - `/object_detection/roi_points`: ROI 안에 남은 LiDAR 점
 - `/dbscan_clusters`: ROI 점을 DBSCAN으로 군집화한 결과와 큰 장애물 중점
 
+`/dbscan_clusters`는 3구간 `path_planner`의 정적 회피 입력과 이름에 `dynamic`이
+포함된 RDDF에서 State Manager의 E-Stop 판정 입력으로 함께 사용한다. stamped
+`DELETEALL` marker는 클러스터가 0개인 유효 관측 heartbeat이며, header 없는 clear는
+센서·TF·입력 실패로 취급한다.
+
 ## rosbag으로 실행
 
 터미널 1에서 팀 Localization을 실행한다. 팀 뷰어는 끄고 bag을 반복 재생한다.

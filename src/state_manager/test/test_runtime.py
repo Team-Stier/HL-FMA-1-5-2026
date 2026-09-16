@@ -73,15 +73,66 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['stop_requested'])
         self.assertFalse(result['valid'])
 
-    def test_collision_stops_on_ordinary_section_eight_transit(self):
+    def test_raw_lidar_collision_still_stops_on_dynamic_section(self):
         self.config['start_route'] = '8_dynamic-obstacle'
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1)
         data['scan']['hits'].append((.7, 0))
         result = runtime.step(1, data, self.candidate(runtime, 1))
-        self.assertEqual(result['mission'], 'RDDF_TRANSIT')
+        self.assertEqual(result['mission'], 'DYNAMIC_OBSTACLE')
         self.assertTrue(result['safety']['stop'])
         self.assertTrue(result['stop_requested'])
+
+    def cluster_data(self, now, points):
+        data = self.data(now)
+        data['clusters'] = {'stamp': now, 'receipt_stamp': now, 'frame': 'map',
+                            'valid': True, 'reason': 'OK', 'clusters': [points]}
+        return data
+
+    def test_dynamic_route_cluster_on_rddf_requests_estop(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        self.config['dynamic_obstacle'] = {'route_token': 'dynamic', 'input_timeout_s': .5,
+                                           'lookahead_m': 10.0, 'path_margin_m': .25}
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.cluster_data(1, [(2.0, -.2), (2.2, .2)])
+        result = runtime.step(1, data, self.candidate(runtime, 1))
+        self.assertTrue(result['emergency_stop_requested'])
+        self.assertTrue(result['stop_requested'])
+        self.assertEqual(result['reason'], 'DYNAMIC_OBSTACLE_ON_RDDF')
+        self.assertEqual(result['phase'], 'EMERGENCY_STOP')
+
+        clear = self.cluster_data(1.1, [])
+        clear['clusters']['clusters'] = []
+        released = runtime.step(1.1, clear, self.candidate(runtime, 1.1))
+        self.assertFalse(released['emergency_stop_requested'])
+        self.assertFalse(released['stop_requested'], released)
+
+    def test_dynamic_route_cluster_off_rddf_does_not_request_estop(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.cluster_data(1, [(2.0, 2.0), (2.2, 2.1)])
+        result = runtime.step(1, data, self.candidate(runtime, 1))
+        self.assertFalse(result['emergency_stop_requested'])
+        self.assertFalse(result['stop_requested'], result)
+        self.assertEqual(result['dynamic_obstacle']['reason'], 'DYNAMIC_OBSTACLE_CLEAR')
+
+    def test_cluster_on_non_dynamic_route_never_requests_estop(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.cluster_data(1, [(2.0, 0.0)])
+        result = runtime.step(1, data, self.candidate(runtime, 1))
+        self.assertFalse(result['emergency_stop_requested'])
+        self.assertFalse(result['dynamic_obstacle']['required'])
+
+    def test_stale_dynamic_clusters_do_not_assert_estop(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.cluster_data(1, [(2.0, 0.0)])
+        data['clusters']['stamp'] = .1
+        result = runtime.step(1, data, self.candidate(runtime, 1))
+        self.assertFalse(result['emergency_stop_requested'])
+        self.assertFalse(result['dynamic_obstacle']['valid'])
+        self.assertTrue(result['stop_requested'])
+        self.assertEqual(result['phase'], 'WAIT_DYNAMIC_OBSERVATION')
 
     def test_lidar_dropout_then_recovery_resets_continuous_hold(self):
         runtime = MissionRuntime(self.routes, self.config)

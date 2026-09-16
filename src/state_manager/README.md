@@ -24,6 +24,7 @@ flowchart LR
   D[상시 LiDAR + 시각별 TF] --> S
   D --> O[Object Detection]
   O -->|DBSCAN clusters| P[Local Path Planner]
+  O -->|DBSCAN clusters<br/>dynamic RDDF only| S
   L -->|Odometry| P
   R -->|RouteMap| P
   S -->|MissionState| P
@@ -32,7 +33,7 @@ flowchart LR
   P -->|PlannedPath + decision_id| X
   X -->|nav_msgs/Path| PP[Pure Pursuit Control]
   L -->|Odometry| PP
-  S -->|MissionState<br/>속도 · 정지 · 방향| PP
+  S -->|MissionState<br/>속도 · 정지 · 방향 · E-Stop| PP
   E[/vehicle/emergency_stop/] --> PP
   PP -->|/erp42_serial/drive<br/>KPH · 조향 · brake · Gear · EStop| A[Arduino]
   A -->|/erp42_serial/feedback| PP
@@ -96,8 +97,9 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 위치가 갱신되지 않으면 RViz 카메라를 수동으로 이동해 화면의 상태 문구를 확인한다.
 
 카메라는 신호등 인식에만 사용하고 결과를 `SignalObservation`으로 전달한다.
-카메라 기반 차로 제어와 동적장애물 판정 입력은 사용하지 않는다. DBSCAN 군집은
-3구간 정적장애물 회피용 Local Planner에만 연결한다.
+카메라 기반 차로 제어는 사용하지 않는다. DBSCAN 군집은 3구간 정적장애물 회피용
+Local Planner와 State Manager에 함께 연결한다. State Manager는 이름에 `dynamic`이
+포함된 RDDF에서만 군집과 전방 RDDF 주행 폭의 겹침을 E-Stop 조건으로 사용한다.
 
 검증: 순수 marker 테스트 및 ROS transport 테스트에서 미설정 매니저 S01과 관측 S07의
 분리, 미수신 입력, stale 강조 제거를 검사한다. CI의 Localization은 실제 메시지 정의를
@@ -114,7 +116,7 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 | 4 | 2와 같은 신호 처리 + T 주차 좌/우 공간 미리 관측 | 교차로 통과·구간 끝·선택 공간 관측 확인 후 5 |
 | 5/6 | 선택한 T 주차 진입/출차 경로를 한 쌍으로 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
 | 7 | 정지선 가상 벽에서 `LEFT_ARROW` 대기, 허용 시 RDDF 좌회전 | 일반 녹색으로 좌회전 허가를 대신하지 않음 |
-| 8 | 일반 RDDF 추종 | 구간 끝에서 9로 연결; 동적장애물 전용 판정 없음 |
+| 8 | RDDF 추종 + DBSCAN 동적장애물 감시 | 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 구간 끝에서 9로 연결 |
 | 9 | 기준경로 추종 + 평행주차 좌/우 미리 관측 | 구간 끝에서 확인된 쪽 10으로 연결 |
 | 10/11 | 선택한 평행주차 진입/출차 쌍 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
 | 12 | 설정된 종료 분기 추종 | `finish_branch=left`는 중간 분기점, right는 끝에서 13 진입 |
@@ -215,7 +217,11 @@ RViz에는 앞·뒤 마커와 중앙 목표, 현재 정차 누적 시간이 표�
 - 신호: 2/4는 GREEN, 7은 LEFT_ARROW만 새 진입을 허용한다. 이미 허가받고 진입한
   교차로에서는 신호가 바뀌었다고 신호 조건만으로 급정지하지 않는다. 별도 LiDAR 정지는
   계속 우선한다. 교차로 정지 3초·20초, 통과 30초 초과는 진단에 기록한다.
-- 8구간은 현재 일반 RDDF 추종으로 처리하며 동적장애물 종류·중앙 정지 판정을 하지 않는다.
+- 8구간은 RDDF를 추종한다. fresh DBSCAN 군집이 현재 위치부터 설정된 lookahead 안의
+  RDDF 주행 폭과 겹치면 State Manager가 `emergency_stop_requested=true`를 유지한다.
+  객체 종류나 속도를 분류하지 않고 해당 동적장애물 구간의 경로 점유만 판단한다.
+  이 구간에서 DBSCAN heartbeat가 없거나 stale/invalid면 E-Stop을 새로 만들지는 않지만
+  유효한 빈 관측이 올 때까지 일반 `stop_requested`로 주행을 막는다.
 - 유효한 위치로 실제 출발한 시점부터 전체 8분 및 장시간 무동작을 진단한다. 정지선 전 1m 이내에서 fresh RED에 따라
   멈춘 연속 시간은 주행 시간에서 뺀다. 시간 초과가 강제 출발을 유발하지는 않는다.
 - 차선·중앙선 준수, 범퍼/뒷바퀴와 실제 선의 접촉, 미세 연석의 관측은 센서 정밀도와
@@ -314,8 +320,9 @@ RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단
 |---|---|---|
 | `/route/map` | `RouteMap` | Localization 소유 RDDF 전체와 origin 제공 |
 | `/perception/traffic_signal` | `SignalObservation` | route_name=2/4/7, 신호값·confidence·실제 측정 시각 |
+| `/dbscan_clusters` | `visualization_msgs/MarkerArray` | Object Detection의 stamped `map` 군집. dynamic RDDF E-Stop과 3구간 Local Planner가 공유 |
 | `/parking/maneuver` | `ParkingManeuver` | 현재 요청 ID를 반영한 주차 단계·방향·RDDF 시작/목표 거리 |
-| `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지 제약 |
+| `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지·전용 E-Stop 제약 |
 | `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치를 진단·검증용으로 제공 |
 | `/path/rddf`, `/path/local`, `/path/park` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
 | `/path/selector_status` | `PathStatus` | 경로 준비 여부. 정지 중에도 readiness는 갱신 |

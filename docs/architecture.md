@@ -2,7 +2,7 @@
 
 이 문서는 2026-09-16 현재 소스와 `state_manager/mission.launch`의 실제 연결을 기준으로
 작성했다. 첫 번째 그림은 센서부터 차량까지 실제 전체 흐름을 생략 없이 표시한다.
-동적장애물 판정과 카메라 차로 제어처럼 제거한 기능은 그림에 넣지 않는다.
+카메라 차로 제어처럼 제거한 기능은 그림에 넣지 않는다.
 
 ## 현재 결론
 
@@ -10,8 +10,9 @@
   `RED/YELLOW/GREEN/LEFT_ARROW`만 `/perception/traffic_signal`로 발행한다.
 - Object Detection의 DBSCAN 출력은 이제 `path_planner` 입력으로 연결된다.
 - `path_planner`는 ROS 노드가 되어 `/path/local`을 발행하고 Selector가 이를 선택한다.
-- 동적장애물 판정과 카메라 기반 차로 제어는 코드·메시지·아키텍처에서 제거했다.
-- 8구간은 일반 RDDF 추종 구간이다. 12구간의 종료 분기는 카메라가 아니라
+- 카메라 기반 차로 제어는 제거했다. `dynamic` 이름의 RDDF에서는 DBSCAN 군집이
+  진행 경로 위에 있을 때 State Manager가 전용 E-Stop을 요청한다.
+- 12구간의 종료 분기는 카메라가 아니라
   `missions.json`의 고정 `finish_branch`로 정한다.
 - Parking Planner는 이번 범위에서 구현하거나 연결하지 않았다.
 - Control 기본값은 `pure_pursuit`이며 `/path/final`부터 Arduino 명령까지 연결되어 있다.
@@ -51,6 +52,7 @@ flowchart TB
     LOADER -->|/route/map| SM
 
     OD -->|/dbscan_clusters| LP
+    OD -->|dynamic RDDF 장애물| SM
     SM -->|/mission/state · LOCAL 요청| LP
 
     SM -->|/path/rddf + 선택 요청| SEL
@@ -58,7 +60,7 @@ flowchart TB
     PARK -.->|/path/park| SEL
 
     SEL -->|/path/final · 유일한 경로 입력| PP
-    SM -.->|속도 · 정지 · 방향<br/>경로 아님| PP
+    SM -.->|속도 · 정지 · 방향 · E-Stop<br/>경로 아님| PP
     ESTOP --> PP
     CAR -->|feedback| PP
     PP -->|/erp42_serial/drive| CAR
@@ -129,7 +131,7 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 3 | LOCAL | DBSCAN 장애물을 사용한 Frenet 정적 회피 경로 필수 |
 | 5, 6 | PARKING | T 주차; Planner는 아직 없음 |
 | 7 | RDDF | LEFT_ARROW와 정지선으로 좌회전 허가 결정 |
-| 8 | RDDF | 동적장애물 판정 없이 일반 RDDF 추종 |
+| 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 RDDF 진행 경로와 겹치면 E-Stop 요청 |
 | 9 | RDDF | 평행주차 접근 및 주차 공간 선택 |
 | 10, 11 | PARKING | 평행주차; Planner는 아직 없음 |
 | 12 | RDDF | `finish_branch` 고정 설정에 따라 13 left/right 연결 |
@@ -168,10 +170,9 @@ roslaunch state_manager mission.launch start_traffic_light:=true traffic_light_d
 | `perception_interfaces/TLLabel` | 미사용 계약 | 신호등은 `planning_interfaces/SignalObservation` 사용 |
 | Stanley | 대체 구현 | 현재 Control 기본 선택은 PP |
 
-카메라 기반 차로 제어와 동적장애물 전용 입력·판정 로직은 현재 범위에서 제거했다.
-RDDF 파일명
-`8_dynamic-obstacle`은 Localization 경로 자산과 전환 계약을 깨지 않기 위해 그대로지만,
-그 이름이 동적 판정 로직이 남아 있다는 뜻은 아니다.
+카메라 기반 차로 제어는 현재 범위에서 제거했다. 동적장애물 E-Stop은 RDDF 이름에
+`dynamic`이 포함된 구간에서만 활성화되며, 다른 구간의 DBSCAN 군집은 이 E-Stop을
+발생시키지 않는다.
 
 ## 남은 실차 작업
 

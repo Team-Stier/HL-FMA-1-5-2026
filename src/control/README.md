@@ -29,7 +29,7 @@ wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_r
 입력:
 
 - `/path/final` (`nav_msgs/Path`, `map`)
-- `/mission/state` (`planning_interfaces/MissionState`, 속도·정지·전후진)
+- `/mission/state` (`planning_interfaces/MissionState`, 속도·정지·전후진·미션 E-Stop)
 - `/molit/localization/odometry` (`nav_msgs/Odometry`, `map` → `base_link`)
 - `/erp42_serial/feedback` (`erp42_msgs/SerialFeedBack`, speed는 m/s)
 - `/vehicle/emergency_stop` (`std_msgs/Bool`, 별도 비상정지 입력)
@@ -44,8 +44,10 @@ wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_r
 
 path·mission·odometry·feedback timeout, frame 불일치, 잘못된 수치, RC 모드에서는
 `KPH=0`, `Deg=0`, `brake=1`, `Gear=중립`, `EStop=0`을 발행한다. 이는 정상 정지다.
-`/vehicle/emergency_stop=true` 또는 Arduino feedback의 EStop 활성 상태에서만 명령의
-`EStop=1`을 사용한다. 신호등 정지, 미션 속도 상한과 전·후진 방향은 State Manager의
+`/vehicle/emergency_stop=true`, State Manager의
+`MissionState.emergency_stop_requested=true`, 또는 Arduino feedback의 EStop 활성
+상태에서 명령의 `EStop=1`을 사용한다. 신호등·경사로 정지는 일반
+`stop_requested`이므로 `EStop=0`인 제동 정지다. 미션 속도 상한과 전·후진 방향은
 `MissionState`를 직접 적용한다. `control_node`는 TF를 조회하지 않으므로
 path와 Odometry가 같은 `expected_frame_id`이고 child frame이 `vehicle_frame_id`여야 한다.
 Vehicle Safety Gate는 없으며 Control이 `/erp42_serial/drive`를 직접 발행한다.

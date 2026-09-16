@@ -13,7 +13,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import Marker, MarkerArray
 from planning_interfaces.msg import (MissionState, ParkingManeuver, PlannedPath,
                                     RouteMap, SafetyStatus, SignalObservation, TrafficConstraint)
 from selector.core import Candidate, Pose
@@ -75,6 +75,7 @@ class StateManagerNode:
             rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
             rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
             rospy.Subscriber('/molit/sensors/lidar/scan', LaserScan, self.on_scan, queue_size=1),
+            rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
             rospy.Subscriber('/parking/maneuver', ParkingManeuver, self.on_parking_maneuver, queue_size=1),
             rospy.Subscriber('/path/local', PlannedPath, self.on_path, callback_args='LOCAL', queue_size=1),
@@ -221,6 +222,73 @@ class StateManagerNode:
             self.clock_now()
             self.data['scan'] = observation
 
+    def on_clusters(self, msg):
+        """Convert the detector's stamped POINTS markers into validated map points."""
+        now = rospy.Time.now().to_sec()
+        observation = {'stamp': 0.0, 'receipt_stamp': now, 'frame': '', 'valid': False,
+                       'reason': 'DYNAMIC_OBSTACLE_HEARTBEAT_INVALID', 'clusters': []}
+        try:
+            headers = [(marker.header.stamp.to_sec(), marker.header.frame_id)
+                       for marker in msg.markers
+                       if not marker.header.stamp.is_zero() and marker.header.frame_id]
+            if not headers or any(header != headers[0] for header in headers):
+                raise ValueError('DYNAMIC_OBSTACLE_ARRAY_HEADER_MISMATCH')
+            stamp, frame = headers[0]
+            if frame != 'map' or not math.isfinite(stamp) or stamp <= 0:
+                raise ValueError('DYNAMIC_OBSTACLE_HEARTBEAT_INVALID')
+            config = self.config.get('dynamic_obstacle', {})
+            timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', .5)))
+            maximum_extent = float(config.get('maximum_cluster_extent_m', 5.0))
+            maximum_count = int(config.get('maximum_cluster_count', 100))
+            maximum_points = int(config.get('maximum_point_count', 10000))
+            if (not math.isfinite(timeout) or timeout <= 0 or not math.isfinite(maximum_extent)
+                    or maximum_extent <= 0 or maximum_count <= 0 or maximum_points <= 0):
+                raise ValueError('DYNAMIC_OBSTACLE_CONFIG_INVALID')
+            age = now - stamp
+            if not math.isfinite(age) or age < 0 or age > timeout:
+                raise ValueError('DYNAMIC_OBSTACLE_CLUSTERS_STALE_OR_FUTURE')
+            clusters, point_count, heartbeat = [], 0, False
+            for marker in msg.markers:
+                if marker.action == Marker.DELETEALL:
+                    if marker.header.stamp.to_sec() == stamp and marker.header.frame_id == frame:
+                        heartbeat = True
+                    continue
+                if marker.ns != 'dbscan_clusters':
+                    continue
+                if (marker.action != Marker.ADD or marker.type != Marker.POINTS
+                        or marker.header.stamp.to_sec() != stamp or marker.header.frame_id != frame):
+                    raise ValueError('DYNAMIC_OBSTACLE_MARKER_INVALID')
+                yaw = quaternion_yaw(marker.pose.orientation)
+                position = marker.pose.position
+                if not all(math.isfinite(v) for v in (position.x, position.y, position.z)):
+                    raise ValueError('DYNAMIC_OBSTACLE_POSE_NONFINITE')
+                cosine, sine = math.cos(yaw), math.sin(yaw)
+                points = []
+                for point in marker.points:
+                    if not all(math.isfinite(v) for v in (point.x, point.y, point.z)):
+                        raise ValueError('DYNAMIC_OBSTACLE_POINT_NONFINITE')
+                    points.append((position.x + cosine * point.x - sine * point.y,
+                                   position.y + sine * point.x + cosine * point.y))
+                if not points:
+                    continue
+                if (max(p[0] for p in points) - min(p[0] for p in points) > maximum_extent
+                        or max(p[1] for p in points) - min(p[1] for p in points) > maximum_extent):
+                    raise ValueError('DYNAMIC_OBSTACLE_EXTENT_INVALID')
+                point_count += len(points)
+                if len(clusters) >= maximum_count or point_count > maximum_points:
+                    raise ValueError('DYNAMIC_OBSTACLE_INPUT_LIMIT_EXCEEDED')
+                clusters.append(points)
+            if not heartbeat:
+                raise ValueError('DYNAMIC_OBSTACLE_HEARTBEAT_MISSING')
+            observation.update(stamp=stamp, frame=frame, valid=True,
+                               reason='OK', clusters=clusters)
+        except (ValueError, TypeError, AttributeError) as error:
+            observation['reason'] = str(error)
+            rospy.logwarn_throttle(2.0, 'DBSCAN clusters rejected: %s', error)
+        with self.lock:
+            self.clock_now()
+            self.data['clusters'] = observation
+
     def confident(self, value):
         return math.isfinite(value) and self.config.get('min_confidence', .8) <= value <= 1.0
 
@@ -303,7 +371,9 @@ class StateManagerNode:
         state.progress, state.distance_m = decision.get('progress', 0), decision.get('distance_m', 0)
         state.speed_limit_mps = decision.get('speed_limit', 0)
         state.remaining_stop_m = decision.get('remaining_stop_m') if decision.get('remaining_stop_m') is not None else -1
-        state.stop_requested, state.valid = decision.get('stop_requested', True), decision.get('valid', False)
+        state.stop_requested = decision.get('stop_requested', True)
+        state.emergency_stop_requested = decision.get('emergency_stop_requested', False)
+        state.valid = decision.get('valid', False)
         state.finished = decision.get('finished', False)
         state.parking_leg_index = decision.get('parking_leg_index', -1)
         state.parking_leg_phase = decision.get('parking_leg_phase', '')
@@ -341,6 +411,7 @@ class StateManagerNode:
                        'parking_leg_phase': state.parking_leg_phase,
                        'diagnostics': decision.get('diagnostics', []),
                        'virtual_stop': decision.get('virtual_stop'),
+                       'dynamic_obstacle': decision.get('dynamic_obstacle'),
                        'hill_target_s': decision.get('hill_target_s'),
                        'hill_hold_elapsed_s': decision.get('hill_hold_elapsed_s', 0.0)}
         self.diagnostics_pub.publish(String(data=json.dumps(diagnostics, ensure_ascii=False, sort_keys=True, allow_nan=False)))

@@ -26,6 +26,9 @@ class Stamp:
     def to_sec(self):
         return self.value
 
+    def is_zero(self):
+        return self.value == 0
+
 
 class AdapterTests(unittest.TestCase):
     def setUp(self):
@@ -37,6 +40,7 @@ class AdapterTests(unittest.TestCase):
                      'validate_landmarks': validate_landmarks,
                      'MissionRuntime': lambda routes, config: NS(decision_id=0),
                      'transform_scan_to_geometry': transform_scan_to_geometry,
+                     'Marker': NS(ADD=0, DELETEALL=3, POINTS=8),
                      'tf2_ros': NS(LookupException=LookupError, ConnectivityException=ConnectionError,
                                    ExtrapolationException=TimeoutError)}
         source = Path(__file__).resolve().parents[1] / 'scripts' / 'state_manager_node'
@@ -89,6 +93,27 @@ class AdapterTests(unittest.TestCase):
                                value='GREEN', confidence=.9))
         self.assertEqual(self.node.data['signal']['value'], 'GREEN')
         self.assertNotEqual(self.node.data['signal']['value'], 'LEFT_ARROW')
+
+    def cluster_marker(self, namespace='dbscan_clusters', action=0, points=None,
+                       stamp=9.9, frame='map'):
+        return NS(header=self.header(stamp, frame), ns=namespace, action=action, type=8,
+                  pose=NS(position=NS(x=0, y=0, z=0),
+                          orientation=NS(x=0, y=0, z=0, w=1)),
+                  points=[NS(x=x, y=y, z=0) for x, y in (points or [])])
+
+    def test_stamped_dbscan_clusters_are_preserved_for_runtime(self):
+        clear = self.cluster_marker(namespace='', action=3)
+        cluster = self.cluster_marker(points=[(1, -.2), (1.2, .2)])
+        self.node.on_clusters(NS(markers=[clear, cluster]))
+        observation = self.node.data['clusters']
+        self.assertTrue(observation['valid'], observation)
+        self.assertEqual(observation['stamp'], 9.9)
+        self.assertEqual(observation['clusters'][0], [(1.0, -.2), (1.2, .2)])
+
+    def test_headerless_dbscan_clear_is_invalid(self):
+        clear = self.cluster_marker(namespace='', action=3, stamp=0, frame='')
+        self.node.on_clusters(NS(markers=[clear]))
+        self.assertFalse(self.node.data['clusters']['valid'])
 
     def test_clock_regression_clears_observations_and_latches_fault(self):
         self.node.clock_now()

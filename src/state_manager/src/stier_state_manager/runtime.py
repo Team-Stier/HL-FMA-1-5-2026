@@ -57,6 +57,51 @@ class MissionRuntime:
                 self.vehicle_ok = False
                 self.vehicle_error = 'STOP_PRECISION_BELOW_COMMAND_RESOLUTION'
 
+    def _dynamic_obstacle(self, now, tracked, data):
+        """Return an E-Stop request only for a cluster on a dynamic RDDF route."""
+        config = self.config.get('dynamic_obstacle', {})
+        token = str(config.get('route_token', 'dynamic')).strip().lower()
+        required = bool(token) and token in str(tracked.get('route', '')).lower()
+        result = {'required': required, 'valid': not required, 'active': False,
+                  'reason': 'NOT_DYNAMIC_ROUTE', 'clearance_m': -1.0}
+        if not required:
+            return result
+        if not self.vehicle_ok:
+            result['reason'] = 'DYNAMIC_OBSTACLE_VEHICLE_CALIBRATION_REQUIRED'
+            return result
+        observation = data.get('clusters', {})
+        timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', .5)))
+        if (not observation.get('valid')
+                or not fresh(observation.get('stamp'), now, timeout)
+                or not fresh(observation.get('receipt_stamp'), now, timeout)
+                or observation.get('frame') != 'map'):
+            result['reason'] = observation.get('reason', 'DYNAMIC_OBSTACLE_CLUSTERS_UNAVAILABLE')
+            return result
+        lookahead = float(config.get('lookahead_m', self.config.get('path_lookahead_m', 20.0)))
+        margin = float(config.get('path_margin_m', self.config['vehicle'].get('margin_m', .25)))
+        if not (math.isfinite(lookahead) and lookahead > 0 and math.isfinite(margin) and margin >= 0):
+            result['reason'] = 'DYNAMIC_OBSTACLE_CONFIG_INVALID'
+            return result
+        route = self.tracker.current
+        minimum_s = max(0.0, tracked['s'] - self.config['vehicle']['rear_m'])
+        maximum_s = min(route.length, tracked['s'] + lookahead)
+        corridor_half_width = self.config['vehicle']['width_m'] * .5 + margin
+        nearest = None
+        for cluster in observation.get('clusters', []):
+            points = list(cluster)
+            if points:
+                points.append((sum(p[0] for p in points) / len(points),
+                               sum(p[1] for p in points) / len(points)))
+            for x, y in points:
+                matched = project(route, x, y, minimum_s, maximum_s)
+                if matched is not None and matched['distance'] <= corridor_half_width:
+                    clearance = max(0.0, matched['s'] - tracked['s'])
+                    nearest = clearance if nearest is None else min(nearest, clearance)
+        result.update(valid=True, reason='DYNAMIC_OBSTACLE_CLEAR')
+        if nearest is not None:
+            result.update(active=True, reason='DYNAMIC_OBSTACLE_ON_RDDF', clearance_m=nearest)
+        return result
+
     def _health(self, data, now):
         timeout = self.config.get('input_timeout_s', 0.5)
         odom = data.get('odom', {})
@@ -207,6 +252,12 @@ class MissionRuntime:
         # particular a dummy occupying the corridor must not reset its 3 s hold.
         decision = self.engine.update(snapshot)
         decision['virtual_stop'] = self.traffic_constraint(now, data.get('signal', {}))
+        dynamic_token = str(self.config.get('dynamic_obstacle', {}).get(
+            'route_token', 'dynamic')).strip().lower()
+        dynamic_obstacle = self._dynamic_obstacle(now, tracked, data) if healthy else {
+            'required': bool(dynamic_token) and dynamic_token in str(tracked['route']).lower(),
+            'valid': False, 'active': False, 'reason': reason, 'clearance_m': -1.0}
+        decision['dynamic_obstacle'] = dynamic_obstacle
         request = (tracked['route'], decision['path_mode'], decision['direction'])
         parking_request = ((tracked['route'], decision['parking_leg_index'], decision['parking_leg_phase'],
                             decision['parking_leg_target_s']) if decision.get('parking_leg_index', -1) >= 0 else None)
@@ -273,7 +324,8 @@ class MissionRuntime:
                 decision.update(route=successor, section=section, path_mode=mode, direction=self.request[2],
                                 mission='TRANSITION', selected_branch=self.tracker.current.branch,
                                 parking_leg_index=-1, parking_leg_phase='', parking_leg_target_s=-1.0,
-                                stop_requested=True, speed_limit=0, remaining_stop_m=None,
+                                stop_requested=True, emergency_stop_requested=False,
+                                speed_limit=0, remaining_stop_m=None,
                                 reason='ROUTE_HANDOFF', phase='HANDOFF', virtual_stop=None)
                 healthy = False
             else:
@@ -284,6 +336,18 @@ class MissionRuntime:
                         finished='finish' in decision.get('completed_missions', {}),
                         progress=tracked['progress'], distance_m=tracked['s'], safety=safety,
                         tracking=tracked)
+        if dynamic_obstacle.get('active'):
+            safety.update(stop=True, sensor_valid=True, reason='DYNAMIC_OBSTACLE_ON_RDDF',
+                          clearance_m=dynamic_obstacle['clearance_m'])
+            decision.update(emergency_stop_requested=True, stop_requested=True,
+                            speed_limit=0.0, reason='DYNAMIC_OBSTACLE_ON_RDDF',
+                            phase='EMERGENCY_STOP')
+        elif dynamic_obstacle.get('required') and not dynamic_obstacle.get('valid'):
+            safety.update(stop=True, sensor_valid=False, reason=dynamic_obstacle['reason'],
+                          clearance_m=-1.0)
+            decision.update(stop_requested=True, speed_limit=0.0,
+                            reason=dynamic_obstacle['reason'],
+                            phase='WAIT_DYNAMIC_OBSERVATION')
         if not decision['valid'] or safety['stop']:
             decision['stop_requested'] = True
             decision['speed_limit'] = 0.0
