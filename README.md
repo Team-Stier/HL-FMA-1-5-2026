@@ -7,9 +7,9 @@
 HL Mando Future Mobility Award 2026 자율주행 경진대회 출전을 위한 자율주행 SW
 
 > 현재 작업 브랜치의 Localization은 Mando 코드를 이름·경로만 정렬한 이식본이다.
-> State Manager·Selector·Vehicle Safety Gate가 추가되었으며 기본 실행은 차량 출력 미리보기다.
+> State Manager·Selector·Control이 연결되어 Control이 Arduino 명령을 직접 발행한다.
 > 현장 기준점·차량 보정과 인지·Planner 연동은 남아 있다. Control은 승인 Odometry와
-> Safety Gate 사이에 연결했으며 `/gps/status` 연결은 별도 작업이다.
+> Arduino 사이에 연결했으며 `/gps/status` 연결은 별도 작업이다.
 > 실행 전 [변경 범위와 남은 차이](src/localization/docs/hl_architecture_alignment.md)를 확인한다.
 
 ## 설치 및 최초 설정
@@ -188,19 +188,18 @@ src/
 ├── path_planner/               # Frenet 기반 ROS 비의존 경로 계획 코어
 ├── parking_path_planning/
 ├── selector/
-├── vehicle_safety/             # 최종 명령 제한·기본 미리보기
 └── control/
 ```
 
 메시지 패키지는 공유 타입만 제공하고, 실행 패키지는 필요한 노드를 각 패키지 안에 둔다.
 RDDF는 기존 `localization/rddf`가 소유하며 같은 패키지의 Route Provider가 ROS 메시지로
 공급한다. 별도의 `route_manager` 패키지는 만들지 않았다. `state_manager` launch는
-Provider·미션 노드·Selector·PP Control·Safety Gate와 선택적인 RViz·기준점 편집기를 함께 실행한다.
+Provider·미션 노드·Selector·PP Control과 선택적인 RViz·기준점 편집기를 함께 실행한다.
 
 ## ROS architecture
 
 현재 브랜치에는 RDDF 기반 State Manager, 경로 검증 Selector, 기본 Pure Pursuit Control,
-최종 차량 명령 Safety Gate가 연결되어 있다. 실행 방법, 메시지 계약, 규정 근거와 현장 보정 절차는
+최종 차량 명령을 Control이 직접 발행한다. 실행 방법, 메시지 계약, 규정 근거와 현장 보정 절차는
 [State Manager 안내서](src/state_manager/README.md)를 참고한다.
 
 ```mermaid
@@ -221,11 +220,10 @@ flowchart LR
     LOCAL -->|"/parking/maneuver"| SM
     SELECTOR -->|"/path/final"| CONTROL["Control<br/>Pure Pursuit 기본"]
     LOC -->|"/molit/localization/odometry"| CONTROL
-    SELECTOR -->|"/path/selector_status"| GATE
-    SM -->|"미션 속도·정지 /mission/safety"| GATE["Vehicle Safety Gate"]
-    LOC -->|"valid"| GATE
-    CONTROL -->|"/pure_pursuit/raw_drive"| GATE
-    GATE -->|"/erp42_serial/drive"| VEHICLE["Arduino · 차량"]
+    SM -->|"/mission/state<br/>속도 · 정지 · 방향"| CONTROL
+    ESTOP["/vehicle/emergency_stop"] --> CONTROL
+    CONTROL -->|"/erp42_serial/drive<br/>Gear · brake · EStop"| VEHICLE["Arduino · 차량"]
+    VEHICLE -->|"/erp42_serial/feedback"| CONTROL
     SM --> RVIZ["RViz<br/>전체 RDDF · 현재 구간 · 진행률 · 미션 · 위치"]
 ```
 
@@ -242,8 +240,7 @@ State Manager는 승인된 위치가 어느 RDDF 구간에 있으며 어떤 미�
 | RDDF Route Provider | Localization 패키지가 소유한 RDDF를 공유 메시지로 제공; 활성 기본 경로는 State Manager가 발행 |
 | Local / Parking Planner | 선택한 미션과 분기에 맞는 실제 회피·주차 궤적 생성; 별도 구현 필요 |
 | Selector | 요청과 일치하는 경로만 최종 경로로 전달하고 준비 상태 발행 |
-| Control | 기본 PP(선택 Stanley); Localization Odometry 입력과 Safety Gate raw 출력 연결 완료 |
-| Vehicle Safety Gate | 미션·경로·위치·관측 공간의 유효성과 최신성을 확인하고 최종 속도·정지 제한 |
+| Control | 기본 PP(선택 Stanley); 경로·Odometry·MissionState를 받아 Arduino 최종 명령 발행 |
 
 State Manager는 `/path/final`을 직접 발행하지 않는다. Selector는 현재
 `decision_id`, 구간, 모드, 방향에 맞는 경로만 선택한다. 구간이나 요청이 바뀌면 이전
@@ -274,7 +271,8 @@ Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 또는 `PARKING` 경�
 주차는 `/parking/maneuver`의 단계별 계획을 승인해 전진 접근·후진 주차·전진 출차를
 구분한다. 차량이 단계 경계에서 멈추고 새 요청 ID의 경로를 받기 전에는 방향을 바꾸지
 않는다. RDDF의 초기 방향 메타데이터가 전체 기어 계획을 대신하지 않는다.
-실제 주차 궤적을 생성하는 Parking Planner와 후진 차량 인터페이스는 별도 연결이 필요하다.
+실제 주차 궤적을 생성하는 Parking Planner는 별도 연결이 필요하다. 후진 명령 인터페이스와
+Arduino 0속도 기어 전환 인터록은 추가됐지만 실차 방향 검증은 필요하다.
 
 ### 규정과 전이 처리
 
@@ -334,8 +332,8 @@ Planner와 Control은 외부 연동 지점으로 남아 있다. 이번 구현은
 | `/path/park` | `planning_interfaces/PlannedPath` | Parking Planner의 주차 경로 |
 | `/path/selector_status` | `planning_interfaces/PathStatus` | 동일 요청의 경로 유효성·준비 상태 |
 | `/path/final` | `nav_msgs/Path` | 검증된 최종 추종 경로 |
-| `/pure_pursuit/raw_drive` | `erp42_msgs/DriveCmd` | Control이 생성한 원래 차량 명령 |
-| `/erp42_serial/drive` | `erp42_msgs/DriveCmd` | 출력 활성화 시 Safety Gate를 통과한 차량 명령 |
+| `/erp42_serial/drive` | `erp42_msgs/DriveCmd` | Control이 생성한 속도·조향·brake·Gear·EStop 차량 명령 |
+| `/vehicle/emergency_stop` | `std_msgs/Bool` | 정상 정지/기어 전환과 분리된 비상정지 입력 |
 
 ## Bringup
 실행 환경은 Ubuntu 20.04, ROS Noetic이다. 최초 설치는 위의 `설치 및 최초 설정` 절을 먼저
@@ -354,8 +352,8 @@ source devel/setup.bash
 실행 호스트에서 `/opt/ros/noetic/setup.bash`를 불러오고 `catkin_make`를 실행한 뒤
 workspace의 `devel/setup.bash`를 불러온다. 이어서
 Localization → Object Detection → Traffic Light Recognition → Parking Path Planning →
-State Manager 통합 launch 순서로 노드를 시작한다. 이 통합 launch가 Selector·PP Control·
-Safety Gate를 함께 실행한다. `path_planner`는 아직 ROS
+State Manager 통합 launch 순서로 노드를 시작한다. 이 통합 launch가 Selector·PP Control을
+함께 실행한다. `path_planner`는 아직 ROS
 wrapper가 없는 독립 C++ 코어이므로 `run.sh` 실행 대상이 아니다.
 상시 실행 노드가
 종료되면 전체 프로그램도 종료하고, `Ctrl+C`를 누르면 스크립트가 실행한 모든 노드를
@@ -488,7 +486,7 @@ roslaunch vehicle_interface_bringup arduino.launch \
 rostopic echo /erp42_serial/feedback
 
 rostopic pub -r 10 /erp42_serial/drive erp42_msgs/DriveCmd \
-  "{KPH: 0, Deg: 0, brake: 1}"
+  "{KPH: 0, Deg: 0, brake: 1, Gear: 1, EStop: 0}"
 ```
 
 기본값은 `src/sensor_drivers/arduino/ros/config/serial.yaml`에서 바꾸며

@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Synthetic 13-section message replay; no ROS, physics, or vehicle output.
 
-This runs the real MissionEngine, SelectorCore and SafetyGate. Coordinates,
+This runs the real MissionEngine and SelectorCore. Coordinates,
 landmarks, free-space approval and planner/perception replies are test fixtures.
-Reverse requests remain blocked by the real unsigned vehicle-command contract;
-the fixture continues supplying simulated poses so later missions can be checked.
-For route projection and geometric safety integration see test/test_pipeline.py.
+No ROS node or physical vehicle command is started.
 """
 import argparse
 import json
@@ -15,10 +13,9 @@ import sys
 
 PACKAGES = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(PACKAGES / name / 'src') for name in
-                ('state_manager', 'selector', 'vehicle_safety')]
-from selector.core import Candidate, Pose, SelectorCore, State, path_fingerprint
+                ('state_manager', 'selector')]
+from selector.core import Candidate, Pose, SelectorCore, State
 from stier_state_manager.mission import MissionEngine, PARKING_ROUTES
-from vehicle_safety.core import Mission, PathReady, RawCommand, SafetyGate, SafetyInput
 
 
 class SyntheticReplay:
@@ -27,7 +24,7 @@ class SyntheticReplay:
             raise ValueError('Branch and lane must be left or right')
         self.parking_branch, self.lane = parking_branch, lane
         self.engine = MissionEngine({'rules': {'front_bumper_offset_m': .5}})
-        self.selector, self.gate = SelectorCore(), SafetyGate()
+        self.selector = SelectorCore()
         self.now, self.epoch, self.route = 1.0, 1, '1_right'
         self.request = ('1_right', 'RDDF', 1)
         self.events, self.last = [], None
@@ -78,22 +75,17 @@ class SyntheticReplay:
             selection = self.selector.evaluate(State(self.now, self.now, self.epoch,
                                                      *self.request), candidates, self.now)
         valid = decision['phase'] not in ('FAULT', 'UNAVAILABLE')
-        fingerprint = path_fingerprint(selection.candidate) if selection.ready else ''
-        self.gate.update_mission(Mission(self.now, self.epoch, self.route, decision['path_mode'],
-            decision['direction'], decision['speed_limit'], decision['stop_requested'], valid,
-            'finish' in decision['completed_missions']), self.now)
-        self.gate.update_safety(SafetyInput(self.now, blocked, True,
-            'SYNTHETIC_OBSTACLE' if blocked else 'SYNTHETIC_FREE_SPACE', 0.0, fingerprint), self.now)
-        self.gate.update_path(PathReady(self.now, self.epoch, self.route, decision['path_mode'],
-            decision['direction'], selection.ready, fingerprint), self.now)
-        self.gate.update_localization(True, self.now)
-        self.gate.update_raw(RawCommand(10, 0, 0), self.now)
-        command = self.gate.evaluate(self.now)
+        control_allowed = (selection.ready and valid and
+                           not decision['stop_requested'] and
+                           decision['speed_limit'] > 0.0)
+        control_reason = ('ACTIVE' if control_allowed else
+                          decision['reason'] if decision['stop_requested'] else
+                          'PATH_NOT_READY' if not selection.ready else 'MISSION_INVALID')
         event = {'time_s': self.now, 'route': self.route, 'section': section,
                  's_m': s, 'phase': decision['phase'], 'decision_id': self.epoch,
                  'direction': decision['direction'], 'stop_requested': decision['stop_requested'],
                  'reason': decision['reason'], 'selector_ready': selection.ready,
-                 'gate_allowed': command.allowed, 'gate_reason': command.reason,
+                 'control_allowed': control_allowed, 'control_reason': control_reason,
                  'selected_branch': decision['selected_branch'], 'next_route': decision['next_route']}
         self.events.append(event)
         self.last = decision
@@ -137,8 +129,8 @@ class SyntheticReplay:
             reverse = self.leg('REVERSE_ENTRY', 0, 0, 18, True)
             self.step(speed=0.0, leg=reverse)
         reversing = self.step(s=12.0, speed=-.5, leg=reverse)
-        if reversing['gate_reason'] != 'REVERSE_INTERFACE_UNAVAILABLE':
-            raise AssertionError('Unsigned command gate must reject synthetic reverse request')
+        if not reversing['control_allowed']:
+            raise AssertionError('Reverse leg should be commandable after the gear interface update')
         for _ in range(4):
             self.step(s=18.0, speed=0.0, leg=reverse)
         self.advance(exit_route)
@@ -193,7 +185,7 @@ class SyntheticReplay:
             raise AssertionError('Synthetic mission replay did not finish')
         return {'simulation_only': True, 'fixture': 'SYNTHETIC_LOGICAL_MESSAGES_NOT_DRIVING_SIMULATION',
                 'parking_branch': self.parking_branch, 'lane': self.lane,
-                'vehicle_output': False, 'reverse_output_supported': False,
+                'vehicle_output': False, 'reverse_output_supported': True,
                 'completed_missions': self.last['completed_missions'],
                 'sections': sorted({event['section'] for event in self.events}), 'events': self.events}
 
@@ -211,11 +203,11 @@ def main():
     result = replay(args.parking_branch, args.lane)
     if args.output:
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print('SYNTHETIC message replay only; no ROS or vehicle output. Reverse gate remains blocked.')
+    print('SYNTHETIC message replay only; no ROS or vehicle output.')
     print('Sections: ' + ', '.join(map(str, result['sections'])))
     for event in result['events']:
         print('{time_s:6.2f} {route:23} {phase:23} request={decision_id:<3} '
-              'dir={direction:2} gate={gate_reason}'.format(**event))
+              'dir={direction:2} control={control_reason}'.format(**event))
     print('Completed missions: ' + ', '.join(sorted(result['completed_missions'])))
 
 

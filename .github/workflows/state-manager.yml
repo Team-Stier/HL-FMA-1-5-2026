@@ -6,7 +6,7 @@ on:
     paths:
       - 'src/state_manager/**'
       - 'src/selector/**'
-      - 'src/vehicle_safety/**'
+      - 'src/control/**'
       - 'src/interfaces/**'
       - 'src/localization/rddf/**'
       - 'src/localization/scripts/rddf_route_provider.py'
@@ -15,7 +15,7 @@ on:
     paths:
       - 'src/state_manager/**'
       - 'src/selector/**'
-      - 'src/vehicle_safety/**'
+      - 'src/control/**'
       - 'src/interfaces/**'
       - 'src/localization/rddf/**'
       - 'src/localization/scripts/rddf_route_provider.py'
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ros-noetic-tf2-ros ros-noetic-visualization-msgs ros-noetic-rostest
+          apt-get install -y --no-install-recommends ros-noetic-tf2-ros ros-noetic-tf2-geometry-msgs ros-noetic-visualization-msgs ros-noetic-rostest
       - name: Build messages and mission nodes, then run tests
         shell: bash
         run: bash src/state_manager/scripts/verify_noetic.sh

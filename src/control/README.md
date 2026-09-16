@@ -29,22 +29,30 @@ wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_r
 입력:
 
 - `/path/final` (`nav_msgs/Path`, `map`)
+- `/mission/state` (`planning_interfaces/MissionState`, 속도·정지·전후진)
 - `/molit/localization/odometry` (`nav_msgs/Odometry`, `map` → `base_link`)
 - `/erp42_serial/feedback` (`erp42_msgs/SerialFeedBack`, speed는 m/s)
+- `/vehicle/emergency_stop` (`std_msgs/Bool`, 별도 비상정지 입력)
 
 출력:
 
-- `/pure_pursuit/raw_drive` (`erp42_msgs/DriveCmd`, Safety Gate 입력)
+- `/erp42_serial/drive` (`erp42_msgs/DriveCmd`, Arduino 최종 입력)
 - `/control/state`
 - `/control/lookahead_point`, `/control/stanley_projection_point`
 - `/control/cross_track_error`, `/control/heading_error`
 - `/control/steering_angle_rad`
 
-path·odometry·feedback timeout, frame 불일치, 잘못된 수치, E-stop, RC 모드에서는
-`KPH=0`, `Deg=0`, `brake=1`을 raw 출력으로 발행한다. 신호등 정지와 미션 속도 제한은
-State Manager와 Safety Gate가 단일하게 적용한다. `control_node`는 TF를 조회하지 않으므로
+path·mission·odometry·feedback timeout, frame 불일치, 잘못된 수치, RC 모드에서는
+`KPH=0`, `Deg=0`, `brake=1`, `Gear=중립`, `EStop=0`을 발행한다. 이는 정상 정지다.
+`/vehicle/emergency_stop=true` 또는 Arduino feedback의 EStop 활성 상태에서만 명령의
+`EStop=1`을 사용한다. 신호등 정지, 미션 속도 상한과 전·후진 방향은 State Manager의
+`MissionState`를 직접 적용한다. `control_node`는 TF를 조회하지 않으므로
 path와 Odometry가 같은 `expected_frame_id`이고 child frame이 `vehicle_frame_id`여야 한다.
-Control은 `/erp42_serial/drive`를 직접 발행하지 않는다.
+Vehicle Safety Gate는 없으며 Control이 `/erp42_serial/drive`를 직접 발행한다.
+
+후진은 Pure Pursuit에서만 지원한다. Control은 후방 경로를 추종 좌표로 변환하고
+`Gear=2`를 보낸다. Arduino는 전진↔후진 전환 전에 엔코더 0속도를 3회 연속 확인한다.
+Stanley를 선택한 상태의 후진 요청은 정지 명령으로 처리한다.
 
 ## 코드 위치
 
@@ -80,7 +88,7 @@ ROS 연결과 안전 조건은 `node/`, 횡제어 수식은 `lateral/`, 속도 �
 | `maximum_steering_rate_deg_per_sec` | 낮추면 부드럽고 느려지며, 높이면 곡선 반응과 기구 충격이 함께 커진다. |
 | `target_speed_kph`, `maximum_speed_kph` | target이 maximum을 넘으면 노드가 시작을 거부한다. 상한은 기본 10을 유지한다. |
 | `control_rate_hz`, `maximum_control_dt_sec` | 상위 제어 주기와 허용할 최대 timer 지연이다. CPU 지연과 조향 변화율을 함께 확인한다. |
-| `path_timeout_sec`, `odometry_timeout_sec`, `feedback_timeout_sec` | 각 topic의 실제 주기와 지연을 rosbag으로 확인한 뒤 변경한다. |
+| `path_timeout_sec`, `mission_timeout_sec`, `odometry_timeout_sec`, `feedback_timeout_sec` | 각 topic의 실제 주기와 지연을 rosbag으로 확인한 뒤 변경한다. |
 | `expected_frame_id`, `vehicle_frame_id` | 전자는 입력 검증, 후자는 디버그 점의 frame 표시에 사용한다. |
 | `require_ros_mode` | feedback의 `MorA==1`을 요구한다. Arduino가 실제 선택 모드를 feedback에 싣기 전까지 fail-closed다. |
 | `calibration_required` | `true`면 주행하지 않고 정지 명령만 발행한다. 현재 실측값 승인으로 기본값은 `false`다. |
@@ -127,7 +135,6 @@ roslaunch control control.launch lateral_controller:=stanley
 
 전체 미션 실행에서는 `roslaunch state_manager mission.launch`가 기본적으로 Pure Pursuit
 Control을 포함한다. 단독 시험이 필요하면 `start_control:=false`로 통합 Control을 끈다.
-Safety Gate의 차량 출력은 별도의 `enable_vehicle_output` opt-in 전까지 preview에만 남는다.
 
 별도 시험 YAML은 다음처럼 지정한다.
 
@@ -160,8 +167,8 @@ catkin_test_results --all build/test_results/control
 
 ```bash
 rosbag record \
-  /path/final /molit/localization/odometry /erp42_serial/feedback \
-  /pure_pursuit/raw_drive /vehicle_safety/preview_drive /erp42_serial/drive \
+  /path/final /mission/state /vehicle/emergency_stop \
+  /molit/localization/odometry /erp42_serial/feedback /erp42_serial/drive \
   /control/state /control/cross_track_error /control/heading_error \
   /control/steering_angle_rad
 ```

@@ -1,5 +1,5 @@
 <launch>
-  <!-- Use existing live/replay localization and sensors. Never enables vehicle output. -->
+  <!-- Use existing live/replay localization and sensors. -->
   <arg name="start_mission" default="true"/>
   <arg name="start_detection" default="true"/>
   <arg name="start_rviz" default="true"/>
@@ -8,7 +8,6 @@
   <include if="$(arg start_mission)" file="$(find state_manager)/launch/mission.launch">
     <arg name="config_file" value="$(arg config_file)"/>
     <arg name="calibration_file" value="$(arg calibration_file)"/>
-    <arg name="enable_vehicle_output" value="false"/>
     <arg name="start_rviz" value="false"/>
   </include>
   <include if="$(arg start_detection)" file="$(find object_detection)/launch/rddf_roi_detection.launch">

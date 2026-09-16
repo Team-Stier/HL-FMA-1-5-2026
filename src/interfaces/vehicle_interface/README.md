@@ -21,11 +21,20 @@ ROS controller
 uint16 KPH
 int16 Deg
 uint8 brake
+uint8 Gear
+uint8 EStop
 ```
 
-- `KPH`: 목표 속도 km/h. 현재 메시지는 unsigned이므로 ROS 경로는 전진 전용이다.
+- `KPH`: 목표 속도의 절댓값(km/h)이다.
 - `Deg`: 목표 조향각. Arduino 기본 제한은 `-25`~`25`도다.
-- `brake`: `0`이면 주행 요청, 0이 아니면 논리 정지 요청이다.
+- `brake`: 정상 정지 요청이다. `0`이면 주행, 0이 아니면 정지한다.
+- `Gear`: `0=전진`, `1=중립`, `2=후진`이다.
+- `EStop`: 기어와 무관한 별도 비상정지 요청이다. `0=해제`, `1=정지`다.
+
+전진↔후진 요청이 바뀌면 Arduino는 즉시 반대 방향을 출력하지 않는다. 기존 PWM을
+0으로 내린 뒤 엔코더가 3회 연속 `deltaCount=0`, 실측 `0.0 km/h`, 앞·뒤 PWM 0을
+보고한 경우에만 새 방향을 적용한다. 정상 기어 전환은 `brake + Gear=중립`을 사용하며
+`EStop`은 별도 비상정지에만 사용한다.
 
 Arduino는 ROS 명령을 한 번만 받고 계속 유지하지 않는다. 현재 명령 타임아웃은 1초이므로
 제어기는 `/erp42_serial/drive`를 10 Hz 정도로 계속 발행해야 한다.
@@ -151,7 +160,7 @@ sudo usermod -aG dialout "$USER"
 
 ```bash
 rostopic pub -r 10 /erp42_serial/drive erp42_msgs/DriveCmd \
-  "{KPH: 0, Deg: 0, brake: 1}"
+  "{KPH: 0, Deg: 0, brake: 1, Gear: 1, EStop: 0}"
 ```
 
 ROS 모드는 ROS 토픽으로 선택하지 않는다. RC 수신기의 AUX 신호가 유효하면서 현재 설정의
@@ -178,12 +187,10 @@ Arduino는 명령을 무효화하고 출력을 차단한다.
 ## 제어 노드 연결
 
 현재 Arduino의 최종 명령 토픽은 `/erp42_serial/drive`다. 미션 주행에서는 제어기가
-`/pure_pursuit/raw_drive`로 발행하고 `vehicle_safety`가 위치·미션·LiDAR·경로 준비
-조건을 확인한 뒤 최종 토픽으로 전달한다. Safety Gate는 기본 preview 전용이며
-`enable_vehicle_output`을 켜야 실제 출력한다. 제어기가 최종 토픽으로 직접 발행하면
-이 검사를 우회하므로 미션 통합에서는 사용하지 않는다. 기존 직접 발행 예시는 정지
-상태에서의 별도 인터페이스 점검용이다. 후진 기어 필드는 아직 없으므로 주차 후진은
-현재 명령으로 실행할 수 없다. 자세한 연결은 [State Manager 안내](../../state_manager/README.md)를 참고한다.
+`/mission/state`의 정지·속도·방향과 `/path/final`을 반영해 이 토픽으로 직접 발행한다.
+별도 Vehicle Safety Gate는 제거했다. `/vehicle/emergency_stop`은 Control의 독립 비상정지
+입력이고, 물리 RC 정지와 ROS timeout은 Arduino 내부에서도 계속 적용된다. 자세한 연결은
+[State Manager 안내](../../state_manager/README.md)를 참고한다.
 
 ## rosserial 문제 해결
 

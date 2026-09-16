@@ -40,8 +40,6 @@ class LandmarkEditor:
     def __init__(self):
         if rospy.get_param('~calibration_mode', False) is not True:
             raise ValueError('landmark_editor requires explicit ~calibration_mode=true')
-        if rospy.get_param('~enable_vehicle_output', False) is not False:
-            raise ValueError('Vehicle output must be disabled during landmark calibration')
         self.lock = threading.RLock()
         self.filename = rospy.get_param('~calibration_file')
         self.config_file = rospy.get_param('~config_file', '')
@@ -56,7 +54,6 @@ class LandmarkEditor:
             rospy.Subscriber('/route/map', RouteMap, self.on_map, queue_size=1),
             rospy.Subscriber('/clicked_point', PointStamped, self.on_click, queue_size=1),
             rospy.Subscriber('/mission/state', MissionState, self.on_mission, queue_size=1),
-            rospy.Subscriber('/vehicle_safety/status', String, self.on_vehicle_status, queue_size=1),
         ]
         self.target_service = rospy.Service('~set_target', SetLandmarkTarget, self.set_target)
         self.validate_service = rospy.Service('~validate', Trigger, self.validate)
@@ -75,9 +72,8 @@ class LandmarkEditor:
     def writable(self):
         if self.blocked:
             raise ValueError(self.blocked)
-        if (rospy.get_param('~calibration_mode', False) is not True
-                or rospy.get_param('~enable_vehicle_output', False) is not False):
-            self.blocked = 'Calibration mode disabled or vehicle output enabled; restart required'
+        if rospy.get_param('~calibration_mode', False) is not True:
+            self.blocked = 'Calibration mode disabled; restart required'
             raise ValueError(self.blocked)
         if not self.routes:
             raise ValueError('Valid /route/map catalogue is not available')
@@ -86,16 +82,6 @@ class LandmarkEditor:
         with self.lock:
             if msg.valid:
                 self.block('A valid mission has been observed; restart in calibration mode before editing')
-
-    def on_vehicle_status(self, msg):
-        with self.lock:
-            try:
-                status = json.loads(msg.data)
-            except (ValueError, TypeError):
-                self.block('Vehicle safety status is unreadable; restart in calibration mode')
-                return
-            if not isinstance(status, dict) or status.get('vehicle_output_enabled') is not False:
-                self.block('Vehicle output may be enabled; restart with physical output disabled')
 
     def on_map(self, msg):
         with self.lock:

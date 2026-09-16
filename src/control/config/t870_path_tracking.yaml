@@ -1,8 +1,10 @@
 control_node:
   path_topic: /path/final
+  mission_topic: /mission/state
   odometry_topic: /molit/localization/odometry
   feedback_topic: /erp42_serial/feedback
-  command_topic: /pure_pursuit/raw_drive
+  emergency_stop_topic: /vehicle/emergency_stop
+  command_topic: /erp42_serial/drive
   state_topic: /control/state
   lookahead_point_topic: /control/lookahead_point
   stanley_projection_point_topic: /control/stanley_projection_point
@@ -16,6 +18,7 @@ control_node:
 
   control_rate_hz: 20.0
   path_timeout_sec: 0.50
+  mission_timeout_sec: 0.50
   odometry_timeout_sec: 0.25
   feedback_timeout_sec: 0.30
   maximum_control_dt_sec: 0.20

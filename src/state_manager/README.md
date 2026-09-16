@@ -6,11 +6,11 @@
 PDF 자체는 저장소에 포함하지 않는다. 시험장 현장 설정은 `config/missions.json`과
 별도의 landmark 파일로 관리한다.
 
-**이 코드는 미션 결정·경로 검증·LiDAR 정지 감독의 구현이다.** 신호/어린이 인식기,
-S자 회피 플래너, 주차 기어 전환 플래너, 경로 추종 제어기는 이 저장소에서 아직
-통합되지 않았다. 실제 차폭·제동 성능·정지선도 미측정 상태다. 기본 실행은 차량에
-명령을 보내지 않는 preview 모드이며, 실제 경기 완주 또는 충돌 방지가 검증됐다는
-뜻은 아니다.
+**이 코드는 미션 결정·경로 검증·LiDAR 상태 판단의 구현이다.** 경로 추종 Control은
+연결됐지만 신호/어린이 인식기, S자 회피 플래너와 주차 경로 플래너는 아직 통합되지
+않았다. 실제 차폭·제동 성능·정지선도 미측정 상태다. `mission.launch`는 Control이
+Arduino 명령 토픽을 직접 발행하므로 rosserial을 연결하기 전에 실행 범위를 확인해야
+한다.
 
 ## 연결 구조
 
@@ -27,13 +27,12 @@ flowchart LR
   S -->|MissionState<br/>RDDF / LOCAL / PARKING 요청| X[Selector]
   S -->|PlannedPath RDDF| X
   P -->|PlannedPath + decision_id| X
-  X -->|PathStatus| G[Vehicle Safety Gate]
   X -->|nav_msgs/Path| PP[Pure Pursuit Control]
   L -->|Odometry| PP
-  PP -->|/pure_pursuit/raw_drive| G
-  S -->|MissionState + SafetyStatus| G
-  L --> G
-  G -->|명시적으로 출력 활성화 시| A[Arduino]
+  S -->|MissionState<br/>속도 · 정지 · 방향| PP
+  E[/vehicle/emergency_stop/] --> PP
+  PP -->|/erp42_serial/drive<br/>KPH · 조향 · brake · Gear · EStop| A[Arduino]
+  A -->|/erp42_serial/feedback| PP
   S -->|MarkerArray| Z[RViz]
 ```
 
@@ -42,16 +41,15 @@ State Manager는 이 토픽을 사용하며 다른 패키지의 RDDF 파일을 �
 Selector와 공유하는 순수 Python 검증 코어로 플래너 응답을 동일하게 확인한다.
 `decision_id`는 경로·모드·요청 방향이 바뀔 때 변경된다. 플래너는 이 값을 그대로
 응답해야 하며 이전 구간의 유효한 경로라도 새 요청에 재사용할 수 없다.
-같은 미션 안에서 경로를 다시 계획하는 경우도 경로 형상의 fingerprint를
-Selector와 LiDAR 승인에 함께 기록한다. 두 fingerprint가 일치할 때만 차량 출력을
-허용하여 이전 경로의 안전 판단을 새 경로에 적용하지 않는다.
+같은 미션 안에서 경로를 다시 계획하면 새 `decision_id`와 경로로 갱신한다.
 
 ## 현재 작업 범위와 RViz 점검
 
 1구간 경사로는 확정된 정지구역 앞·뒤 흰 선의 RDDF 중앙에서 정차하도록
 설정했다. 2·4·7번 신호 정지선도 확정 좌표를 반영했다.
 교차로 출구·주차 확인선·종료선은 사용자가 추후 RDDF에 마킹한다.
-차량 제어, 실측 치수·제동 성능, 후진 인터페이스는 별도 작업을 병합할 예정이다.
+실측 치수·제동 성능과 주차 경로 생성은 별도 작업으로 남아 있다. 후진 명령 계약은
+Control과 Arduino에 연결됐지만 실차 방향 시험은 아직 필요하다.
 당장 마킹이나 차량 파라미터를 채워 넣어 화면을 보기 위한 주행 허가를 만들지 않는다.
 
 경로 구성은 **신호 구간 2·4·7에서 RDDF 추종, 주차 구간에서 좌우 RDDF 선택,
@@ -68,7 +66,7 @@ source devel/setup.bash
 roslaunch state_manager inspection.launch
 ```
 
-이 launch는 매니저, Selector, 출력이 꺼진 Safety Gate, ROI detector, 읽기 전용 inspection
+이 launch는 매니저, Selector, Control, ROI detector, 읽기 전용 inspection
 노드와 RViz를 실행한다. 별도 object_detection 뷰어는 띄우지 않는다. 이미 매니저/인식기가
 동작 중이면 중복 실행을 피하도록 아래 옵션을 사용한다. 기존 실행 프로세스의 출력 설정까지
 이 launch가 바꾸지는 않으므로 점검은 차량 제어를 시작하지 않은 환경에서 한다.
@@ -139,9 +137,9 @@ RDDF의 주차 `reverse` 표시는 **시작 차체 방향** 메타데이터다. 
 RDDF 접선과 차체 방향이 다른 주차 접근에서는 RDDF의 시작 방향 플래그 대신 실제
 플래너 경로의 차체 자세를 검사한다. 이 때문에 10-right의 전진 접근을 처음부터
 후진으로 해석하던 문제가 해소된다. 실제 곡률·기어 피드백·주행 가능한 궤적 생성은
-Parking Planner와 차량 제어의 책임이다. 현재 `DriveCmd`는 부호 없는 정수 KPH와
-조향·브레이크만 있으므로 Safety Gate는 후진 요청을
-`REVERSE_INTERFACE_UNAVAILABLE`로 항상 막는다. 설정만 켜서 해결되지 않는다.
+Parking Planner와 차량 제어의 책임이다. `DriveCmd`는 속도 절댓값과 `Gear`를 분리하며
+Control은 `MissionState.direction=-1`에서 후진 명령을 만든다. Arduino는 실측 0속도를
+연속 확인한 뒤에만 전진/후진 방향을 바꾼다.
 
 ## 신호 정지선 가상 벽과 RDDF 추종
 
@@ -294,13 +292,13 @@ rosservice call /landmark_editor/validate
 자동으로 거부하며, 좌표가 바뀐 landmark는 다시 지정해야 한다.
 
 설정 파일과 landmark는 시작 시 읽는다. 주행 중 편집/자동 적용하지 않는다.
-설정 후 노드를 재시작하고 preview 결과를 확인한다.
+설정 후 노드를 재시작하고 `/mission/state`, `/path/final`, `/control/state`를 확인한다.
 
 ```bash
 roslaunch state_manager mission.launch config_file:=/측정완료/vehicle-missions.json start_rviz:=true
 rostopic echo /mission/state
 rostopic echo /mission/safety
-rostopic echo /vehicle_safety/status
+rostopic echo /erp42_serial/drive
 ```
 
 RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단계·진행률과 정지 사유가
@@ -328,7 +326,8 @@ RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단
 | `/mission/safety` | `SafetyStatus` | LiDAR/위치 상태와 최종 경로의 정지 판단 |
 | `/mission/diagnostics` | `std_msgs/String` JSON | 경기 시간·제외 신호 대기·완료 미션·규정 진단 |
 | `/mission/markers` | `visualization_msgs/MarkerArray` | RViz 표시 |
-| `/pure_pursuit/raw_drive` | `erp42_msgs/DriveCmd` | 제어기 출력. 최종 차량 토픽 직접 발행 금지 |
+| `/erp42_serial/drive` | `erp42_msgs/DriveCmd` | Control의 최종 Arduino 명령; 속도·조향·brake·Gear·EStop |
+| `/vehicle/emergency_stop` | `std_msgs/Bool` | 정상 정지·기어 전환과 분리된 Control 비상정지 입력 |
 
 주차 플래너는 새 미션의 `decision_id`, `route_name`을 받아 `ParkingManeuver`를
 계속 발행한다. 필드는 `leg_index`(0부터), `phase`, `direction`, `start_s`, `target_s`,
@@ -368,7 +367,6 @@ ROS를 정지했다 다시 시작한 경우 새 경기 실행을 위해 State Ma
 ```bash
 python3 -m unittest discover -s src/state_manager/test -v
 python3 -m unittest discover -s src/selector/test -v
-python3 -m unittest discover -s src/vehicle_safety/test -v
 ```
 
 전체 13개 미션을 차량 연결 없이 논리 입력으로 재생할 수 있다.
@@ -377,9 +375,9 @@ python3 -m unittest discover -s src/vehicle_safety/test -v
 python3 src/state_manager/examples/replay_missions.py --parking-branch left --lane right --output /tmp/stier-replay.json
 ```
 
-이 재생기는 실제 MissionEngine·Selector·Safety Gate를 사용하지만 위치·신호·주차
+이 재생기는 실제 MissionEngine·Selector를 사용하지만 위치·신호·주차
 계획은 **합성 시험 입력**이다. 물리적인 차량 시뮬레이터나 현장 측정 결과가 아니다.
-후진 출력은 재생 중에도 거부됨을 함께 기록한다. JSON에는 구간·단계·방향·요청 ID와
+JSON에는 구간·단계·방향·요청 ID와
 정지 이유를 남긴다. `test_pipeline.py`는 위치 추적을 포함한 Runtime 연결과 센서
 단절, 경로 갱신 경쟁 조건을 별도로 재현한다.
 
@@ -389,9 +387,8 @@ ROS Noetic 호스트 또는 브랜치의 GitHub Actions `State manager` 작업�
 bash src/state_manager/scripts/verify_noetic.sh
 ```
 
-임시 Catkin 작업공간에서 공유 메시지와 State Manager·Selector·Safety Gate를 빌드한 뒤,
-ROS 테스트로 실제 토픽 통신·RViz marker 발행·기본 보정 차단·preview 명령·센서 만료
-정지를 확인한다. 차량 명령 publisher가 생성되지 않는지도 검사한다. 이 빌드에는
+임시 Catkin 작업공간에서 공유 메시지와 State Manager·Selector·Control을 빌드한 뒤,
+ROS 테스트로 실제 토픽 통신·RViz marker 발행과 기본 보정 상태를 확인한다. 이 빌드에는
 센서 드라이버와 Localization C++ 스택을 포함하지 않으며 현장 통합 시험과 구분한다.
 
 실차 적용 전 Ubuntu/Noetic에서 catkin 빌드, rosbag 재생, 센서 단절·위치 도약·신호

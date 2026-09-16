@@ -11,6 +11,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
+#include <std_msgs/Bool.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/String.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -18,6 +19,7 @@
 
 #include <erp42_msgs/DriveCmd.h>
 #include <erp42_msgs/SerialFeedBack.h>
+#include <planning_interfaces/MissionState.h>
 
 #include "control/lateral/pure_pursuit.hpp"
 #include "control/lateral/stanley_controller.hpp"
@@ -52,8 +54,10 @@ T requiredParam(const ros::NodeHandle& node, const std::string& name) {
 
 struct NodeConfig {
   std::string path_topic;
+  std::string mission_topic;
   std::string odometry_topic;
   std::string feedback_topic;
+  std::string emergency_stop_topic;
   std::string command_topic;
   std::string state_topic;
   std::string lookahead_point_topic;
@@ -68,6 +72,7 @@ struct NodeConfig {
   bool require_ros_mode{true};
   double control_rate_hz{0.0};
   double path_timeout_sec{0.0};
+  double mission_timeout_sec{0.0};
   double odometry_timeout_sec{0.0};
   double feedback_timeout_sec{0.0};
   double maximum_control_dt_sec{0.0};
@@ -84,9 +89,12 @@ struct NodeConfig {
 NodeConfig loadConfig(const ros::NodeHandle& node) {
   NodeConfig config;
   config.path_topic = requiredParam<std::string>(node, "path_topic");
+  config.mission_topic = requiredParam<std::string>(node, "mission_topic");
   config.odometry_topic = requiredParam<std::string>(node, "odometry_topic");
   config.feedback_topic =
       requiredParam<std::string>(node, "feedback_topic");
+  config.emergency_stop_topic =
+      requiredParam<std::string>(node, "emergency_stop_topic");
   config.command_topic = requiredParam<std::string>(node, "command_topic");
   config.state_topic = requiredParam<std::string>(node, "state_topic");
   config.lookahead_point_topic =
@@ -110,6 +118,8 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
   config.require_ros_mode = requiredParam<bool>(node, "require_ros_mode");
   config.control_rate_hz = requiredParam<double>(node, "control_rate_hz");
   config.path_timeout_sec = requiredParam<double>(node, "path_timeout_sec");
+  config.mission_timeout_sec =
+      requiredParam<double>(node, "mission_timeout_sec");
   config.odometry_timeout_sec =
       requiredParam<double>(node, "odometry_timeout_sec");
   config.feedback_timeout_sec =
@@ -190,6 +200,7 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
   }
   if (!positiveFinite(config.control_rate_hz) ||
       !positiveFinite(config.path_timeout_sec) ||
+      !positiveFinite(config.mission_timeout_sec) ||
       !positiveFinite(config.odometry_timeout_sec) ||
       !positiveFinite(config.feedback_timeout_sec) ||
       !positiveFinite(config.maximum_control_dt_sec) ||
@@ -264,10 +275,15 @@ class ControlNode {
 
     path_subscriber_ = node_.subscribe(
         config_.path_topic, 1, &ControlNode::onPath, this);
+    mission_subscriber_ = node_.subscribe(
+        config_.mission_topic, 1, &ControlNode::onMission, this);
     odometry_subscriber_ = node_.subscribe(
         config_.odometry_topic, 1, &ControlNode::onOdometry, this);
     feedback_subscriber_ = node_.subscribe(
         config_.feedback_topic, 1, &ControlNode::onFeedback, this);
+    emergency_stop_subscriber_ = node_.subscribe(
+        config_.emergency_stop_topic, 1,
+        &ControlNode::onEmergencyStop, this);
     timer_ = node_.createWallTimer(
         ros::WallDuration(1.0 / config_.control_rate_hz),
         &ControlNode::onTimer, this);
@@ -285,6 +301,12 @@ class ControlNode {
     has_path_ = true;
   }
 
+  void onMission(const planning_interfaces::MissionState::ConstPtr& message) {
+    latest_mission_ = message;
+    mission_receipt_time_ = ros::SteadyTime::now();
+    has_mission_ = true;
+  }
+
   void onOdometry(const nav_msgs::Odometry::ConstPtr& message) {
     latest_odometry_ = message;
     odometry_receipt_time_ = ros::SteadyTime::now();
@@ -295,6 +317,10 @@ class ControlNode {
     latest_feedback_ = message;
     feedback_receipt_time_ = ros::SteadyTime::now();
     has_feedback_ = true;
+  }
+
+  void onEmergencyStop(const std_msgs::Bool::ConstPtr& message) {
+    emergency_stop_requested_ = message->data;
   }
 
   bool fresh(const ros::SteadyTime& now, const ros::SteadyTime& receipt,
@@ -359,11 +385,13 @@ class ControlNode {
     state_publisher_.publish(message);
   }
 
-  void publishSafe(const std::string& reason) {
+  void publishSafe(const std::string& reason, bool emergency_stop = false) {
     erp42_msgs::DriveCmd command;
     command.KPH = 0U;
     command.Deg = 0;
     command.brake = 1U;
+    command.Gear = erp42_msgs::DriveCmd::GEAR_NEUTRAL;
+    command.EStop = emergency_stop ? 1U : 0U;
     command_publisher_.publish(command);
     previous_steering_angle_rad_ = 0.0;
     publishState(reason);
@@ -390,6 +418,10 @@ class ControlNode {
     }
     last_timer_time_ = now;
     has_timer_time_ = true;
+    if (emergency_stop_requested_) {
+      publishSafe("EMERGENCY_STOP_REQUESTED", true);
+      return;
+    }
     if (!positiveFinite(dt_sec) || dt_sec > config_.maximum_control_dt_sec) {
       publishSafe("INVALID_CONTROL_DT");
       return;
@@ -403,6 +435,29 @@ class ControlNode {
       publishSafe("STALE_PATH");
       return;
     }
+    if (!has_mission_ || !fresh(now, mission_receipt_time_,
+                                config_.mission_timeout_sec)) {
+      publishSafe("STALE_MISSION");
+      return;
+    }
+    if (!latest_mission_->valid || latest_mission_->finished ||
+        latest_mission_->stop_requested) {
+      const std::string reason =
+          latest_mission_->finished
+              ? "MISSION_FINISHED"
+              : (latest_mission_->stop_requested ? "MISSION_STOP_REQUESTED"
+                                                  : "MISSION_INVALID");
+      publishSafe(reason);
+      return;
+    }
+    if (latest_mission_->direction != 1 && latest_mission_->direction != -1) {
+      publishSafe("MISSION_DIRECTION_INVALID");
+      return;
+    }
+    if (!positiveFinite(latest_mission_->speed_limit_mps)) {
+      publishSafe("MISSION_SPEED_LIMIT_INVALID");
+      return;
+    }
     if (!has_odometry_ || !fresh(now, odometry_receipt_time_,
                                  config_.odometry_timeout_sec)) {
       publishSafe("STALE_ODOMETRY");
@@ -414,6 +469,10 @@ class ControlNode {
       return;
     }
     if (latest_feedback_->EStop != 0U) {
+      // Do not echo feedback EStop back into the command. Otherwise a cleared
+      // external request can latch itself through the Arduino feedback loop.
+      // Keep the vehicle stopped while allowing the command-side EStop to
+      // clear; a still-active RC emergency stop remains visible in feedback.
       publishSafe("ESTOP_ACTIVE");
       return;
     }
@@ -431,6 +490,18 @@ class ControlNode {
     if (!buildRearAxlePath(&rear_axle_path, &invalid_reason)) {
       publishSafe(invalid_reason);
       return;
+    }
+    if (latest_mission_->direction < 0) {
+      if (config_.controller_mode != "pure_pursuit") {
+        publishSafe("REVERSE_REQUIRES_PURE_PURSUIT");
+        return;
+      }
+      // Pure Pursuit selects targets in front of its tracking direction.
+      // Reflect longitudinal coordinates so a path behind the body can be
+      // tracked while retaining the physical steering sign for reverse.
+      for (Point2d& point : rear_axle_path) {
+        point.x = -point.x;
+      }
     }
     const double speed_mps = latest_feedback_->speed;
 
@@ -481,9 +552,22 @@ class ControlNode {
     }
 
     erp42_msgs::DriveCmd command;
-    command.KPH = fixed_speed_controller_.commandKph();
+    const double limited_kph = latest_mission_->speed_limit_mps * 3.6;
+    const uint16_t mission_limit_kph = static_cast<uint16_t>(std::floor(
+        std::min(limited_kph,
+                 static_cast<double>(std::numeric_limits<uint16_t>::max()))));
+    command.KPH = std::min(fixed_speed_controller_.commandKph(),
+                           mission_limit_kph);
+    if (command.KPH == 0U) {
+      publishSafe("MISSION_SPEED_LIMIT_ZERO");
+      return;
+    }
     command.Deg = steering_command_deg;
     command.brake = 0U;
+    command.Gear = latest_mission_->direction > 0
+                       ? erp42_msgs::DriveCmd::GEAR_FORWARD
+                       : erp42_msgs::DriveCmd::GEAR_REVERSE;
+    command.EStop = 0U;
     command_publisher_.publish(command);
     previous_steering_angle_rad_ = steering_angle_rad;
     publishState("ACTIVE_" + config_.controller_mode);
@@ -518,19 +602,25 @@ class ControlNode {
   ros::Publisher heading_error_publisher_;
   ros::Publisher steering_angle_publisher_;
   ros::Subscriber path_subscriber_;
+  ros::Subscriber mission_subscriber_;
   ros::Subscriber odometry_subscriber_;
   ros::Subscriber feedback_subscriber_;
+  ros::Subscriber emergency_stop_subscriber_;
   ros::WallTimer timer_;
   nav_msgs::Path::ConstPtr latest_path_;
+  planning_interfaces::MissionState::ConstPtr latest_mission_;
   nav_msgs::Odometry::ConstPtr latest_odometry_;
   erp42_msgs::SerialFeedBack::ConstPtr latest_feedback_;
   ros::SteadyTime path_receipt_time_;
+  ros::SteadyTime mission_receipt_time_;
   ros::SteadyTime odometry_receipt_time_;
   ros::SteadyTime feedback_receipt_time_;
   ros::SteadyTime last_timer_time_;
   bool has_path_{false};
+  bool has_mission_{false};
   bool has_odometry_{false};
   bool has_feedback_{false};
+  bool emergency_stop_requested_{false};
   bool has_timer_time_{false};
   double previous_steering_angle_rad_{0.0};
 };

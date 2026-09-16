@@ -12,6 +12,7 @@
   <depend>erp42_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
+  <depend>planning_interfaces</depend>
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
   <depend>tf2</depend>

@@ -17,10 +17,10 @@
 
 1. `mando_localization`: 센서 입력을 받아 위치·TF·유효성·현재 RDDF를 계산한다.
 2. `state_manager/mission.launch`: Route Provider, State Manager, Selector,
-   Pure Pursuit Control, Vehicle Safety Gate를 실행한다.
+   Pure Pursuit Control을 실행한다.
 
-**Selector → Pure Pursuit → Safety Gate**는 연결됐다. 아직 끊긴 축은 인지 → 지역/주차
-경로 계획과 Arduino 후진 명령 계약이다.
+**Selector → Pure Pursuit → Arduino**는 직접 연결됐다. Vehicle Safety Gate 패키지는
+제거했다. 아직 끊긴 축은 인지 → 지역/주차 경로 계획이다.
 
 - `parking_path_planning`, `traffic_light`는 실행 코드가 없는 빈 패키지다.
 - `path_planner`, `frenet_lane_selection`은 ROS 노드가 아닌 독립 C++ 라이브러리다.
@@ -83,8 +83,7 @@ flowchart TB
     SM[State Manager<br/>Mission FSM + LiDAR 안전 검사]:::active
     SELECTOR[Selector<br/>요청·경로 검증]:::active
     CONTROL[control<br/>Pure Pursuit 기본]:::active
-    GATE[Vehicle Safety Gate]:::active
-    PREVIEW["/vehicle_safety/preview_drive"]:::active
+    ESTOP[/vehicle/emergency_stop/]:::support
     VEHICLE[Arduino / T870]:::support
 
     MOTION --> LOC
@@ -99,12 +98,10 @@ flowchart TB
     SM -->|/path/rddf| SELECTOR
     SELECTOR -->|/path/final| CONTROL
     LOC -->|/molit/localization/odometry| CONTROL
-    SM -->|/mission/state + /mission/safety| GATE
-    SELECTOR -->|/path/selector_status| GATE
-    LOC -->|/molit/localization/valid| GATE
-    CONTROL -->|/pure_pursuit/raw_drive| GATE
-    GATE -->|기본값은 preview only| PREVIEW
-    GATE -.->|enable_vehicle_output=true| VEHICLE
+    SM -->|/mission/state<br/>속도 · 정지 · 방향| CONTROL
+    ESTOP --> CONTROL
+    CONTROL -->|/erp42_serial/drive<br/>Gear · brake · EStop 포함| VEHICLE
+    VEHICLE -->|/erp42_serial/feedback<br/>MorA · Gear · EStop| CONTROL
 ```
 
 ### 현재 끊겨 있는 인지·계획 연결
@@ -151,9 +148,8 @@ flowchart TB
 | `mando_localization` | **통합** | IMU·Encoder·GPS 융합, TF, 품질 게이트, RDDF 매칭; LiDAR 전방 시각화 | `/erp42_serial/feedback`, IMU, GNSS fix/NavPVT; LiDAR는 시각화에만 사용 | `/molit/localization/odometry`, `/molit/localization/valid`, `/molit/localization/rddf/current`, `map → odom → base_link` TF, 전방 scan 시각화 |
 | `state_manager` | **통합** | RDDF 구간 추적, 미션 FSM, 신호·주차·동적 장애물 상태, 원본 LiDAR 기반 통로 안전 검사 | `/route/map`, Localization odometry/valid, `/molit/sensors/lidar/scan`, `/perception/*`, `/path/local`, `/path/park`, `/parking/maneuver` | `/mission/state`, `/mission/safety`, `/mission/traffic_constraint`, `/path/rddf`, `/mission/markers`, `/mission/diagnostics` |
 | `selector` | **통합** | 현재 `decision_id`, route, 방향, 시각과 일치하는 경로만 선택 | `/mission/state`, `/path/rddf`, `/path/local`, `/path/park` | `/path/final` (`nav_msgs/Path`), `/path/selector_status` |
-| `vehicle_safety` | **통합** | 미션·경로·Localization·원시 제어 명령의 일관성과 timeout 검사 | `/mission/state`, `/mission/safety`, `/path/selector_status`, `/molit/localization/valid`, `/pure_pursuit/raw_drive` | 항상 `/vehicle_safety/preview_drive`; 명시적 opt-in 시 `/erp42_serial/drive`; `/vehicle_safety/status` |
 | `object_detection` | **단독/Inspection** | 현재 RDDF 주변 또는 차량 전방 LiDAR ROI, self-filter, DBSCAN 군집화 | `/molit/sensors/lidar/scan`, `/molit/localization/rddf/current`, TF | `/object_detection/roi_points`, `/object_detection/roi_markers`, `/dbscan_clusters` |
-| `control` | **통합** | `/path/final`을 기본 Pure Pursuit(선택적으로 Stanley)로 추종하고 raw T870 명령 생성 | `/path/final`, `/molit/localization/odometry`, `/erp42_serial/feedback` | `/pure_pursuit/raw_drive`, 디버그 `/control/*` |
+| `control` | **통합** | `/path/final` 추종, 미션 속도·정지·방향 적용, T870 최종 명령 생성 | `/path/final`, `/mission/state`, `/molit/localization/odometry`, `/erp42_serial/feedback`, `/vehicle/emergency_stop` | `/erp42_serial/drive`, 디버그 `/control/*` |
 | `path_planner` | **코어** | 기준 RDDF의 Frenet `(s,d)`에서 충돌·경계·곡률을 검사하며 회피 후보 선택 | C++ API: 기준선, 후륜축 pose, 차량 치수, 장애물 polygon | C++ `PlannerResult`; ROS 토픽 없음 |
 | `frenet_lane_selection` | **코어** | LiDAR 단면에서 양쪽 도로 경계를 찾고 허용된 좌/우 차선 중심 계산 | C++ API: 단면별 `s,d` 관측, 차선 허가, 현재 차선 | C++ lane target 목록; ROS 토픽 없음 |
 | `parking_path_planning` | **빈 패키지** | 향후 주차 궤적과 전·후진 leg 생성 자리 | 없음 | 없음 |
@@ -161,11 +157,12 @@ flowchart TB
 
 ### Control 통합 상태
 
-Control은 Localization `Odometry`를 직접 받고 `/pure_pursuit/raw_drive`만 발행한다.
-신호등 정지는 State Manager가 RDDF 경로를 제한하고 Safety Gate가 미션 정지를 적용하므로
-Control의 옛 `/TL_label` 판단은 제거했다. `/erp42_serial/drive`의 유일한 ROS Publisher는
-차량 출력이 명시적으로 활성화된 Safety Gate다. Arduino가 `MorA`를 feedback에 채우기
-전까지 Control의 `require_ros_mode` 검사는 fail-closed 정지를 유지한다.
+Control은 Localization `Odometry`, `/path/final`, `/mission/state`를 받고
+`/erp42_serial/drive`를 직접 발행한다. 신호등 정지는 State Manager가 RDDF 경로와
+MissionState 정지 요청으로 전달하므로 Control의 옛 `/TL_label` 판단은 제거했다.
+정상 정지는 `brake=1, Gear=중립, EStop=0`, 별도 비상정지는
+`/vehicle/emergency_stop=true`에서 `EStop=1`로 구분한다. 후진은 PP에서 지원하며
+Arduino가 엔코더 0속도를 3회 연속 확인한 뒤 기어 방향을 바꾼다.
 
 ## 현재 생성되지 않는 필수 토픽
 
@@ -178,7 +175,7 @@ Control의 옛 `/TL_label` 판단은 제거했다. `/erp42_serial/drive`의 유�
 | `/path/park` | State Manager, Selector | Parking Planner 없음 |
 | `/parking/maneuver` | State Manager | Parking Planner 없음 |
 
-이 토픽들이 없을 때 State Manager와 Safety Gate는 의도적으로 fail-closed 정지 상태를 유지한다.
+이 토픽들이 없을 때 State Manager는 유효하지 않은 미션/빈 경로를 내고 Control은 정지 명령을 낸다.
 
 ### 주차 RDDF와 전·후진 정보
 
@@ -216,8 +213,8 @@ Planner 구현 전에 “5번 in 전체 후진” 또는 “경로 내부 gear l
 
 | 패키지 | 상태 | 역할 | 현재 사용 여부 |
 |---|---|---|---|
-| `planning_interfaces` | **지원/사용 중** | Route, MissionState, PlannedPath, PathStatus, SafetyStatus, 신호·주차 메시지 | State Manager, Selector, Safety Gate에서 사용 |
-| `erp42_msgs` | **지원/사용 중** | 차량 피드백과 주행 명령 | Localization, Control, Safety Gate, Arduino에서 사용 |
+| `planning_interfaces` | **지원/사용 중** | Route, MissionState, PlannedPath, PathStatus, SafetyStatus, 신호·주차 메시지 | State Manager, Selector, Control에서 사용 |
+| `erp42_msgs` | **지원/사용 중** | 차량 피드백과 속도·기어·비상정지 주행 명령 | Localization, Control, Arduino에서 사용 |
 | `perception_interfaces` | **지원/미사용 계약** | `ObjectInfo`, 기존 `TLLabel` | 현재 Control은 `TLLabel`을 사용하지 않으며 `ObjectInfo`도 Planner에 연결되지 않음 |
 | `sensor_interfaces` | **지원/부분 사용** | `GpsStatus` | GPS 노드가 `/gps/status`로 발행하지만 현재 소비자 없음 |
 
@@ -227,7 +224,7 @@ Planner 구현 전에 “5번 in 전체 후진” 또는 “경로 내부 gear l
 |---|---|---|
 | `sensor_bringup/sensors.launch` | LiDAR, Camera, GPS, IMU, 선택적 Arduino | 현재 센서 통합 진입점; Localization 토픽 계약 적용 |
 | `src/localization/launch.sh` | Localization, TF, RDDF tracking; 센서 드라이버와 RViz는 비활성 | 현재 위치 추정 진입점 |
-| `state_manager/mission.launch` | Route Provider, State Manager, Selector, PP Control, Vehicle Safety Gate | 현재 미션 통합 진입점; 기본 차량 출력 비활성 |
+| `state_manager/mission.launch` | Route Provider, State Manager, Selector, PP Control | 현재 미션 통합 진입점; Control이 차량 명령을 직접 발행 |
 | `state_manager/inspection.launch` | 위 미션 구성 + Object Detection + Inspection RViz | 현재 가장 완성된 관찰·검증 진입점 |
 | `object_detection/rddf_roi_detection.launch` | ROI detector, 선택적 전용 viewer | Object Detection 단독 검증 |
 | `control/control.launch` | PP 또는 Stanley Control | 단독 알고리즘·토픽 시험용 |
@@ -256,11 +253,10 @@ flowchart TB
     PARKING -->|/parking/maneuver| MISSION
     SELECTOR -->|/path/final| CONTROL[PP / Stanley Control]:::ready
     LOC -->|Odometry| CONTROL
-    CONTROL -->|/pure_pursuit/raw_drive| GATE[Vehicle Safety Gate]:::ready
-    MISSION -->|MissionState · SafetyStatus| GATE
-    SELECTOR -->|PathStatus| GATE
-    LOC -->|valid| GATE
-    GATE -->|유일한 /erp42_serial/drive publisher| VEHICLE[Arduino / T870]:::ready
+    MISSION -->|MissionState<br/>속도 · 정지 · 방향| CONTROL
+    ESTOP[/vehicle/emergency_stop/]:::ready --> CONTROL
+    CONTROL -->|/erp42_serial/drive| VEHICLE[Arduino / T870]:::ready
+    VEHICLE -->|SerialFeedBack| CONTROL
 ```
 
 ## 권장 통합 순서
@@ -269,6 +265,6 @@ flowchart TB
 2. `path_planner` ROS wrapper가 `/mission/state`를 받아
    `/path/local` `PlannedPath`를 발행하도록 구현한다.
 3. `frenet_lane_selection`의 목표 `d`를 Frenet 기준선 또는 명시적 target profile에 연결한다.
-4. Parking Planner와 전·후진 기어 메시지/펌웨어 계약을 추가한다.
+4. Parking Planner가 단계별 전·후진 경로와 `/parking/maneuver`를 발행하도록 구현한다.
 5. 카메라 신호등 Publisher를 구현하고, 차로 신호·동적 장애물 입력원은 별도로 결정한다.
 6. 마지막에 센서, Localization, Mission, Planning, Control을 하나의 검증된 bringup으로 묶는다.

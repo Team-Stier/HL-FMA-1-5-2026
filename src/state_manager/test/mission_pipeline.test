@@ -1,28 +1,10 @@
 <launch>
   <node pkg="state_manager" type="mission_inspection_node" name="mission_inspection" output="screen" required="true"/>
-  <!-- Synthetic message fixtures only. Neither gate may publish vehicle output. -->
+  <!-- Synthetic message fixtures only. No control or hardware node is started. -->
   <node pkg="state_manager" type="state_manager_node" name="state_manager" output="screen" required="true">
     <param name="config_file" value="$(find state_manager)/config/missions.json"/>
     <param name="calibration_file" value=""/>
   </node>
   <node pkg="selector" type="selector_node" name="selector" output="screen" required="true"/>
-  <node pkg="vehicle_safety" type="vehicle_safety_node" name="vehicle_safety" output="screen" required="true">
-    <param name="enable_vehicle_output" value="false"/>
-  </node>
-  <group ns="smoke">
-    <remap from="/mission/state" to="/smoke/mission/state"/>
-    <remap from="/mission/safety" to="/smoke/mission/safety"/>
-    <remap from="/path/rddf" to="/smoke/path/rddf"/>
-    <remap from="/path/final" to="/smoke/path/final"/>
-    <remap from="/path/selector_status" to="/smoke/path/selector_status"/>
-    <remap from="/molit/localization/valid" to="/smoke/localization/valid"/>
-    <remap from="/pure_pursuit/raw_drive" to="/smoke/raw_drive"/>
-    <remap from="/vehicle_safety/preview_drive" to="/smoke/preview_drive"/>
-    <remap from="/vehicle_safety/status" to="/smoke/status"/>
-    <node pkg="selector" type="selector_node" name="selector" output="screen" required="true"/>
-    <node pkg="vehicle_safety" type="vehicle_safety_node" name="vehicle_safety" output="screen" required="true">
-      <param name="enable_vehicle_output" value="false"/>
-    </node>
-  </group>
   <test test-name="mission_pipeline" pkg="state_manager" type="mission_pipeline_ros.py" time-limit="60"/>
 </launch>

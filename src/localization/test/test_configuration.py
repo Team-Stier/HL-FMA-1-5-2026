@@ -40,6 +40,9 @@ class ConfigurationContractTest(unittest.TestCase):
         fields = [line for line in lines if line]
         self.assertEqual(
             [
+                "uint8 GEAR_FORWARD=0",
+                "uint8 GEAR_NEUTRAL=1",
+                "uint8 GEAR_REVERSE=2",
                 "uint8 MorA",
                 "uint8 EStop",
                 "uint8 Gear",
@@ -57,7 +60,19 @@ class ConfigurationContractTest(unittest.TestCase):
             for line in drive_path.read_text(encoding="utf-8").splitlines()
             if line.split("#", 1)[0].strip()
         ]
-        self.assertEqual(["uint16 KPH", "int16 Deg", "uint8 brake"], drive_fields)
+        self.assertEqual(
+            [
+                "uint8 GEAR_FORWARD=0",
+                "uint8 GEAR_NEUTRAL=1",
+                "uint8 GEAR_REVERSE=2",
+                "uint16 KPH",
+                "int16 Deg",
+                "uint8 brake",
+                "uint8 Gear",
+                "uint8 EStop",
+            ],
+            drive_fields,
+        )
 
     def test_encoder_rosserial_driver_is_wired_to_the_connected_uno(self):
         driver = load_yaml("encoder_driver.yaml")

@@ -10,7 +10,7 @@ fi
 readonly STIER_TEST_WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/stier-noetic.XXXXXX")"
 trap 'rm -rf -- "${STIER_TEST_WORKSPACE}"' EXIT
 mkdir -p "${STIER_TEST_WORKSPACE}/src/localization/scripts"
-for stier_package in state_manager selector vehicle_safety; do
+for stier_package in state_manager selector control; do
   cp -R "${STIER_REPOSITORY}/src/${stier_package}" "${STIER_TEST_WORKSPACE}/src/${stier_package}"
 done
 cp -R "${STIER_REPOSITORY}/src/interfaces/planning_interfaces" "${STIER_TEST_WORKSPACE}/src/planning_interfaces"
@@ -52,6 +52,5 @@ set -u
 export ROS_TEST_RESULTS_DIR="${STIER_TEST_WORKSPACE}/build/test_results"
 python3 -m unittest discover -s src/state_manager/test -v
 python3 -m unittest discover -s src/selector/test -v
-python3 -m unittest discover -s src/vehicle_safety/test -v
 rostest state_manager mission_pipeline.test
 catkin_test_results build/test_results

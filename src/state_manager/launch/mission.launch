@@ -1,9 +1,8 @@
 <launch>
-  <!-- Sensor drivers and localization run separately. Default is preview only. -->
+  <!-- Sensor drivers and localization run separately. -->
   <arg name="config_file" default="$(find state_manager)/config/missions.json"/>
   <arg name="calibration_file" default="$(env HOME)/.ros/stier/landmarks.json"/>
   <arg name="calibration_mode" default="false"/>
-  <arg name="enable_vehicle_output" default="false"/>
   <arg name="start_control" default="true"/>
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
@@ -22,13 +21,9 @@
     <arg name="lateral_controller" value="$(arg lateral_controller)"/>
     <arg name="calibration_required" value="$(arg control_calibration_required)"/>
   </include>
-  <include file="$(find vehicle_safety)/launch/vehicle_safety.launch">
-    <arg name="enable_vehicle_output" value="$(eval arg('enable_vehicle_output') and not arg('calibration_mode'))"/>
-  </include>
   <node if="$(arg calibration_mode)" pkg="state_manager" type="landmark_editor_node" name="landmark_editor" output="screen">
     <param name="config_file" value="$(arg config_file)"/>
     <param name="calibration_mode" value="true"/>
-    <param name="enable_vehicle_output" value="false"/>
     <param name="calibration_file" value="$(arg calibration_file)"/>
   </node>
   <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="mission_rviz" args="-d $(find state_manager)/rviz/state_manager.rviz"/>
