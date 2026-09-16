@@ -52,6 +52,7 @@ class Pipeline:
                          'yaw': 0.0, 'speed': speed, 'yaw_rate': 0.0,
                          'position_variance': .01, 'yaw_variance': .01},
                 'localization': {'stamp': self.now, 'valid': True},
+                'localization_state': {'stamp': self.now, 'state': 'TRACKING'},
                 'scan': {'stamp': self.now, 'valid': True,
                          'hits': hits, 'rays': rays}}
 

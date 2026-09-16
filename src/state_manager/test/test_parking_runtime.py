@@ -44,6 +44,7 @@ class ParkingRuntimeTests(unittest.TestCase):
                      'x': x, 'y': y, 'yaw': yaw, 'speed': speed, 'yaw_rate': 0.0,
                      'position_variance': .01, 'yaw_variance': .01},
             'localization': {'stamp': now, 'valid': True},
+            'localization_state': {'stamp': now, 'state': 'TRACKING'},
             'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays},
         }
         if maneuver is not None:

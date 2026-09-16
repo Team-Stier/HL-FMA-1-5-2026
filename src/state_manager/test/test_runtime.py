@@ -33,6 +33,7 @@ class RuntimeTests(unittest.TestCase):
                          'x': x, 'y': 0, 'yaw': 0, 'speed': speed, 'yaw_rate': 0,
                          'position_variance': .01, 'yaw_variance': .01},
                 'localization': {'stamp': now, 'valid': True},
+                'localization_state': {'stamp': now, 'state': 'TRACKING'},
                 'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays}}
 
     def candidate(self, runtime, now):
@@ -51,6 +52,37 @@ class RuntimeTests(unittest.TestCase):
         result = self.run_step(runtime, 1)
         self.assertFalse(result['valid'])
         self.assertTrue(result['stop_requested'])
+
+    def test_dead_reckoning_accepts_supervisor_valid_position_covariance(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.data(1)
+        data['localization_state']['state'] = 'DEAD_RECKONING'
+        data['odom']['position_variance'] = 20.0
+        healthy, reason = runtime._health(data, 1)
+        self.assertTrue(healthy, reason)
+
+    def test_tracking_still_rejects_excess_position_covariance(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.data(1)
+        data['odom']['position_variance'] = 20.0
+        self.assertEqual(runtime._health(data, 1), (False, 'LOCALIZATION_UNCERTAIN'))
+
+    def test_dead_reckoning_still_rejects_excess_yaw_covariance(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.data(1)
+        data['localization_state']['state'] = 'DEAD_RECKONING'
+        data['odom']['position_variance'] = 20.0
+        data['odom']['yaw_variance'] = 0.1
+        self.assertEqual(runtime._health(data, 1), (False, 'LOCALIZATION_UNCERTAIN'))
+
+    def test_dead_reckoning_covariance_growth_is_capped_for_lidar_margin(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.data(1)
+        data['localization_state']['state'] = 'DEAD_RECKONING'
+        data['odom']['position_variance'] = 20.0
+        data['scan']['hits'].append((1.0, 2.0))
+        result = runtime._corridor([(0, 0, 0), (2, 0, 0)], data)
+        self.assertEqual(result['status'], 'CLEAR')
 
     def test_calibration_session_never_drives(self):
         self.config['calibration_mode'] = True

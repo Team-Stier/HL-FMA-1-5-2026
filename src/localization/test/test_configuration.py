@@ -340,6 +340,8 @@ class ConfigurationContractTest(unittest.TestCase):
         self.assertIn('name="start_supervisor"', safety)
         self.assertIn('if="$(arg start_supervisor)"', safety)
         self.assertIn("relocalization_policy_config", safety)
+        self.assertIn("output_gate/allow_unbounded_position_variance", safety)
+        self.assertIn("not arg('enable_gps_fusion')", safety)
         self.assertNotIn('type="localization_status_manager_node"', safety)
         self.assertIn("/mando_localization/internal/ekf/local_set_pose", local)
         self.assertIn("/mando_localization/internal/ekf/global_set_pose", global_fusion)

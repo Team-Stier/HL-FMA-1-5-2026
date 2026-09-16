@@ -131,6 +131,12 @@ class AdapterTests(unittest.TestCase):
         self.node.on_odom(message)
         self.assertTrue(math.isnan(self.node.data['odom']['x']))
 
+    def test_localization_state_is_stored_with_receipt_time(self):
+        self.node.on_localization_state(NS(data='DEAD_RECKONING'))
+        self.assertEqual(self.node.data['localization_state'], {
+            'stamp': 10.0, 'state': 'DEAD_RECKONING'
+        })
+
     def route_map(self):
         names = set(ROUTES.values()) | {'1_left', '1_right', '13_left', '13_right'}
         names.update(name for sides in PARKING_ROUTES.values() for pair in sides.values() for name in pair)

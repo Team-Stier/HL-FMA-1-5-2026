@@ -51,6 +51,10 @@
       <rosparam command="load" file="$(arg interfaces_config)"/>
       <rosparam command="load" file="$(arg status_policy_config)"/>
       <param name="initialization/required" value="$(arg start_rddf_initialization)"/>
+      <!-- GPS를 의도적으로 끈 운용은 Supervisor의 valid 판정을 따른다.
+           유한성/비음수/max_covariance_diagonal 검사는 계속 적용한다. -->
+      <param name="output_gate/allow_unbounded_position_variance"
+             value="$(eval not arg('enable_gps_fusion'))"/>
     </node>
   </group>
 </launch>

@@ -311,6 +311,13 @@ RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단
 공분산, 경로와의 거리·방향, 불가능한 위치 도약을 감시한다. 정확한 위치를 새로
 만드는 기능은 아니며 Localization 품질이 낮으면 정지한다.
 
+GPS를 의도적으로 끈 Localization은 `/molit/localization/state=DEAD_RECKONING`과
+`valid=true`를 함께 발행한다. 이때 State Manager는 계속 증가하는 위치 공분산의
+상한을 다시 적용하지 않고 Localization Supervisor의 valid 판정을 따른다. 공분산의
+유한성·비음수와 yaw 공분산 상한, 토픽 freshness 검사는 그대로 유지한다. LiDAR
+회피 여유 계산에는 일반 위치 공분산 상한까지만 반영해 GPS 없는 EKF의 시간 누적값이
+모든 유한한 LiDAR 점을 장애물로 만드는 것을 방지한다.
+
 ## 인지·플래너 인터페이스
 
 메시지는 `planning_interfaces`에 정의되어 있다. 모든 길이는 m, 시간은 ROS 시각,

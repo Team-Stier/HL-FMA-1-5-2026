@@ -12,7 +12,7 @@ from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry
 from planning_interfaces.msg import MissionState, PathStatus, PlannedPath, Route, RouteMap, SafetyStatus, TrafficConstraint
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 from visualization_msgs.msg import MarkerArray
 from stier_state_manager.mission import PARKING_ROUTES, ROUTES
 
@@ -35,7 +35,8 @@ class PipelineSmoke(unittest.TestCase):
                       'observed': ('/molit/localization/rddf/current', RddfMatch),
                       'odom': ('/molit/localization/odometry', Odometry),
                       'scan': ('/molit/sensors/lidar/scan', LaserScan),
-                      'valid': ('/molit/localization/valid', Bool)}
+                      'valid': ('/molit/localization/valid', Bool),
+                      'localization_state': ('/molit/localization/state', String)}
         self.publishers = {key: rospy.Publisher(topic, kind, queue_size=10, latch=key == 'map')
                            for key, (topic, kind) in publishers.items()}
 
@@ -99,6 +100,7 @@ class PipelineSmoke(unittest.TestCase):
         self.publishers['odom'].publish(odom)
         self.publishers['scan'].publish(scan)
         self.publishers['valid'].publish(Bool(data=True))
+        self.publishers['localization_state'].publish(String(data='TRACKING'))
         observed = RddfMatch()
         observed.header.stamp, observed.header.frame_id = stamp, 'map'
         observed.pose_stamp = stamp

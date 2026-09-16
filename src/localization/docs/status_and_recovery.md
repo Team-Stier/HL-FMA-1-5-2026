@@ -122,6 +122,10 @@ GPS를 활성화한 세션에서 GPS가 끊긴 경우에는 아래 예산을 적
 차단하지 않고 `DEAD_RECKONING`, `valid=true`를 유지합니다. 절대 보정이 없으므로 오차는
 계속 누적됩니다.
 
+이 GPS 비활성 모드에서는 Output Gate도 증가하는 XY 위치 공분산의 운용 상한만
+적용하지 않습니다. 공분산 전체의 유한성·비음수·절대 최대값, frame, timestamp,
+quaternion, twist 검사와 Supervisor `valid` 조건은 계속 적용합니다.
+
 ```text
 seconds_since_absolute <= 2.0 s
 AND

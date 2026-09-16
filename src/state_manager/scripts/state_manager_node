@@ -74,6 +74,7 @@ class StateManagerNode:
             rospy.Subscriber('/route/map', RouteMap, self.on_route_map, queue_size=1),
             rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
             rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
+            rospy.Subscriber('/molit/localization/state', String, self.on_localization_state, queue_size=1),
             rospy.Subscriber('/molit/sensors/lidar/scan', LaserScan, self.on_scan, queue_size=1),
             rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
@@ -167,6 +168,12 @@ class StateManagerNode:
         # from stamped odometry freshness; both are required by the runtime.
         with self.lock:
             self.data['localization'] = {'stamp': self.clock_now(), 'valid': bool(msg.data)}
+
+    def on_localization_state(self, msg):
+        with self.lock:
+            self.data['localization_state'] = {
+                'stamp': self.clock_now(), 'state': str(msg.data).strip()
+            }
 
     def clock_now(self):
         """Called with the node lock held; clock regression requires restart."""

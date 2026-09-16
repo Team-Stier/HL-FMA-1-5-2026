@@ -106,17 +106,34 @@ class MissionRuntime:
         timeout = self.config.get('input_timeout_s', 0.5)
         odom = data.get('odom', {})
         valid = data.get('localization', {})
+        localization_state = data.get('localization_state', {})
         scan = data.get('scan', {})
         if not fresh(odom.get('stamp'), now, timeout):
             return False, 'ODOMETRY_STALE'
         if not fresh(valid.get('stamp'), now, timeout) or valid.get('valid') is not True:
             return False, 'LOCALIZATION_INVALID'
+        if not fresh(localization_state.get('stamp'), now, timeout):
+            return False, 'LOCALIZATION_STATE_STALE'
+        state = localization_state.get('state')
+        if state not in ('TRACKING', 'DEGRADED', 'DEAD_RECKONING'):
+            return False, 'LOCALIZATION_STATE_INVALID'
         if odom.get('frame') != 'map' or odom.get('child_frame') != 'base_link':
             return False, 'ODOMETRY_FRAME_INVALID'
         if not all(math.isfinite(odom.get(k, math.nan)) for k in ('x', 'y', 'yaw', 'speed', 'position_variance', 'yaw_variance')):
             return False, 'ODOMETRY_NONFINITE'
-        if not (0 <= odom['position_variance'] <= self.config.get('max_position_variance_m2', 0.25)
-                and 0 <= odom['yaw_variance'] <= self.config.get('max_yaw_variance_rad2', 0.08)):
+        # In DEAD_RECKONING the Localization Supervisor owns the validity
+        # budget. With GPS intentionally disabled, position covariance grows
+        # monotonically even while IMU/encoder odometry remains the selected
+        # operating mode, so the GPS-era position cap must not reject it a
+        # second time here. Yaw uncertainty and all finite/nonnegative checks
+        # remain enforced.
+        position_variance_ok = (0 <= odom['position_variance'] and
+                                (state == 'DEAD_RECKONING' or
+                                 odom['position_variance'] <= self.config.get(
+                                     'max_position_variance_m2', 0.25)))
+        yaw_variance_ok = (0 <= odom['yaw_variance'] <=
+                           self.config.get('max_yaw_variance_rad2', 0.08))
+        if not (position_variance_ok and yaw_variance_ok):
             return False, 'LOCALIZATION_UNCERTAIN'
         if not fresh(scan.get('stamp'), now, timeout) or not scan.get('valid'):
             return False, scan.get('reason', 'LIDAR_STALE_OR_INVALID')
@@ -137,7 +154,15 @@ class MissionRuntime:
         duration = scan.get('duration', 0.0)
         rotation = min(math.pi, vehicle['max_yaw_rate_rps'] * duration)
         motion_margin = vehicle['max_speed_mps'] * duration + 2*scan.get('range_max', 0)*math.sin(rotation/2)
-        localization_margin = self.config.get('localization_sigma_margin', 2.0) * math.sqrt(data['odom']['position_variance'])
+        position_variance = data['odom']['position_variance']
+        if data.get('localization_state', {}).get('state') == 'DEAD_RECKONING':
+            # Do not let the deliberately unbounded GPS-less covariance make
+            # every finite LiDAR return look like a collision. The normal
+            # tracking cap remains the conservative geometric margin here.
+            position_variance = min(
+                position_variance,
+                self.config.get('max_position_variance_m2', 0.25))
+        localization_margin = self.config.get('localization_sigma_margin', 2.0) * math.sqrt(position_variance)
         return corridor_status(points, scan['hits'], scan['rays'],
                                vehicle_width=vehicle['width_m'], front=vehicle['front_m'],
                                rear=vehicle['rear_m'], margin=vehicle.get('margin_m', 0.25) + motion_margin + localization_margin,
