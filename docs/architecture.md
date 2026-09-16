@@ -1,8 +1,8 @@
 # 시스템 아키텍처와 패키지 사용 현황
 
 이 문서는 2026-09-16 현재 소스와 `state_manager/mission.launch`의 실제 연결을 기준으로
-작성했다. GitHub Markdown에서 글자가 작아지지 않도록 핵심 주행 흐름을 세로 방향의
-큰 그림으로 표시하고, 보조 입력은 별도 그림으로 분리했다.
+작성했다. 첫 번째 그림은 센서부터 차량까지 실제 전체 흐름을 생략 없이 표시한다.
+동적장애물 판정과 카메라 차로 제어처럼 제거한 기능은 그림에 넣지 않는다.
 
 ## 현재 결론
 
@@ -16,38 +16,66 @@
 - Parking Planner는 이번 범위에서 구현하거나 연결하지 않았다.
 - Control 기본값은 `pure_pursuit`이며 `/path/final`부터 Arduino 명령까지 연결되어 있다.
 
-## 가장 먼저 볼 그림: RDDF 모드에서 PP까지
+## 전체 아키텍처
 
 ```mermaid
 flowchart TB
-    classDef source fill:#ddf4ff,stroke:#0969da,stroke-width:2px,color:#1f2328
-    classDef decision fill:#fff8c5,stroke:#9a6700,stroke-width:3px,color:#1f2328
-    classDef path fill:#dafbe1,stroke:#1a7f37,stroke-width:3px,color:#1f2328
-    classDef control fill:#fbefff,stroke:#8250df,stroke-width:3px,color:#1f2328
-    classDef vehicle fill:#ffebe9,stroke:#cf222e,stroke-width:3px,color:#1f2328
+    classDef sensor fill:#ddf4ff,stroke:#0969da,color:#1f2328
+    classDef active fill:#dafbe1,stroke:#1a7f37,color:#1f2328
+    classDef gated fill:#fff8c5,stroke:#9a6700,color:#1f2328
+    classDef control fill:#fbefff,stroke:#8250df,color:#1f2328
+    classDef later fill:#ffebe9,stroke:#cf222e,color:#1f2328
 
-    FILES["RDDF CSV 파일<br/>전체 경로 원본"]:::source
-    LOADER["RDDF 파일 로더<br/>코드 이름: rddf_route_provider"]:::source
-    SM["STATE MANAGER<br/>현재 route 결정<br/>차량 주변 RDDF 구간 절단"]:::decision
-    RDDF["/path/rddf<br/>잘린 RDDF 경로 후보<br/>PlannedPath"]:::path
-    SELECTOR["SELECTOR<br/>요청된 경로 후보 하나만 선택"]:::decision
-    FINAL["/path/final<br/>PP가 실제로 받을 최종 경로<br/>nav_msgs/Path"]:::path
-    PP["CONTROL NODE<br/>PURE PURSUIT (PP)<br/>경로 추종 및 조향 계산"]:::control
-    PPINPUT["PP 보조 입력<br/>Localization Odometry<br/>Arduino feedback<br/>Emergency Stop"]:::source
-    CMD["/erp42_serial/drive<br/>속도 · 조향 · 브레이크 · 기어 · E-Stop"]:::control
-    CAR["ARDUINO / T870<br/>실제 차량 구동"]:::vehicle
+    subgraph INPUT[센서 · 경로 원본]
+        direction LR
+        MOTION[GPS · IMU]:::sensor
+        LIDAR[2D LiDAR]:::sensor
+        CAMERA[USB Camera]:::sensor
+        FILES[RDDF CSV 파일]:::sensor
+        ESTOP[Emergency Stop]:::sensor
+    end
 
-    FILES -->|파일 읽기| LOADER
-    LOADER -->|/route/map<br/>전체 RDDF 목록| SM
-    SM -->|경로 출력| RDDF
-    RDDF --> SELECTOR
-    SM -->|/mission/state<br/>path_mode = RDDF| SELECTOR
-    SELECTOR --> FINAL
-    FINAL -->|PP의 path 입력| PP
-    SM -.->|/mission/state<br/>속도·정지·방향 조건<br/>경로가 아님| PP
-    PPINPUT -->|차량 상태 입력| PP
-    PP --> CMD
-    CMD --> CAR
+    LOC[Localization<br/>Odometry · valid · TF · RDDF match]:::active
+    TL[Traffic Light<br/>신호등 인식<br/>launch 기본 OFF]:::gated
+    OD[Object Detection<br/>RDDF ROI + DBSCAN]:::active
+    LOADER[RDDF 파일 로더<br/>코드: rddf_route_provider]:::active
+    SM[State Manager<br/>Mission FSM · route 선택<br/>RDDF 구간 절단]:::active
+    LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
+    PARK[Parking Planner<br/>아직 미구현]:::later
+    SEL[Selector<br/>요청된 경로 후보 선택]:::active
+    PP[control_node<br/>Pure Pursuit PP]:::control
+    CAR[Arduino / T870<br/>차량 구동]:::active
+
+    MOTION --> LOC
+    CAMERA -->|/usb_cam/image_raw| TL
+    TL -->|/perception/traffic_signal| SM
+
+    LIDAR -->|LaserScan| OD
+    LOC -->|RDDF match + TF| OD
+    OD -->|/dbscan_clusters| LP
+
+    FILES --> LOADER
+    LOADER -->|/route/map| SM
+    LOADER -->|/route/map| LP
+    LOC -->|Odometry + valid| SM
+    LIDAR -->|원본 LaserScan| SM
+    LOC -->|Odometry| LP
+    SM -->|/mission/state<br/>LOCAL 요청| LP
+    LP -->|/path/local<br/>안전 검사| SM
+
+    SM -->|/path/rddf| SEL
+    LP -->|/path/local| SEL
+    PARK -.->|/path/park| SEL
+    PARK -.->|/parking/maneuver| SM
+    SM -->|/mission/state<br/>RDDF · LOCAL · PARKING 요청| SEL
+
+    SEL -->|/path/final<br/>PP의 유일한 경로 입력| PP
+    LOC -->|Odometry| PP
+    SM -.->|/mission/state<br/>속도 · 정지 · 방향<br/>경로가 아님| PP
+    ESTOP --> PP
+    CAR -->|/erp42_serial/feedback| PP
+    CAR -->|Encoder feedback| LOC
+    PP -->|/erp42_serial/drive<br/>속도 · 조향 · 브레이크 · 기어 · E-Stop| CAR
 ```
 
 **PP는 State Manager의 `/path/rddf`를 직접 받지 않는다.** State Manager가 잘라서 만든
@@ -59,30 +87,7 @@ flowchart TB
 목록인 `/route/map`으로 바꾸는 파일 로더다. 실제 route 선택과 RDDF 절단은
 State Manager가 담당한다.
 
-## RDDF·LOCAL·PARKING 경로 선택
-
-```mermaid
-flowchart TB
-    classDef active fill:#dafbe1,stroke:#1a7f37,stroke-width:3px,color:#1f2328
-    classDef choice fill:#fff8c5,stroke:#9a6700,stroke-width:3px,color:#1f2328
-    classDef control fill:#fbefff,stroke:#8250df,stroke-width:3px,color:#1f2328
-    classDef later fill:#ffebe9,stroke:#cf222e,stroke-width:2px,color:#1f2328
-
-    SM["State Manager<br/>/path/rddf 생성"]:::active
-    LOCAL["Path Planner<br/>/path/local 생성"]:::active
-    PARK["Parking Planner<br/>/path/park 생성<br/>아직 미구현"]:::later
-    MODE["State Manager의 /mission/state<br/>RDDF / LOCAL / PARKING 요청"]:::choice
-    SEL["SELECTOR<br/>요청 모드와 일치하는 후보 선택"]:::choice
-    FINAL["/path/final<br/>nav_msgs/Path"]:::active
-    PP["PURE PURSUIT (PP)<br/>control_node 내부"]:::control
-
-    SM -->|RDDF 후보| SEL
-    LOCAL -->|LOCAL 후보| SEL
-    PARK -.->|PARKING 후보| SEL
-    MODE -->|선택 명령| SEL
-    SEL --> FINAL
-    FINAL --> PP
-```
+## 경로 선택 규칙
 
 - 일반 구간: `State Manager → /path/rddf → Selector → /path/final → PP`
 - 정적 장애물 구간: `Path Planner → /path/local → Selector → /path/final → PP`
@@ -92,26 +97,7 @@ Selector는 경로를 새로 만들거나 RDDF를 자르지 않는다. State Man
 `path_mode`, `decision_id`, `route_name`, `direction`, timestamp가 정확히 맞는 후보만
 `/path/final`로 전달한다. 현재 일반 구간은 RDDF, 3번 정적장애물 구간만 LOCAL이다.
 
-## 센서·인지·LOCAL 경로 생성
-
-```mermaid
-flowchart TB
-    classDef sensor fill:#ddf4ff,stroke:#0969da,stroke-width:2px,color:#1f2328
-    classDef active fill:#dafbe1,stroke:#1a7f37,stroke-width:3px,color:#1f2328
-    classDef planner fill:#fff8c5,stroke:#9a6700,stroke-width:3px,color:#1f2328
-
-    CAMERA["USB Camera"]:::sensor -->|/usb_cam/image_raw| TL["Traffic Light"]:::active
-    TL -->|/perception/traffic_signal| SM["State Manager"]:::active
-
-    LIDAR["2D LiDAR"]:::sensor -->|LaserScan| OD["Object Detection<br/>ROI + DBSCAN"]:::active
-    LOC["Localization"]:::sensor -->|RDDF match + TF| OD
-    OD -->|/dbscan_clusters| LP["Path Planner<br/>Frenet LOCAL 경로 생성"]:::planner
-
-    MAP["RDDF 파일 로더<br/>/route/map"]:::sensor --> LP
-    LOC -->|Odometry| LP
-    SM -->|/mission/state<br/>LOCAL 요청| LP
-    LP -->|/path/local| SEL["Selector"]:::active
-```
+## Object Detection과 Path Planner 연결 상세
 
 `object_detection`은 각 스캔의 원래 timestamp와 `map` frame을 DBSCAN MarkerArray에
 유지한다. 군집이 0개여도 stamped `DELETEALL` heartbeat를 내므로 Planner가
