@@ -42,10 +42,10 @@ static_transforms:
   - parent_frame: base_link
     child_frame: laser_link
     translation_m: [1.05, 0.0, 0.0]
-    # roll=180: 윗면이 아래, yaw=180: 전방 축이 차량 뒤쪽.
+    # 전방 X축을 중심으로 180도 회전: X(전후)는 유지하고 Y/Z만 반전한다.
     # 장착 회전은 TF에서만 적용하며 lidar_driver.yaml의 inverted=false를 유지한다.
-    rotation_rpy_deg: [180.0, 0.0, 180.0]
+    rotation_rpy_deg: [180.0, 0.0, 0.0]
     enabled: true
     calibration_state: measured
     measured_at: "2026-09-05"
-    source: user_confirmed_position_2026-09-05_upside_down_rear_facing_2026-09-07
+    source: user_confirmed_x_axis_180_mount_2026-09-16

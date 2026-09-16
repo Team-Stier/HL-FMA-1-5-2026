@@ -17,7 +17,7 @@ DBSCAN 입력으로 사용한다. 현재 RDDF 끝에 가까워지면 연결된 �
 전방 기준은 아래 `lidar_forward_roi` 설정을 그대로 사용한다.
 
 LiDAR 점은 팀 TF로 `base_link`에 변환한 뒤, LiDAR 장착 위치보다 차량 전방(+X)에 있는
-점만 사용한다. `laser_link`가 yaw 180도로 장착되어도 차량 전방을 올바르게 선택한다.
+점만 사용한다. `laser_link`의 X축 180도 장착을 TF로 반영해 차량 전방을 선택한다.
 LiDAR 원점 앞에서 제외할 거리와 사용 여부는 `config/rddf_roi.yaml`의
 `lidar_forward_roi`에서 바꿀 수 있다. 필요하면 같은 파일의 `angular_roi`도 추가로 켤 수
 있으며 기본값은 꺼져 있다.

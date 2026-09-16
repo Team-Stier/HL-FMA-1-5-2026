@@ -9,9 +9,9 @@
   <arg name="laser_x" default="0.0" />
   <arg name="laser_y" default="0.0" />
   <arg name="laser_z" default="0.0" />
-  <arg name="laser_yaw" default="3.141592653589793" />
+  <arg name="laser_yaw" default="0.0" />
   <arg name="laser_pitch" default="0.0" />
-  <arg name="laser_roll" default="0.0" />
+  <arg name="laser_roll" default="3.141592653589793" />
 
   <node if="$(arg publish_static_tf)"
         name="$(arg node_name)_tf"

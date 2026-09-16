@@ -3,7 +3,7 @@
 serial_port: /dev/lidar
 serial_baudrate: 1000000
 frame_id: laser_link
-# 뒤집힘/후방 장착은 tf_configuration.yaml의 roll/yaw=180도로 보정한다.
+# X축 기준 180도 장착은 tf_configuration.yaml의 roll=180, yaw=0으로 보정한다.
 # 여기서도 inverted를 켜면 scan 순서와 장착 회전이 중복 보정된다.
 inverted: false
 angle_compensate: true

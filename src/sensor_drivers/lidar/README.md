@@ -71,13 +71,13 @@ source devel/setup.bash
 roslaunch lidar_bringup rplidar_s2.launch
 ```
 
-기본 설정은 1,000,000 baud, 10 Hz, DenseBoost scan이며 `base_link -> laser`에 yaw `pi`인
+기본 설정은 1,000,000 baud, 10 Hz, DenseBoost scan이며 `base_link -> laser`에 roll `pi`인
 정적 TF를 함께 발행한다. 장착 위치는 m, 회전은 rad 단위 launch 인자로 지정한다.
 
 ```bash
 roslaunch lidar_bringup rplidar_s2.launch \
   laser_x:=0.0 laser_y:=0.0 laser_z:=0.0 \
-  laser_yaw:=3.141592653589793
+  laser_roll:=3.141592653589793
 ```
 
 ## 출력 확인
