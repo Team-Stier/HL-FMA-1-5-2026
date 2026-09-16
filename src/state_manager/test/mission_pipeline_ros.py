@@ -105,14 +105,18 @@ class PipelineSmoke(unittest.TestCase):
         observed.header.stamp, observed.header.frame_id = stamp, 'map'
         observed.pose_stamp = stamp
         observed.matched = observed.has_nearest = True
-        observed.route_name = observed.source_route_name = '7'
+        observed.route_name = observed.source_route_name = '8_dynamic-obstacle'
+        observed.segment_index = 0
+        observed.nearest.source_route_name = observed.source_route_name
+        observed.nearest.segment_index = observed.segment_index
+        observed.nearest.segment_fraction = 0.0
         observed.reason = 'MATCHED'
         self.publishers['observed'].publish(observed)
 
     def test_state_and_selector_transport(self):
         self.publishers['map'].publish(self.route_map())
         self.wait_for(lambda s: all(k in s for k in ('state', 'safety', 'markers', 'selection', 'constraint'))
-                      and s['state'].route_name == '1_right' and s['selection'].ready,
+                      and s['state'].route_name == '8_dynamic-obstacle' and s['selection'].ready,
                       self.publish_default_inputs)
         with self.lock:
             seen = dict(self.seen)
@@ -123,11 +127,11 @@ class PipelineSmoke(unittest.TestCase):
         self.assertTrue(seen['safety'].stop)
         self.assertFalse(seen['constraint'].valid)
         self.assertTrue(seen['constraint'].active)
-        self.assertEqual(seen['constraint'].route_name, '1_right')
+        self.assertEqual(seen['constraint'].route_name, '8_dynamic-obstacle')
 
         def inspected(s):
             text = '\n'.join(m.text for m in s['inspection'].markers) if 'inspection' in s else ''
-            return ('Observed S07: 7' in text and 'Manager: S01' in text
+            return ('Observed S08: 8_dynamic-obstacle' in text and 'Manager: S08' in text
                     and 'Traffic signal: NO_DATA' in text)
         self.wait_for(inspected, self.publish_default_inputs)
         self.wait_for(lambda s: 'inspection' in s and not any(

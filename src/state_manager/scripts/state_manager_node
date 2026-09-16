@@ -10,6 +10,7 @@ import threading
 import rospy
 import tf2_ros
 from geometry_msgs.msg import PoseStamped
+from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
@@ -46,6 +47,8 @@ class StateManagerNode:
         self.lock = threading.RLock()
         self.data, self.candidates, self.routes = {}, {}, {}
         self.runtime, self.map_fingerprint = None, None
+        self.active_match_route = ''
+        self.rddf_match = None
         self.map_fault, self.configuration_fault = '', ''
         self.last_decision = None
         self.last_clock = None
@@ -75,6 +78,8 @@ class StateManagerNode:
             rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
             rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
             rospy.Subscriber('/molit/localization/state', String, self.on_localization_state, queue_size=1),
+            rospy.Subscriber('/molit/localization/rddf/current', RddfMatch,
+                             self.on_current_rddf, queue_size=1),
             rospy.Subscriber('/molit/sensors/lidar/scan', LaserScan, self.on_scan, queue_size=1),
             rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
@@ -118,22 +123,18 @@ class StateManagerNode:
                 raise ValueError('RouteMap is missing routes: ' + ', '.join(sorted(required - set(routes))))
             fingerprint = tuple((name, route.direction, tuple(route.points)) for name, route in sorted(routes.items()))
             with self.lock:
-                if self.runtime is not None:
+                if self.routes:
                     if fingerprint != self.map_fingerprint:
                         self.map_fault = 'ROUTE_MAP_CHANGED_RESTART_REQUIRED'
                     return
-                self.routes = routes
+                self.routes, self.map_fingerprint = routes, fingerprint
                 if self.config.get('landmarks_validated') is True:
                     errors = validate_landmarks(self.config, routes)
                     if errors:
                         self.configuration_fault = 'LANDMARK_CALIBRATION_INVALID:' + '; '.join(errors)
                         rospy.logerr_throttle(2.0, self.configuration_fault)
-                runtime = MissionRuntime(routes, self.config)
-                # A restarted manager must not accept delayed planner replies
-                # from the previous run even when their route names coincide.
-                runtime.decision_id = secrets.randbits(48)
-                self.routes, self.runtime, self.map_fingerprint = routes, runtime, fingerprint
                 self.map_fault = ''
+                self.activate_matched_route()
         except (ValueError, KeyError, TypeError) as error:
             with self.lock:
                 self.map_fault = 'ROUTE_MAP_INVALID:' + str(error)
@@ -174,6 +175,69 @@ class StateManagerNode:
             self.data['localization_state'] = {
                 'stamp': self.clock_now(), 'state': str(msg.data).strip()
             }
+
+    def on_current_rddf(self, msg):
+        with self.lock:
+            now = self.clock_now()
+            observation = {
+                'stamp': msg.header.stamp.to_sec(),
+                'received': now,
+                'pose_stamp': msg.pose_stamp.to_sec(),
+                'frame': msg.header.frame_id,
+                'matched': bool(msg.matched),
+                'reason': msg.reason,
+                'route': msg.source_route_name,
+                'segment_index': int(msg.segment_index),
+                'segment_fraction': float(msg.nearest.segment_fraction),
+            }
+            if (not observation['matched'] or observation['frame'] != 'map'
+                    or not observation['route'] or observation['segment_index'] < 0
+                    or not all(math.isfinite(observation[key]) for key in
+                               ('stamp', 'received', 'pose_stamp', 'segment_fraction'))
+                    or observation['stamp'] <= 0 or observation['pose_stamp'] <= 0
+                    or not 0.0 <= observation['segment_fraction'] <= 1.0
+                    or msg.nearest.source_route_name != msg.source_route_name
+                    or msg.nearest.segment_index != msg.segment_index):
+                observation['matched'] = False
+                observation['reason'] = observation['reason'] or 'INVALID_RDDF_MATCH'
+            self.rddf_match = observation
+            self.data['rddf_match'] = observation
+            self.activate_matched_route()
+
+    def activate_matched_route(self):
+        """Bind mission evaluation to the currently observed source RDDF."""
+        match = self.rddf_match or {}
+        if not self.routes or not match.get('matched'):
+            return
+        now = self.last_clock
+        timeout = float(self.config.get('input_timeout_s', .5))
+        if (not isinstance(now, (int, float)) or
+                not 0 <= now - match.get('stamp', 0) <= timeout or
+                not 0 <= now - match.get('received', 0) <= timeout or
+                not 0 <= now - match.get('pose_stamp', 0) <= timeout):
+            return
+        route_name = match['route']
+        route = self.routes.get(route_name)
+        segment_index = match['segment_index']
+        if route is None or not 0 <= segment_index < len(route.points) - 1:
+            return
+        if self.runtime is not None and route_name == self.active_match_route:
+            return
+        fraction = match['segment_fraction']
+        initial_s = (route.s[segment_index] + fraction *
+                     (route.s[segment_index + 1] - route.s[segment_index]))
+        runtime_config = copy.deepcopy(self.config)
+        runtime_config['start_route'] = route_name
+        runtime = MissionRuntime(self.routes, runtime_config)
+        runtime.tracker.set_initial_progress(initial_s)
+        # Every independently matched RDDF gets a new command epoch. Responses
+        # from a previously tested section can therefore never be reused.
+        runtime.decision_id = secrets.randbits(48) or 1
+        self.runtime = runtime
+        self.active_match_route = route_name
+        self.candidates.clear()
+        self.last_decision = None
+        rospy.loginfo('State Manager RDDF 활성화: %s (s=%.2f m)', route_name, initial_s)
 
     def clock_now(self):
         """Called with the node lock held; clock regression requires restart."""
@@ -429,7 +493,9 @@ class StateManagerNode:
             now = self.clock_now()
             try:
                 if self.runtime is None or self.map_fault or self.configuration_fault or self.clock_fault:
-                    decision = self.fault_decision(self.clock_fault or self.map_fault or self.configuration_fault or 'WAIT_ROUTE_MAP')
+                    waiting = 'WAIT_RDDF_MATCH' if self.routes else 'WAIT_ROUTE_MAP'
+                    decision = self.fault_decision(
+                        self.clock_fault or self.map_fault or self.configuration_fault or waiting)
                 else:
                     self.rddf_candidate(now)
                     decision = self.runtime.step(now, self.data, self.candidates)

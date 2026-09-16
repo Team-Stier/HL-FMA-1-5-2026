@@ -17,7 +17,7 @@ Arduino 명령 토픽을 직접 발행하므로 rosserial을 연결하기 전에
 
 ```mermaid
 flowchart LR
-  L[Localization 승인 위치·유효성] --> S[State Manager]
+  L[Localization 승인 위치·유효성·RDDF match] --> S[State Manager]
   R[Localization RDDF Provider] -->|RouteMap| S
   C[Camera] --> T[신호등 인식기]
   T -->|SignalObservation| S
@@ -42,6 +42,11 @@ flowchart LR
 
 RDDF 파일은 `mando_localization`이 읽어 `/route/map`으로 전달한다.
 State Manager는 이 토픽을 사용하며 다른 패키지의 RDDF 파일을 직접 읽지 않는다.
+활성 미션은 `config/missions.json`의 고정 시작 경로가 아니라
+`/molit/localization/rddf/current`의 유효한 `source_route_name`으로 연다. 따라서
+어느 RDDF에서 초기화하든 1구간부터 순서대로 완료할 필요 없이 그 RDDF 안의 조건만
+판단한다. 매치가 다른 RDDF로 바뀌면 이전 후보 경로를 비우고 새 `decision_id`로 해당
+구간의 독립 미션을 시작한다. 최초 match가 없거나 모호하면 `WAIT_RDDF_MATCH`로 대기한다.
 Selector와 공유하는 순수 Python 검증 코어로 플래너 응답을 동일하게 확인한다.
 `decision_id`는 경로·모드·요청 방향이 바뀔 때 변경된다. 플래너는 이 값을 그대로
 응답해야 하며 이전 구간의 유효한 경로라도 새 요청에 재사용할 수 없다.
@@ -90,9 +95,9 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 | Traffic signal | 매니저 입력 메시지의 값·신뢰도. 인식기가 미연결이면 `NO_DATA` |
 | Safety / Selector 상태 | 현재 정지 이유, 경로 준비 여부 |
 
-미설정 상태에서는 매니저가 `CALIBRATION_REQUIRED` 등에 머무를 수 있다. 차량이 다른
-구간에 있을 때 inspection의 `Observed Sxx`는 별도로 확인할 수 있으며, 그 관측을 미션
-완료/전환으로 사용하지 않는다. 위치가 모호하거나 invalid/stale이면 `UNKNOWN`으로 표시하고
+미설정 상태에서는 매니저가 `CALIBRATION_REQUIRED` 등에 머무를 수 있다. 현재
+`Observed Sxx`의 원본 RDDF match가 활성 미션 구간을 정하며, 이전 구간의 완료 여부는
+진입 조건이 아니다. 위치가 모호하거나 invalid/stale이면 `UNKNOWN`으로 표시하고
 청록색 강조를 지운다. 검사 노드는 제어·미션 토픽을 발행하지 않으며 marker만 발행한다.
 위치가 갱신되지 않으면 RViz 카메라를 수동으로 이동해 화면의 상태 문구를 확인한다.
 
@@ -101,12 +106,15 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 Local Planner와 State Manager에 함께 연결한다. State Manager는 이름에 `dynamic`이
 포함된 RDDF에서만 군집과 전방 RDDF 주행 폭의 겹침을 E-Stop 조건으로 사용한다.
 
-검증: 순수 marker 테스트 및 ROS transport 테스트에서 미설정 매니저 S01과 관측 S07의
-분리, 미수신 입력, stale 강조 제거를 검사한다. CI의 Localization은 실제 메시지 정의를
+검증: 순수 marker 테스트 및 ROS transport 테스트에서 관측 RDDF와 활성 미션 구간의
+일치, 미수신 입력, stale 강조 제거를 검사한다. CI의 Localization은 실제 메시지 정의를
 사용하는 message-only fixture이며, Localization 전체/인식기/실제 RViz 렌더링 검증은 아니다.
 실차 또는 bag 점검에서는 RViz Displays의 TF 오류, 구간 강조 위치, ROI와 스캔 정합을 확인해야 한다.
 
 ## 구간별 처리
+
+이 표의 완료·전환은 전체 코스를 연속 주행할 때의 연결이다. 구간별 시험에서는 현재
+RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 요구하지 않는다.
 
 | 구간 | 미션과 처리 | 완료·전환 기준 |
 |---|---|---|

@@ -33,12 +33,17 @@ class Stamp:
 class AdapterTests(unittest.TestCase):
     def setUp(self):
         self.now = 10.0
+        def fake_runtime(routes, config):
+            runtime = NS(decision_id=0, start_route=config['start_route'], initial_s=None)
+            runtime.tracker = NS(set_initial_progress=lambda value: setattr(runtime, 'initial_s', value))
+            return runtime
         fake_ros = NS(Time=NS(now=lambda: Stamp(self.now)), Duration=lambda value: value,
-                      logwarn_throttle=lambda *args: None, logerr_throttle=lambda *args: None)
+                      logwarn_throttle=lambda *args: None, logerr_throttle=lambda *args: None,
+                      loginfo=lambda *args: None)
         namespace = {'math': math, 'copy': copy, 'rospy': fake_ros, 'secrets': secrets,
                      'Route': Route, 'ROUTES': ROUTES, 'PARKING_ROUTES': PARKING_ROUTES,
                      'validate_landmarks': validate_landmarks,
-                     'MissionRuntime': lambda routes, config: NS(decision_id=0),
+                     'MissionRuntime': fake_runtime,
                      'transform_scan_to_geometry': transform_scan_to_geometry,
                      'Marker': NS(ADD=0, DELETEALL=3, POINTS=8),
                      'tf2_ros': NS(LookupException=LookupError, ConnectivityException=ConnectionError,
@@ -54,6 +59,8 @@ class AdapterTests(unittest.TestCase):
         self.node.last_clock, self.node.clock_fault = None, ''
         self.node.config = {'input_timeout_s': .5, 'max_scan_duration_s': .2}
         self.node.routes, self.node.runtime, self.node.map_fingerprint = {}, None, None
+        self.node.active_match_route, self.node.rddf_match = '', None
+        self.node.last_decision = None
         self.node.configuration_fault, self.node.map_fault = '', ''
         transform = NS(transform=NS(translation=NS(x=0, y=0, z=.3), rotation=NS(x=1, y=0, z=0, w=0)))
         self.node.tf_buffer = NS(lookup_transform=lambda *args: transform)
@@ -149,12 +156,41 @@ class AdapterTests(unittest.TestCase):
                              path=NS(header=self.header(), poses=poses)))
         return NS(header=self.header(), origin_latitude=37.0, origin_longitude=127.0, routes=routes)
 
+    def rddf_match(self, route='1_right', segment=0, fraction=.0, matched=True):
+        nearest = NS(source_route_name=route, segment_index=segment,
+                     segment_fraction=fraction)
+        return NS(header=self.header(), pose_stamp=Stamp(9.9), matched=matched,
+                  reason='MATCHED' if matched else 'AMBIGUOUS_ROUTE',
+                  source_route_name=route if matched else '',
+                  segment_index=segment if matched else -1, nearest=nearest)
+
+    def test_runtime_waits_for_match_and_uses_matched_route_and_progress(self):
+        self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}
+        self.node.on_route_map(self.route_map())
+        self.assertIsNone(self.node.runtime)
+        self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle', fraction=.5))
+        self.assertEqual(self.node.runtime.start_route, '3_s-static-obstacle')
+        self.assertAlmostEqual(self.node.runtime.initial_s, 15.0)
+
+    def test_new_matched_route_starts_independent_mission_epoch(self):
+        self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}
+        self.node.on_route_map(self.route_map())
+        self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle'))
+        first_runtime = self.node.runtime
+        self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle', fraction=.2))
+        self.assertIs(self.node.runtime, first_runtime)
+        self.node.on_current_rddf(self.rddf_match('8_dynamic-obstacle'))
+        self.assertIsNot(self.node.runtime, first_runtime)
+        self.assertEqual(self.node.runtime.start_route, '8_dynamic-obstacle')
+
     def test_invalid_validated_overlay_retains_map_but_blocks_runtime(self):
         self.node.config.update(map_origin={'latitude': 37.0, 'longitude': 127.0},
                                 landmarks_validated=True, landmarks={})
         self.node.on_route_map(self.route_map())
         self.assertEqual(len(self.node.routes), 19)
         self.assertTrue(self.node.configuration_fault.startswith('LANDMARK_CALIBRATION_INVALID:'))
+        self.assertIsNone(self.node.runtime)
+        self.node.on_current_rddf(self.rddf_match())
         self.assertIsNotNone(self.node.runtime)
         output, steps = [], []
         self.node.runtime.step = lambda *args: steps.append(args)
@@ -175,6 +211,8 @@ class AdapterTests(unittest.TestCase):
         self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}
         message = self.route_map()
         self.node.on_route_map(message)
+        self.assertIsNone(self.node.runtime)
+        self.node.on_current_rddf(self.rddf_match())
         self.assertIsNotNone(self.node.runtime)
         message.routes[0].path.poses[1].pose.position.x += .1
         self.node.on_route_map(message)

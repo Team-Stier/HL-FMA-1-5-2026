@@ -46,6 +46,20 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(result["reason"], "outside_start_acquisition")
         self.assertEqual(result["s"], 0)
 
+    def test_matched_progress_allows_independent_middle_acquisition(self):
+        tracker = RouteTracker({"7": line("7", end=100)}, "7")
+        tracker.set_initial_progress(50)
+        result = tracker.update(50, 0, 0, 1)
+        self.assertTrue(result["healthy"], result)
+        self.assertEqual(result["route"], "7")
+        self.assertAlmostEqual(result["s"], 50)
+
+    def test_invalid_matched_progress_is_rejected(self):
+        tracker = RouteTracker({"7": line("7", end=100)}, "7")
+        for value in (-1, 101, math.nan):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                tracker.set_initial_progress(value)
+
     def test_progress_is_monotonic_but_raw_retains_rollback(self):
         tracker = RouteTracker({"1_right": line("1_right")})
         tracker.update(0, 0, 0, 0)

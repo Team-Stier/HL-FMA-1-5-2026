@@ -7,7 +7,7 @@
   <depend>planning_interfaces</depend>
   <depend>selector</depend>
   <exec_depend>control</exec_depend>
-  <exec_depend>mando_localization</exec_depend>
+  <depend>mando_localization</depend>
   <exec_depend>object_detection</exec_depend>
   <exec_depend>path_planner</exec_depend>
   <exec_depend>traffic_light</exec_depend>

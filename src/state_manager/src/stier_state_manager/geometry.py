@@ -114,6 +114,17 @@ class RouteTracker:
         self._result = None
         self.transition_reason = ""
 
+    def set_initial_progress(self, distance):
+        """Seed acquisition near a matched point without claiming it is healthy."""
+        distance = float(distance)
+        if not math.isfinite(distance) or not 0.0 <= distance <= self.current.length:
+            raise ValueError("initial progress outside route")
+        self.s = distance
+        self._last_pose = None
+        self._last_time = None
+        self._acquired = False
+        self._result = None
+
     @property
     def current(self):
         return self.routes[self.route_name]
@@ -153,8 +164,9 @@ class RouteTracker:
             self._result = base
             return dict(base)
         budget = cfg["max_speed_mps"] * min(dt, cfg["max_update_dt_s"]) + cfg["progress_slack_m"]
-        lower = max(0.0, self.s - cfg["rollback_m"])
-        upper = min(route.length, self.s + budget) if self._acquired else min(route.length, cfg["acquire_window_m"])
+        lower = max(0.0, self.s - (cfg["rollback_m"] if self._acquired else cfg["acquire_window_m"]))
+        upper = (min(route.length, self.s + budget) if self._acquired else
+                 min(route.length, self.s + cfg["acquire_window_m"]))
         matched = project(route, x, y, lower, upper)
         if matched is None:
             base["reason"] = "no_projection"
@@ -175,7 +187,9 @@ class RouteTracker:
         reason = "ok"
         if self._last_pose is not None and math.hypot(x - self._last_pose[0], y - self._last_pose[1]) > budget + 1e-9:
             reason = "position_jump"
-        elif not self._acquired and (math.hypot(x - route.start[0], y - route.start[1]) > cfg["acquire_radius_m"]):
+        elif not self._acquired and (math.hypot(
+                x - route.pose_at(self.s)[0], y - route.pose_at(self.s)[1]) >
+                cfg["acquire_radius_m"]):
             reason = "outside_start_acquisition"
         elif cross_track > cfg["max_cross_track_m"]:
             reason = "off_route"

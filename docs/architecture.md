@@ -48,7 +48,7 @@ flowchart TB
     CAR[Arduino / T870<br/>차량 구동]:::active
 
     TL -->|traffic signal| SM
-    LOC -->|Odometry · valid| SM
+    LOC -->|Odometry · valid · current RDDF match| SM
     LOADER -->|/route/map| SM
 
     OD -->|/dbscan_clusters| LP
@@ -79,7 +79,10 @@ Object Detection·Path Planner·PP로 가는 위치 정보, RDDF 파일 로더�
 
 `rddf_route_provider`는 경로를 판단하는 노드가 아니다. RDDF CSV를 읽어 전체 경로
 목록인 `/route/map`으로 바꾸는 파일 로더다. 실제 route 선택과 RDDF 절단은
-State Manager가 담당한다.
+State Manager가 담당한다. 활성 route는 설정 파일의 1구간부터 강제로 시작하지 않고,
+Localization의 `/molit/localization/rddf/current`가 확정한 원본 RDDF 이름으로 정한다.
+따라서 어느 구간에서 초기위치를 잡아도 이전 구간 완료 이력 없이 해당 RDDF의 미션만
+독립적으로 시작한다. 다른 RDDF가 확정되면 새 `decision_id`로 해당 미션을 다시 연다.
 
 ## 경로 선택 규칙
 
@@ -123,6 +126,9 @@ PP 연결은 다음 코드·설정으로 확인된다.
 - Stanley 구현은 남아 있지만 launch 인자를 바꾸지 않는 한 사용하지 않는다.
 
 ## State Manager의 현재 구간 정책
+
+아래 행은 순차 해제 조건이 아니라 **현재 매치된 RDDF 안에서 적용할 동작**이다.
+각 구간은 직접 진입해 독립 시험할 수 있으며, 이전 번호 구간을 먼저 완료할 필요가 없다.
 
 | 구간 | path mode | 현재 처리 |
 |---|---|---|
