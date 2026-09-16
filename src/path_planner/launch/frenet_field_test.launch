@@ -29,7 +29,7 @@
         pkg="tf2_ros"
         type="static_transform_publisher"
         name="frenet_field_lidar_tf"
-        args="1.05 0.0 0.0 0.0 0.0 3.141592653589793 base_link laser_link"/>
+        args="1.05 0.0 0.0 1.0 0.0 0.0 0.0 base_link laser_link"/>
 
   <!-- RDDF corridor is disabled: DBSCAN uses the real forward LiDAR points. -->
   <include if="$(arg start_object_detection)"
