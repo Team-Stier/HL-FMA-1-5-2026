@@ -3,6 +3,11 @@
   <arg name="config_file" default="$(find state_manager)/config/missions.json"/>
   <arg name="calibration_file" default="$(env HOME)/.ros/stier/landmarks.json"/>
   <arg name="calibration_mode" default="false"/>
+  <arg name="start_object_detection" default="true"/>
+  <arg name="start_local_planner" default="true"/>
+  <arg name="local_planner_calibration_required" default="true"/>
+  <arg name="start_traffic_light" default="false"/>
+  <arg name="traffic_light_device" default="auto"/>
   <arg name="start_control" default="true"/>
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
@@ -15,6 +20,18 @@
     <param name="calibration_file" value="$(arg calibration_file)"/>
     <param name="calibration_mode" value="$(arg calibration_mode)"/>
   </node>
+  <include if="$(arg start_object_detection)"
+           file="$(find object_detection)/launch/rddf_roi_detection.launch">
+    <arg name="start_viewer" value="false"/>
+  </include>
+  <include if="$(arg start_local_planner)"
+           file="$(find path_planner)/launch/path_planner.launch">
+    <arg name="calibration_required" value="$(arg local_planner_calibration_required)"/>
+  </include>
+  <include if="$(arg start_traffic_light)"
+           file="$(find traffic_light)/launch/traffic_light.launch">
+    <arg name="device" value="$(arg traffic_light_device)"/>
+  </include>
   <include file="$(find selector)/launch/selector.launch"/>
   <include if="$(eval arg('start_control') and not arg('calibration_mode'))"
            file="$(find control)/launch/control.launch">

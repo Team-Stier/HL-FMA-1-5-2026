@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Run the trained YOLO traffic-light model on the real-vehicle camera."""
+import hashlib
+import os
+
+import rospy
+import rospkg
+from cv_bridge import CvBridge, CvBridgeError
+from planning_interfaces.msg import MissionState, SignalObservation
+from sensor_msgs.msg import Image
+
+from traffic_light_core import FrameDecision, TrafficLightDetector, decide_frame
+
+
+class TrafficLightNode:
+    def __init__(self):
+        package_path = rospkg.RosPack().get_path('traffic_light')
+        default_model = os.path.join(package_path, 'models', 'traffic_light_7class_best.pt')
+        model_path = os.path.abspath(os.path.expanduser(
+            rospy.get_param('~model_path', default_model)))
+        if not os.path.isfile(model_path):
+            raise rospy.ROSInitException('YOLO model does not exist: ' + model_path)
+
+        expected_sha256 = str(rospy.get_param('~model_sha256', '')).strip().lower()
+        if expected_sha256:
+            actual_sha256 = self._sha256(model_path)
+            if actual_sha256 != expected_sha256:
+                raise rospy.ROSInitException(
+                    'YOLO model checksum mismatch: expected %s, got %s' %
+                    (expected_sha256, actual_sha256))
+
+        try:
+            from ultralytics import YOLO
+        except ImportError as error:
+            raise rospy.ROSInitException(
+                'ultralytics is not installed; run pip3 install -r '
+                + os.path.join(package_path, 'requirements.txt')) from error
+
+        confidence = float(rospy.get_param('~confidence_threshold', 0.5))
+        image_size = int(rospy.get_param('~image_size', 640))
+        device = str(rospy.get_param('~device', 'auto'))
+        self.detector = TrafficLightDetector(
+            YOLO(model_path), confidence=confidence,
+            image_size=image_size, device=device)
+        self.bridge = CvBridge()
+        self.route_name_override = str(rospy.get_param('~route_name', '')).strip()
+        self.active_route = ''
+
+        image_topic = str(rospy.get_param('~image_topic', '/usb_cam/image_raw'))
+        self.signal_pub = rospy.Publisher(
+            '/perception/traffic_signal', SignalObservation, queue_size=1)
+        self.mission_sub = rospy.Subscriber(
+            '/mission/state', MissionState, self._mission_callback, queue_size=1)
+        self.image_sub = rospy.Subscriber(
+            image_topic, Image, self._image_callback,
+            queue_size=1, buff_size=2 ** 24)
+        rospy.loginfo(
+            'traffic_light_node ready: image=%s model=%s device=%s confidence=%.2f',
+            image_topic, model_path, device, confidence)
+
+    @staticmethod
+    def _sha256(path):
+        digest = hashlib.sha256()
+        with open(path, 'rb') as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def _mission_callback(self, msg):
+        self.active_route = msg.route_name.strip()
+
+    def _publish(self, header, decision):
+        route_name = self.route_name_override or self.active_route
+        signal = SignalObservation()
+        signal.header = header
+        signal.route_name = route_name
+        signal.junction_id = ('route_' + route_name) if route_name else ''
+        signal.value = decision.signal
+        signal.confidence = decision.signal_confidence
+        self.signal_pub.publish(signal)
+
+    def _image_callback(self, msg):
+        try:
+            frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            detections = self.detector.detect(frame)
+            decision = decide_frame(detections, frame.shape[1])
+        except (CvBridgeError, RuntimeError, ValueError) as error:
+            rospy.logerr_throttle(2.0, 'traffic-light inference failed: %s', error)
+            decision = FrameDecision('UNKNOWN', 0.0)
+        self._publish(msg.header, decision)
+        rospy.loginfo_throttle(
+            1.0, 'traffic signal=%s %.2f route=%s',
+            decision.signal, decision.signal_confidence,
+            self.route_name_override or self.active_route or 'UNKNOWN')
+
+
+def main():
+    rospy.init_node('traffic_light_node', anonymous=False)
+    try:
+        TrafficLightNode()
+        rospy.spin()
+    except rospy.ROSInitException as error:
+        rospy.logfatal('%s', error)
+        raise
+
+
+if __name__ == '__main__':
+    main()

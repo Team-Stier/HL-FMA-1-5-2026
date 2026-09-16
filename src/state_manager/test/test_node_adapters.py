@@ -84,23 +84,11 @@ class AdapterTests(unittest.TestCase):
         self.node.on_scan(scan)
         self.assertFalse(self.node.data['scan']['valid'])
 
-    def test_low_confidence_dynamic_does_not_mean_clear(self):
-        self.node.on_dynamic(NS(header=self.header(), detected=False, central_stopped=True, confidence=.4))
-        observation = self.node.data['dynamic']
-        self.assertIsNone(observation['blocked'])
-        self.assertFalse(observation['central_stopped'])
-        self.assertEqual(observation['stamp'], 9.9)
-
     def test_general_green_is_preserved_distinct_from_left_arrow(self):
         self.node.on_signal(NS(header=self.header(), route_name='7', junction_id='left_turn',
                                value='GREEN', confidence=.9))
         self.assertEqual(self.node.data['signal']['value'], 'GREEN')
         self.assertNotEqual(self.node.data['signal']['value'], 'LEFT_ARROW')
-
-    def test_unknown_lane_value_never_permits_lane(self):
-        self.node.on_lane(NS(header=self.header(), left='GREEN', right='X', confidence=.9))
-        self.assertEqual(self.node.data['lane']['left'], 'UNKNOWN')
-        self.assertEqual(self.node.data['lane']['right'], 'X')
 
     def test_clock_regression_clears_observations_and_latches_fault(self):
         self.node.clock_now()

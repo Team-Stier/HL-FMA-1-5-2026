@@ -6,9 +6,10 @@
 PDF 자체는 저장소에 포함하지 않는다. 시험장 현장 설정은 `config/missions.json`과
 별도의 landmark 파일로 관리한다.
 
-**이 코드는 미션 결정·경로 검증·LiDAR 상태 판단의 구현이다.** 경로 추종 Control은
-연결됐지만 신호/어린이 인식기, S자 회피 플래너와 주차 경로 플래너는 아직 통합되지
-않았다. 실제 차폭·제동 성능·정지선도 미측정 상태다. `mission.launch`는 Control이
+**이 코드는 미션 결정·경로 검증·LiDAR 상태 판단의 구현이다.** 경로 추종 Control과
+S자 회피용 Object Detection/Local Planner가 연결됐고 신호등 패키지도 선택 실행할 수
+있다. 주차 경로 플래너는 아직 통합되지 않았다. 실제 차폭·제동 성능·일부 landmark는
+미측정 상태다. `mission.launch`는 Control이
 Arduino 명령 토픽을 직접 발행하므로 rosserial을 연결하기 전에 실행 범위를 확인해야
 한다.
 
@@ -20,10 +21,12 @@ flowchart LR
   R[Localization RDDF Provider] -->|RouteMap| S
   C[Camera] --> T[신호등 인식기]
   T -->|SignalObservation| S
-  LANE[차로 제어 신호 입력<br/>센서·구현 미정] -->|LaneSignals| S
-  DYN[동적 장애물 판단<br/>구현 미정] -->|DynamicObservation| S
   D[상시 LiDAR + 시각별 TF] --> S
-  S -->|MissionState| P[Local / Parking Planner]
+  D --> O[Object Detection]
+  O -->|DBSCAN clusters| P[Local Path Planner]
+  L -->|Odometry| P
+  R -->|RouteMap| P
+  S -->|MissionState| P
   S -->|MissionState<br/>RDDF / LOCAL / PARKING 요청| X[Selector]
   S -->|PlannedPath RDDF| X
   P -->|PlannedPath + decision_id| X
@@ -83,7 +86,7 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 | RDDF/LOCAL/PARK 후보 경로 | 입력된 경로 형상·route·decision ID. 아직 주행이 허용되지 않아도 확인 가능 |
 | 노란 `/path/final` | Selector가 내보낸 출력. 미설정 상태에서는 비어 있는 것이 정상 |
 | 원본 LiDAR, ROI 내부 점, ROI 원, DBSCAN 군집 | 원본과 필터 결과 비교. DBSCAN 군집은 객체 종류나 움직임 판정이 아님 |
-| Traffic signal / Lane signals / Dynamic observation | 매니저 입력 메시지의 값·신뢰도. 인식기가 미연결이면 `NO_DATA` |
+| Traffic signal | 매니저 입력 메시지의 값·신뢰도. 인식기가 미연결이면 `NO_DATA` |
 | Safety / Selector 상태 | 현재 정지 이유, 경로 준비 여부 |
 
 미설정 상태에서는 매니저가 `CALIBRATION_REQUIRED` 등에 머무를 수 있다. 차량이 다른
@@ -93,9 +96,8 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 위치가 갱신되지 않으면 RViz 카메라를 수동으로 이동해 화면의 상태 문구를 확인한다.
 
 카메라는 신호등 인식에만 사용하고 결과를 `SignalObservation`으로 전달한다.
-`LaneSignals`와 `DynamicObservation`은 카메라 경로에 묶지 않으며 입력 센서와 생산 노드를
-별도로 결정한다. 이 입력들은 DBSCAN 결과를 그대로 연결하는 항목도 아니다. 현재 미연결
-입력은 비어 있는 채 표시하며 가짜 신호로 주행 조건을 통과시키지 않는다.
+카메라 기반 차로 제어와 동적장애물 판정 입력은 사용하지 않는다. DBSCAN 군집은
+3구간 정적장애물 회피용 Local Planner에만 연결한다.
 
 검증: 순수 marker 테스트 및 ROS transport 테스트에서 미설정 매니저 S01과 관측 S07의
 분리, 미수신 입력, stale 강조 제거를 검사한다. CI의 Localization은 실제 메시지 정의를
@@ -112,11 +114,11 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 | 4 | 2와 같은 신호 처리 + T 주차 좌/우 공간 미리 관측 | 교차로 통과·구간 끝·선택 공간 관측 확인 후 5 |
 | 5/6 | 선택한 T 주차 진입/출차 경로를 한 쌍으로 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
 | 7 | 정지선 가상 벽에서 `LEFT_ARROW` 대기, 허용 시 RDDF 좌회전 | 일반 녹색으로 좌회전 허가를 대신하지 않음 |
-| 8 | 고주로 동적장애물 대비, 발견 시 정지 | 어린이가 중앙에서 멈춘 뒤 차량 완전 정지 3초. 장애물이 치워지고 경로가 관측상 안전해야 재출발 |
+| 8 | 일반 RDDF 추종 | 구간 끝에서 9로 연결; 동적장애물 전용 판정 없음 |
 | 9 | 기준경로 추종 + 평행주차 좌/우 미리 관측 | 구간 끝에서 확인된 쪽 10으로 연결 |
 | 10/11 | 선택한 평행주차 진입/출차 쌍 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
-| 12 | 차로 제어 신호 `DOWN`/`X` 관측, 분기 준비 | 왼쪽은 RDDF 12 중간 분기점에서, 오른쪽은 끝에서 13 진입 |
-| 13 left/right | 진입 전에 허용된 차로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
+| 12 | 설정된 종료 분기 추종 | `finish_branch=left`는 중간 분기점, right는 끝에서 13 진입 |
+| 13 left/right | 설정된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
 
 주차 후보는 LiDAR로 전체 진입·출차 경로의 차체 폭/앞뒤 돌출부/여유 폭을 검사한다.
 연속된 서로 다른 3개 관측에서 `CLEAR`인 후보를 선택한다. 선택 후 진입 전까지
@@ -213,10 +215,7 @@ RViz에는 앞·뒤 마커와 중앙 목표, 현재 정차 누적 시간이 표�
 - 신호: 2/4는 GREEN, 7은 LEFT_ARROW만 새 진입을 허용한다. 이미 허가받고 진입한
   교차로에서는 신호가 바뀌었다고 신호 조건만으로 급정지하지 않는다. 별도 LiDAR 정지는
   계속 우선한다. 교차로 정지 3초·20초, 통과 30초 초과는 진단에 기록한다.
-- 8구간: **어린이가 중앙에 정지한 시점 이후** 완전 정지 3초가 필요하다.
-  단순 LiDAR 물체 검출만으로 어린이 종류나 중앙 정지를 추정하지 않는다.
-  `DynamicObservation` 생산자가 이를 판단해야 한다. 기본 설정에서는 우회하지 않고
-  장애물 제거와 경로 안전 확인을 기다린다.
+- 8구간은 현재 일반 RDDF 추종으로 처리하며 동적장애물 종류·중앙 정지 판정을 하지 않는다.
 - 유효한 위치로 실제 출발한 시점부터 전체 8분 및 장시간 무동작을 진단한다. 정지선 전 1m 이내에서 fresh RED에 따라
   멈춘 연속 시간은 주행 시간에서 뺀다. 시간 초과가 강제 출발을 유발하지는 않는다.
 - 차선·중앙선 준수, 범퍼/뒷바퀴와 실제 선의 접촉, 미세 연석의 관측은 센서 정밀도와
@@ -264,7 +263,7 @@ landmark: 'stop_line_s'"
 | `parking_confirm_s` | 뒷바퀴가 확인선에 닿았을 때의 기준점 위치. 다음 출차 경로 시작점과 연결되어야 함 |
 | `parking_yaw_rad` | 주차 완료 차체 방향. 클릭으로 생성하지 않고 측정한 rad 값을 JSON에 입력 |
 | `parking_exit_s` | 주차 출차 확인선을 넘었을 때의 기준점 위치 |
-| `lane_decision_s` | 12→13 left의 실제 RDDF 분기 누적거리. 현재 파일은 index 36, 약 13.258m |
+| `finish_branch_s` | 12→13 left의 실제 RDDF 분기 누적거리. 현재 파일은 index 36, 약 13.258m |
 | `finish_s` | 뒷바퀴가 통과할 실제 종료선. RDDF에 종료 후 제동 여유가 남아 있어야 함 |
 
 현재 Localization의 `base_link` 기준점은 뒷차축이다. 다른 기준점을 사용한다면
@@ -315,8 +314,6 @@ RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단
 |---|---|---|
 | `/route/map` | `RouteMap` | Localization 소유 RDDF 전체와 origin 제공 |
 | `/perception/traffic_signal` | `SignalObservation` | route_name=2/4/7, 신호값·confidence·실제 측정 시각 |
-| `/perception/lane_signals` | `LaneSignals` | 좌/우 각각 DOWN/X/UNKNOWN. 일반 신호등과 분리 |
-| `/perception/dynamic_obstacle` | `DynamicObservation` | 어린이 검출과 중앙 정지 여부를 fresh 관측으로 발행 |
 | `/parking/maneuver` | `ParkingManeuver` | 현재 요청 ID를 반영한 주차 단계·방향·RDDF 시작/목표 거리 |
 | `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지 제약 |
 | `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치를 진단·검증용으로 제공 |
@@ -337,7 +334,7 @@ RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단
 갱신된 decision_id로 동일한 단계와 `/path/park`를 다시 발행해야 한다. 승인된 단계의
 시작/목표/방향을 몰래 바꾸거나 움직이는 동안 다음 단계로 전환하면 정지한다.
 
-LOCAL은 향후 선택할 로컬 플래너용 경계다. 정적 장애물 구간에서는 RDDF로 자동
+LOCAL은 연결된 `path_planner`의 로컬 경로다. 정적 장애물 구간에서는 RDDF로 자동
 fallback하지 않는다. PARKING 역시 전용 플래너 응답이 없으면 진행하지 않는다.
 미래 시각·낡은 관측·다른 구간의 신호·낮은 confidence는 허가로 쓰지 않는다.
 ROS를 정지했다 다시 시작한 경우 새 경기 실행을 위해 State Manager도 재시작한다.
@@ -372,7 +369,7 @@ python3 -m unittest discover -s src/selector/test -v
 전체 13개 미션을 차량 연결 없이 논리 입력으로 재생할 수 있다.
 
 ```bash
-python3 src/state_manager/examples/replay_missions.py --parking-branch left --lane right --output /tmp/stier-replay.json
+python3 src/state_manager/examples/replay_missions.py --parking-branch left --finish-branch right --output /tmp/stier-replay.json
 ```
 
 이 재생기는 실제 MissionEngine·Selector를 사용하지만 위치·신호·주차
@@ -392,5 +389,5 @@ ROS 테스트로 실제 토픽 통신·RViz marker 발행과 기본 보정 상�
 센서 드라이버와 Localization C++ 스택을 포함하지 않으며 현장 통합 시험과 구분한다.
 
 실차 적용 전 Ubuntu/Noetic에서 catkin 빌드, rosbag 재생, 센서 단절·위치 도약·신호
-변경·막힌 주차칸·어린이 정지 시나리오를 확인해야 한다. macOS 개발 환경에서는
+변경·막힌 주차칸·정적 장애물 시나리오를 확인해야 한다. macOS 개발 환경에서는
 Python 회귀 테스트와 소스/launch 정적 검증만 실행할 수 있다.

@@ -27,16 +27,14 @@
     "max_speed_mps": null,
     "max_yaw_rate_rps": null
   },
+  "finish_branch": "left",
   "rules": {
     "hill_hold_s": 3.0,
-    "dynamic_hold_s": 3.0,
     "standstill_speed_mps": 0.05,
     "stop_tolerance_m": 0.2,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "parking_stable_observations": 3,
-    "lane_stable_observations": 3,
-    "allow_dynamic_bypass": false,
     "hill_hold_position_tolerance_m": 0.02
   },
   "speeds": {
@@ -44,7 +42,6 @@
     "hill": 1.0,
     "static": 1.0,
     "intersection": 1.0,
-    "dynamic": 1.0,
     "parking": 0.5
   },
   "tracker": {
@@ -73,7 +70,7 @@
       "parking_exit_s": null
     },
     "12": {
-      "lane_decision_s": null
+      "finish_branch_s": null
     },
     "13_left": {
       "finish_s": null
@@ -127,10 +124,10 @@
   },
   "landmark_hints": {
     "12": {
-      "lane_decision_s": {
+      "finish_branch_s": {
         "index": 36,
         "distance_m": 13.258,
-        "note": "RDDF geometric fork only; confirm on site before validation."
+        "note": "Configured finish-route fork; confirm on site before validation."
       }
     }
   },

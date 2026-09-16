@@ -1,21 +1,58 @@
-cmake_minimum_required(VERSION 3.10)
-project(path_planner LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.0.2)
+project(path_planner)
 
-set(PATH_PLANNER_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH "Path planner source root")
-add_library(path_planner STATIC
-  ${PATH_PLANNER_SOURCE_ROOT}/src/reference_path.cpp
-  ${PATH_PLANNER_SOURCE_ROOT}/src/frenet_planner.cpp
-  ${PATH_PLANNER_SOURCE_ROOT}/src/collision_checker.cpp
-  ${PATH_PLANNER_SOURCE_ROOT}/src/boundary_checker.cpp
-  ${PATH_PLANNER_SOURCE_ROOT}/src/obstacle_projection.cpp
-  ${PATH_PLANNER_SOURCE_ROOT}/src/pose_jump_guard.cpp
+find_package(catkin REQUIRED COMPONENTS
+  geometry_msgs
+  nav_msgs
+  planning_interfaces
+  roscpp
+  tf2
+  tf2_geometry_msgs
+  visualization_msgs
 )
-target_include_directories(path_planner PUBLIC ${PATH_PLANNER_SOURCE_ROOT}/include)
-target_compile_features(path_planner PUBLIC cxx_std_14)
-target_compile_options(path_planner PRIVATE -Wall -Wextra -Wpedantic)
-include(CTest)
-if(BUILD_TESTING)
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES path_planner_core
+  CATKIN_DEPENDS geometry_msgs nav_msgs planning_interfaces roscpp tf2
+                 tf2_geometry_msgs visualization_msgs
+)
+
+add_library(path_planner_core
+  src/reference_path.cpp
+  src/frenet_planner.cpp
+  src/collision_checker.cpp
+  src/boundary_checker.cpp
+  src/obstacle_projection.cpp
+  src/pose_jump_guard.cpp
+)
+target_include_directories(path_planner_core PUBLIC include ${catkin_INCLUDE_DIRS})
+target_compile_features(path_planner_core PUBLIC cxx_std_14)
+target_compile_options(path_planner_core PRIVATE -Wall -Wextra -Wpedantic)
+add_dependencies(path_planner_core ${catkin_EXPORTED_TARGETS})
+
+add_executable(path_planner_node src/path_planner_node.cpp)
+target_compile_features(path_planner_node PRIVATE cxx_std_14)
+target_compile_options(path_planner_node PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(path_planner_node path_planner_core ${catkin_LIBRARIES})
+add_dependencies(path_planner_node ${catkin_EXPORTED_TARGETS})
+
+install(TARGETS path_planner_core path_planner_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+install(DIRECTORY config launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+
+if(CATKIN_ENABLE_TESTING)
   add_executable(path_planner_core_test test/test_frenet_core.cpp)
-  target_link_libraries(path_planner_core_test PRIVATE path_planner)
+  target_compile_features(path_planner_core_test PRIVATE cxx_std_14)
+  target_link_libraries(path_planner_core_test PRIVATE path_planner_core)
   add_test(NAME path_planner_core COMMAND path_planner_core_test)
 endif()

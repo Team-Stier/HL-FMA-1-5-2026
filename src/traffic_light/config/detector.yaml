@@ -1,0 +1,8 @@
+# The model reports every box above this threshold. State Manager applies its
+# own, stricter permission threshold before a signal can authorize motion.
+confidence_threshold: 0.5
+image_size: 640
+device: auto
+
+# Refuse to start if the tracked model file is changed or corrupted.
+model_sha256: caaf2ab7a3f1aa6500a9907ab1a2044119e3051857d990a54ee0097603e6966f

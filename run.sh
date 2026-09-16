@@ -90,9 +90,6 @@ if ! rosnode list >/dev/null 2>&1; then
 fi
 
 start_package_launcher localization "${STIER_WORKSPACE_ROOT}/src/localization/launch.sh"
-start_ros_node object_detection object_detection_node
-start_ros_node traffic_light traffic_light_node
-start_ros_node parking_path_planning parking_path_planning_node
 start_package_launcher state_manager "${STIER_WORKSPACE_ROOT}/src/state_manager/launch.sh"
 
 if ((${#STIER_NODE_PIDS[@]} == 0)); then

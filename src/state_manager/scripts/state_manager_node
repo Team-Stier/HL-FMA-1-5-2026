@@ -14,8 +14,8 @@ from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import MarkerArray
-from planning_interfaces.msg import (DynamicObservation, LaneSignals, MissionState, ParkingManeuver,
-                                    PlannedPath, RouteMap, SafetyStatus, SignalObservation, TrafficConstraint)
+from planning_interfaces.msg import (MissionState, ParkingManeuver, PlannedPath,
+                                    RouteMap, SafetyStatus, SignalObservation, TrafficConstraint)
 from selector.core import Candidate, Pose
 from stier_state_manager.geometry import Route, transform_scan_to_geometry
 from stier_state_manager.calibration import validate_landmarks
@@ -76,8 +76,6 @@ class StateManagerNode:
             rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
             rospy.Subscriber('/molit/sensors/lidar/scan', LaserScan, self.on_scan, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
-            rospy.Subscriber('/perception/lane_signals', LaneSignals, self.on_lane, queue_size=1),
-            rospy.Subscriber('/perception/dynamic_obstacle', DynamicObservation, self.on_dynamic, queue_size=1),
             rospy.Subscriber('/parking/maneuver', ParkingManeuver, self.on_parking_maneuver, queue_size=1),
             rospy.Subscriber('/path/local', PlannedPath, self.on_path, callback_args='LOCAL', queue_size=1),
             rospy.Subscriber('/path/park', PlannedPath, self.on_path, callback_args='PARKING', queue_size=1),
@@ -232,22 +230,6 @@ class StateManagerNode:
             self.clock_now()
             self.data['signal'] = {'stamp': msg.header.stamp.to_sec(), 'route': msg.route_name,
                                    'junction_id': msg.junction_id, 'value': value}
-
-    def on_lane(self, msg):
-        confident = self.confident(msg.confidence)
-        with self.lock:
-            self.clock_now()
-            self.data['lane'] = {'stamp': msg.header.stamp.to_sec(),
-                'left': msg.left if confident and msg.left in ('DOWN', 'X') else 'UNKNOWN',
-                'right': msg.right if confident and msg.right in ('DOWN', 'X') else 'UNKNOWN'}
-
-    def on_dynamic(self, msg):
-        confident = self.confident(msg.confidence)
-        with self.lock:
-            self.clock_now()
-            self.data['dynamic'] = {'stamp': msg.header.stamp.to_sec(),
-                'blocked': bool(msg.detected) if confident else None,
-                'central_stopped': bool(msg.central_stopped) if confident else False}
 
     def on_parking_maneuver(self, msg):
         with self.lock:

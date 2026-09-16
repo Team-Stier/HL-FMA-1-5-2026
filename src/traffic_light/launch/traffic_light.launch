@@ -1,0 +1,18 @@
+<launch>
+  <arg name="image_topic" default="/usb_cam/image_raw"/>
+  <arg name="model_path" default="$(find traffic_light)/models/traffic_light_7class_best.pt"/>
+  <arg name="device" default="auto"/>
+  <arg name="route_name" default=""/>
+
+  <node pkg="traffic_light"
+        type="traffic_light_node"
+        name="traffic_light_node"
+        output="screen"
+        required="true">
+    <rosparam command="load" file="$(find traffic_light)/config/detector.yaml"/>
+    <param name="image_topic" value="$(arg image_topic)"/>
+    <param name="model_path" value="$(arg model_path)"/>
+    <param name="device" value="$(arg device)"/>
+    <param name="route_name" value="$(arg route_name)"/>
+  </node>
+</launch>

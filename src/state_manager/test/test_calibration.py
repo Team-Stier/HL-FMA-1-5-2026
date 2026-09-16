@@ -38,7 +38,7 @@ def measured(routes):
         if item.section in (5, 10):
             marks.update(parking_confirm_s=item.length, parking_yaw_rad=math.pi)
         if item.section == 12:
-            marks['lane_decision_s'] = 13.258
+            marks['finish_branch_s'] = 13.258
         if marks:
             config['landmarks'][name] = marks
     return config
@@ -118,14 +118,14 @@ class CalibrationTests(unittest.TestCase):
         self.config['landmarks']['5_T-left-in']['parking_yaw_rad'] = 90
         self.assertTrue(validate_landmarks(self.config, self.routes))
 
-    def test_lane_decision_must_match_interior_left_fork(self):
-        self.config['landmarks']['12']['lane_decision_s'] = 20
+    def test_finish_branch_must_match_interior_left_fork(self):
+        self.config['landmarks']['12']['finish_branch_s'] = 20
         errors = validate_landmarks(self.config, self.routes)
         self.assertTrue(any('13_left handoff' in e for e in errors))
 
     def test_fork_configuration_must_match_actual_rddf_geometry(self):
         self.config['tracker'] = {'branch_13_left_s_m': 10}
-        self.config['landmarks']['12']['lane_decision_s'] = 10
+        self.config['landmarks']['12']['finish_branch_s'] = 10
         errors = validate_landmarks(self.config, self.routes)
         self.assertTrue(any('RDDF geometry' in e for e in errors))
 

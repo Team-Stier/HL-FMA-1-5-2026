@@ -25,7 +25,7 @@ class MissionTests(unittest.TestCase):
             "hill_start_s": 2.0, "hill_stop_s": 5.0, "hill_top_s": 9.0,
             "stop_line_s": 10.0, "intersection_exit_s": 15.0,
             "parking_confirm_s": 18.0, "parking_exit_s": 19.0,
-            "lane_decision_s": 13.258, "finish_s": 19.0,
+            "finish_branch_s": 13.258, "finish_s": 19.0,
         }
         value = {
             "now": now, "healthy": True, "reason": "", "route": route, "decision_id": 1,
@@ -33,9 +33,7 @@ class MissionTests(unittest.TestCase):
             "speed": 1.0, "yaw": 0.0, "calibrated": True,
             "landmarks": {route: marks}, "path_ready": True, "collision": False,
             "signal": {"stamp": now, "route": route, "value": "UNKNOWN"},
-            "lane": {"stamp": now, "left": "UNKNOWN", "right": "UNKNOWN"},
             "parking": {"stamp": now, "left": "UNKNOWN", "right": "UNKNOWN"},
-            "dynamic": {"stamp": now, "blocked": False, "central_stopped": False},
         }
         value.update(changes)
         return value
@@ -49,7 +47,7 @@ class MissionTests(unittest.TestCase):
         for index in range(int(round((end - start) * 4)) + 1):
             now = start + index / 4.0
             values = dict(kwargs)
-            for name in ("dynamic", "dynamic_bypass", "parking_maneuver"):
+            for name in ("parking_maneuver",):
                 if name in values:
                     values[name] = dict(values[name], stamp=now)
             result = self.run_at(section, now=now, **values)
@@ -62,14 +60,6 @@ class MissionTests(unittest.TestCase):
             parking = {"stamp": now, "left": "BLOCKED", "right": "BLOCKED"}
             parking[side] = "CLEAR"
             result = self.run_at(section, now=now, parking=parking)
-        return result
-
-    def select_lane(self, side="left", start=0.0):
-        for offset in (0.0, 0.1, 0.2):
-            now = start + offset
-            lane = {"stamp": now, "left": "X", "right": "X"}
-            lane[side] = "DOWN"
-            result = self.run_at(12, now=now, lane=lane)
         return result
 
     def test_hill_requires_three_seconds_of_continuous_standstill(self):
@@ -396,60 +386,14 @@ class MissionTests(unittest.TestCase):
         result = self.run_at(6, now=0.3, s=20, at_end=True)
         self.assertEqual(result["reason"], "PARKING_ENTRY_NOT_COMPLETED")
 
-    def test_dynamic_stops_immediately_and_waits_for_central_stop(self):
-        result = self.run_at(8, now=0, speed=2,
-                             dynamic={"stamp": 0, "blocked": True, "central_stopped": False})
-        self.assertTrue(result["stop_requested"])
-        wait = self.run_at(8, now=5, speed=0,
-                           dynamic={"stamp": 5, "blocked": True, "central_stopped": False})
-        self.assertTrue(wait["stop_requested"])
-        self.assertNotIn("dynamic_hold", wait["completed_missions"])
-
-    def test_dynamic_hold_requires_three_seconds_then_fresh_clear(self):
-        for now in tuple(index / 4.0 for index in range(12)) + (2.999, 3.0):
-            result = self.run_at(8, now=now, speed=0,
-                                 dynamic={"stamp": now, "blocked": True, "central_stopped": True})
-            self.assertTrue(result["stop_requested"])
-        self.assertEqual(result["reason"], "WAIT_DYNAMIC_CLEAR")
-        stale = self.run_at(8, now=4, speed=0,
-                            dynamic={"stamp": 3, "blocked": False, "central_stopped": False})
-        self.assertTrue(stale["stop_requested"])
-        clear = self.run_at(8, now=4.1, speed=0, s=20, at_end=True,
-                            dynamic={"stamp": 4.1, "blocked": False, "central_stopped": False})
-        self.assertFalse(clear["stop_requested"])
-        self.assertEqual(clear["next_route"], "9")
-
-    def test_dynamic_stale_central_evidence_resets_hold(self):
-        self.run_at(8, now=0, speed=0, dynamic={"stamp": 0, "blocked": True, "central_stopped": True})
-        self.run_at(8, now=2, speed=0, dynamic={"stamp": 0, "blocked": True, "central_stopped": True})
-        self.run_at(8, now=3, speed=0, dynamic={"stamp": 3, "blocked": True, "central_stopped": True})
-        result = self.run_at(8, now=5.9, speed=0, dynamic={"stamp": 5.9, "blocked": True, "central_stopped": True})
-        self.assertNotIn("dynamic_hold", result["completed_missions"])
-
-    def test_early_obstacle_departure_does_not_shorten_vehicle_hold(self):
-        self.run_at(8, now=0, speed=0, dynamic={"stamp": 0, "blocked": True, "central_stopped": True})
-        for index in range(1, 12):
-            now = index / 4.0
-            result = self.run_at(8, now=now, speed=0,
-                                 dynamic={"stamp": now, "blocked": False, "central_stopped": False})
-            self.assertTrue(result["stop_requested"])
-        result = self.run_at(8, now=3, speed=0,
-                             dynamic={"stamp": 3, "blocked": False, "central_stopped": False})
-        self.assertFalse(result["stop_requested"])
-        self.assertIn("dynamic", result["completed_missions"])
-
-    def test_dynamic_trigger_missing_cannot_silently_complete(self):
+    def test_section_eight_is_normal_rddf_transit(self):
+        before = self.run_at(8, s=10)
+        self.assertEqual(before["mission"], "RDDF_TRANSIT")
+        self.assertEqual(before["phase"], "FOLLOW_RDDF")
+        self.assertFalse(before["stop_requested"])
         result = self.run_at(8, s=20, at_end=True)
-        self.assertEqual(result["reason"], "DYNAMIC_MISSION_NOT_OBSERVED")
-        self.assertIsNone(result["next_route"])
-
-    def test_dynamic_bypass_disabled_by_default(self):
-        result = self.poll(8, speed=0,
-                           dynamic={"blocked": True, "central_stopped": True},
-                           dynamic_bypass={"safe": True})
-        self.assertTrue(result["stop_requested"])
-        self.assertEqual(result["path_mode"], "RDDF")
-        self.assertIn("dynamic_hold", result["completed_missions"])
+        self.assertEqual(result["next_route"], "9")
+        self.assertIn("section_8_transit", result["completed_missions"])
 
     def test_healthy_false_blocks_every_segment_transition(self):
         for section in range(1, 14):
@@ -473,47 +417,27 @@ class MissionTests(unittest.TestCase):
         result = self.run_at(3, calibrated=False)
         self.assertTrue(result["stop_requested"])
 
-    def test_left_lane_branches_at_internal_junction(self):
-        self.select_lane("left")
-        before = self.run_at(12, now=0.3, s=13.2,
-                             lane={"stamp": 0.3, "left": "DOWN", "right": "X"})
+    def test_default_left_finish_branch_uses_internal_junction(self):
+        before = self.run_at(12, now=0.3, s=13.2)
+        self.assertEqual(before["selected_branch"], "left")
         self.assertIsNone(before["next_route"])
-        result = self.run_at(12, now=0.4, s=13.258,
-                             lane={"stamp": 0.4, "left": "DOWN", "right": "X"})
+        result = self.run_at(12, now=0.4, s=13.258)
         self.assertEqual(result["next_route"], "13_left")
 
-    def test_right_lane_stays_on_twelve_until_end(self):
-        self.select_lane("right")
-        before = self.run_at(12, now=0.3, s=13.258,
-                             lane={"stamp": 0.3, "left": "X", "right": "DOWN"})
+    def test_configured_right_finish_branch_stays_on_twelve_until_end(self):
+        self.engine = MissionEngine({"finish_branch": "right"})
+        before = self.run_at(12, now=0.3, s=13.258)
+        self.assertEqual(before["selected_branch"], "right")
         self.assertIsNone(before["next_route"])
-        result = self.run_at(12, now=0.4, s=20, at_end=True,
-                             lane={"stamp": 0.4, "left": "X", "right": "DOWN"})
+        result = self.run_at(12, now=0.4, s=20, at_end=True)
         self.assertEqual(result["next_route"], "13_right")
 
-    def test_lane_unknown_stale_or_x_never_means_free(self):
-        result = self.run_at(12, s=13.258)
-        self.assertTrue(result["stop_requested"])
-        self.select_lane("left", start=1)
-        stale = self.run_at(12, now=2, s=13.258,
-                            lane={"stamp": 1.2, "left": "DOWN", "right": "X"})
-        self.assertTrue(stale["stop_requested"])
-        revoked = self.run_at(12, now=2.1, s=13.258,
-                              lane={"stamp": 2.1, "left": "X", "right": "DOWN"})
-        self.assertTrue(revoked["stop_requested"])
-        self.assertEqual(revoked["selected_branch"], "left")
-
-    def test_lane_can_reselect_before_commitment(self):
-        self.select_lane("left")
-        for now in (0.3, 0.4, 0.5):
-            result = self.run_at(12, now=now, s=13.258,
-                                 lane={"stamp": now, "left": "X", "right": "DOWN"})
-        self.assertEqual(result["selected_branch"], "right")
-        self.assertFalse(result["stop_requested"])
+    def test_invalid_finish_branch_configuration_is_rejected(self):
+        with self.assertRaises(ValueError):
+            MissionEngine({"finish_branch": "camera"})
 
     def test_finish_requires_rear_axle_to_cross_calibrated_line(self):
         self.engine = MissionEngine({"rules": {"rear_axle_offset_m": -1.0}})
-        self.select_lane("left")
         before = self.run_at(13, now=1, s=19.9)
         self.assertFalse(before["stop_requested"])
         self.assertNotIn("finish", before["completed_missions"])
@@ -522,7 +446,7 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(finish["completed_missions"]["finish"], 2)
 
     def test_race_clock_freezes_when_rear_axle_finishes(self):
-        self.select_lane("left")
+        self.run_at(12, now=0, s=0, speed=1)
         finished = self.run_at(13, now=10, s=19)
         self.assertEqual(finished["elapsed_time_s"], 10)
         parked = self.run_at(13, now=900, s=19, speed=0)
@@ -609,10 +533,10 @@ class MissionTests(unittest.TestCase):
         self.assertNotIn("hill", result["completed_missions"])
 
     def test_configuration_cannot_relax_mandatory_rules(self):
-        for rule, value in (("hill_hold_s", 2.9), ("dynamic_hold_s", 2.9),
+        for rule, value in (("hill_hold_s", 2.9),
                             ("hill_rollback_limit_m", 0.6), ("mission_deadline_s", 500),
                             ("hill_clearance_timeout_s", 31), ("no_motion_timeout_s", 61),
-                            ("parking_stable_observations", 0), ("lane_stable_observations", 1.5)):
+                            ("parking_stable_observations", 0)):
             with self.subTest(rule=rule), self.assertRaises(ValueError):
                 MissionEngine({"rules": {rule: value}})
 

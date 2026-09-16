@@ -1,0 +1,15 @@
+<launch>
+  <arg name="config_file" default="$(find path_planner)/config/path_planner.yaml"/>
+  <arg name="calibration_required" default="true"/>
+  <arg name="obstacle_topic" default="/dbscan_clusters"/>
+
+  <node pkg="path_planner"
+        type="path_planner_node"
+        name="path_planner"
+        output="screen"
+        required="true">
+    <rosparam command="load" file="$(arg config_file)"/>
+    <param name="calibration_required" value="$(arg calibration_required)"/>
+    <param name="obstacles/topic" value="$(arg obstacle_topic)"/>
+  </node>
+</launch>

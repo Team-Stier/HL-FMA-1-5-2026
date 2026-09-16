@@ -222,8 +222,8 @@ def validate_landmarks(config, routes, explicit_validation=False):
             if not number(branch) or not 0 <= branch <= route.length:
                 errors.append(name + ': tracker.branch_13_left_s_m is outside the route')
                 continue
-            if abs(values['lane_decision_s'] - branch) > tolerance:
-                errors.append(name + ': lane_decision_s must coincide with the 13_left '
+            if abs(values['finish_branch_s'] - branch) > tolerance:
+                errors.append(name + ': finish_branch_s must coincide with the 13_left '
                               'handoff within {:.3f} m'.format(tolerance))
             left = routes.get('13_left')
             if left is None:

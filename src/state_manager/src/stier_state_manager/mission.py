@@ -14,12 +14,10 @@ RULE_DEFAULTS = {
     "standstill_speed_mps": 0.05,
     "hill_hold_s": 3.0,
     "hill_hold_position_tolerance_m": 0.02,
-    "dynamic_hold_s": 3.0,
     "parking_hold_s": 0.5,
     "sensor_timeout_s": 0.5,
     "max_update_gap_s": 0.5,
     "parking_stable_observations": 3,
-    "lane_stable_observations": 3,
     "stop_tolerance_m": 0.2,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
@@ -32,12 +30,11 @@ RULE_DEFAULTS = {
     "intersection_stop_timeout_s": 20.0,
     "intersection_clearance_timeout_s": 30.0,
     "parking_yaw_tolerance_rad": math.radians(10.0),
-    "allow_dynamic_bypass": False,
 }
 
 SPEED_DEFAULTS = {
     "normal": 2.0, "hill": 1.0, "static": 1.0,
-    "intersection": 1.0, "dynamic": 1.0, "parking": 0.5,
+    "intersection": 1.0, "parking": 0.5,
 }
 
 ROUTES = {
@@ -61,7 +58,7 @@ REQUIRED_LANDMARKS = {
     5: ("parking_confirm_s",), 6: ("parking_exit_s",),
     7: ("stop_line_s", "intersection_exit_s"),
     10: ("parking_confirm_s",), 11: ("parking_exit_s",),
-    12: ("lane_decision_s",), 13: ("finish_s",),
+    12: ("finish_branch_s",), 13: ("finish_s",),
 }
 
 
@@ -120,14 +117,11 @@ class MissionEngine:
         # Configuration may be more conservative than the regulations; it may
         # not shorten mandated stops or relax maximum rollback/deadline values.
         for name, value in self.rules.items():
-            if name == "allow_dynamic_bypass":
-                if not isinstance(value, bool):
-                    raise ValueError("allow_dynamic_bypass must be a boolean")
-            elif name in RULE_DEFAULTS and (not _number(value) or value < 0):
+            if name in RULE_DEFAULTS and (not _number(value) or value < 0):
                 if name not in ("front_bumper_offset_m", "rear_axle_offset_m") or not _number(value):
                     raise ValueError("invalid mission rule: " + name)
-        if self.rules["hill_hold_s"] < 3 or self.rules["dynamic_hold_s"] < 3:
-            raise ValueError("hill and dynamic-obstacle holds must be at least 3 seconds")
+        if self.rules["hill_hold_s"] < 3:
+            raise ValueError("hill hold must be at least 3 seconds")
         if not 0 < self.rules["hill_rollback_limit_m"] <= 0.5:
             raise ValueError("hill rollback limit must be in (0, 0.5] metres")
         if not 0 < self.rules["hill_clearance_timeout_s"] <= 30:
@@ -141,13 +135,16 @@ class MissionEngine:
                               ("intersection_clearance_timeout_s", 30)):
             if not 0 < self.rules[name] <= maximum:
                 raise ValueError("invalid intersection rule: " + name)
-        for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations", "lane_stable_observations",
+        for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
                      "finish_clearance_m", "hill_hold_position_tolerance_m"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
-        for name in ("parking_stable_observations", "lane_stable_observations"):
+        for name in ("parking_stable_observations",):
             if int(self.rules[name]) != self.rules[name]:
                 raise ValueError("observation counts must be integers")
+        self.finish_branch = self.config.get("finish_branch", "left")
+        if self.finish_branch not in ("left", "right"):
+            raise ValueError("finish_branch must be left or right")
         self.speeds = dict(SPEED_DEFAULTS)
         self.speeds.update(self.config.get("speeds", {}))
         if any(not _number(value) or value <= 0 for value in self.speeds.values()):
@@ -243,9 +240,9 @@ class MissionEngine:
         mission = {
             1: "HILL_STOP", 2: "TRAFFIC_STRAIGHT", 3: "STATIC_AVOIDANCE",
             4: "TRAFFIC_STRAIGHT", 5: "T_PARKING", 6: "T_PARKING",
-            7: "TRAFFIC_LEFT", 8: "DYNAMIC_ESTOP", 9: "PARALLEL_APPROACH",
+            7: "TRAFFIC_LEFT", 8: "RDDF_TRANSIT", 9: "PARALLEL_APPROACH",
             10: "PARALLEL_PARKING", 11: "PARALLEL_PARKING",
-            12: "LANE_SIGNAL_APPROACH", 13: "LANE_SIGNAL_FINISH",
+            12: "FINISH_APPROACH", 13: "FINISH",
         }.get(section, "UNKNOWN")
         speed_name = "normal"
         if section == 1:
@@ -254,8 +251,6 @@ class MissionEngine:
             speed_name = "intersection"
         elif section == 3:
             speed_name = "static"
-        elif section == 8:
-            speed_name = "dynamic"
         elif section in (5, 6, 10, 11):
             speed_name = "parking"
         mode = "LOCAL" if section == 3 else "PARKING" if section in (5, 6, 10, 11) else "RDDF"
@@ -391,13 +386,17 @@ class MissionEngine:
         elif section in (5, 6, 10, 11):
             self._parking(snapshot, landmarks, state, out, standing)
         elif section == 8:
-            self._dynamic(snapshot, state, out, standing)
+            out["phase"] = "FOLLOW_RDDF"
+            if snapshot.get("at_end"):
+                self._complete("section_8_transit", now)
+                out["phase"] = "COMPLETE"
+                self._next(out, ROUTES[9])
         elif section == 9:
             self._parking_preview(snapshot, out, "parallel")
             if snapshot.get("at_end"):
                 self._parking_handoff(snapshot, out, "parallel")
         elif section == 12:
-            self._lane(snapshot, landmarks, state, out)
+            self._finish_approach(snapshot, landmarks, out)
         elif section == 13:
             self._finish(snapshot, landmarks, out)
         if not snapshot.get("path_ready", False) and not out["stop_requested"]:
@@ -784,103 +783,24 @@ class MissionEngine:
                 out["phase"] = "COMPLETE"
                 self._next(out, ROUTES[7 if kind == "t" else 12])
 
-    def _dynamic(self, snap, state, out, standing):
-        observation = snap.get("dynamic", {})
-        now = snap["now"]
-        if not self._fresh(observation, now):
-            state["dwell_since"] = None
-            self._stop(out, "DYNAMIC_OBSERVATION_STALE", "WAIT_OBSERVATION")
-            return
-        if not isinstance(observation.get("blocked"), bool):
-            state["dwell_since"] = None
-            self._stop(out, "DYNAMIC_OBSERVATION_UNKNOWN", "WAIT_OBSERVATION")
-            return
-        blocked = observation["blocked"]
-        if blocked and not state.get("active_event"):
-            state["active_event"] = True
-            state["seen"] = True
-            state["hold_done"] = False
-            state["central_stop_seen"] = False
-            state["dwell_since"] = None
-        if state.get("active_event"):
-            if not state.get("hold_done"):
-                if observation.get("central_stopped") is True:
-                    state["central_stop_seen"] = True
-                # The fresh central stop is an event. If the actor departs
-                # early, the car must still finish its own continuous 3 s hold.
-                eligible = standing and state.get("central_stop_seen", False)
-                if self._dwell(state, now, eligible, self.rules["dynamic_hold_s"]):
-                    state["hold_done"] = True
-                    self._complete("dynamic_hold", now)
-                else:
-                    self._stop(out, "DYNAMIC_REQUIRED_HOLD" if eligible else "WAIT_CENTRAL_OBSTACLE_STOP",
-                               "HOLD" if eligible else "BRAKING")
-                    return
-            if blocked:
-                bypass = snap.get("dynamic_bypass", {})
-                if (self.rules["allow_dynamic_bypass"] and self._fresh(bypass, now)
-                        and bypass.get("safe") is True):
-                    out["path_mode"] = "LOCAL"
-                    out["phase"] = "SAFE_BYPASS"
-                    if snap.get("at_end") and snap.get("path_ready"):
-                        self._complete("dynamic", now)
-                        self._next(out, ROUTES[9])
-                    return
-                self._stop(out, "WAIT_DYNAMIC_CLEAR", "WAIT_CLEAR")
-                return
-            state["active_event"] = False
-            self._complete("dynamic", now)
-            out["phase"] = "RESUME"
-        else:
-            out["phase"] = "ARMED" if "dynamic" not in self.completed_missions else "COMPLETE"
-        if snap.get("at_end"):
-            if "dynamic" not in self.completed_missions:
-                self._once("dynamic_trigger_missing", snap["route"])
-                self._stop(out, "DYNAMIC_MISSION_NOT_OBSERVED", "WAIT_MISSION")
-            else:
-                self._next(out, ROUTES[9])
-
-    def _lane(self, snap, marks, state, out):
-        lane = snap.get("lane", {})
-        fresh = self._fresh(lane, snap["now"])
-        stable = []
-        for side in ("left", "right"):
-            observation = {"stamp": lane.get("stamp"), "value": lane.get(side)} if fresh else {}
-            if self._stable_candidate("lane", side, observation, snap["now"], "DOWN",
-                                      self.rules["lane_stable_observations"]):
-                stable.append(side)
-        selected = self.branches.get("lane")
-        selected_permitted = fresh and lane.get(selected) == "DOWN"
-        if "lane" not in self.committed_branches and stable and (not selected or not selected_permitted):
-            preferred = self.config.get("preferred_lane_branch", "left")
-            self.branches["lane"] = preferred if preferred in stable else stable[0]
-        side = self.branches.get("lane")
+    def _finish_approach(self, snap, marks, out):
+        """Follow the configured finish branch without camera lane control."""
+        side = self.finish_branch
+        self.branches["finish"] = side
         out["selected_branch"] = side
-        decision_s = marks["lane_decision_s"]
-        out["remaining_stop_m"] = max(0.0, decision_s - snap["s"])
-        if not side:
-            out["phase"] = "READ_LANE_SIGNAL"
-            if snap["s"] >= decision_s - self.rules["stop_tolerance_m"]:
-                self._stop(out, "LANE_SIGNAL_UNCONFIRMED", "WAIT_LANE_SIGNAL")
-            return
-        if not fresh or lane.get(side) != "DOWN":
-            self._stop(out, "SELECTED_LANE_NOT_PERMITTED", "WAIT_LANE_SIGNAL")
-            return
-        out["phase"] = "LANE_SELECTED"
-        out["remaining_stop_m"] = None
-        if side == "left" and snap["s"] >= decision_s:
+        out["phase"] = "FINISH_BRANCH_SELECTED"
+        if side == "left" and snap["s"] >= marks["finish_branch_s"]:
             self._next(out, "13_left")
         elif side == "right" and snap.get("at_end"):
             self._next(out, "13_right")
 
     def _finish(self, snap, marks, out):
         side = _branch(snap["route"])
-        if not side or self.branches.get("lane") != side:
-            self._stop(out, "LANE_BRANCH_NOT_AUTHORIZED", "UNAVAILABLE")
+        if not side or self.finish_branch != side:
+            self._stop(out, "FINISH_BRANCH_NOT_CONFIGURED", "UNAVAILABLE")
             return
-        self.committed_branches.add("lane")
-        # Entry into 13 is already authorized by the lane signal. Do not stop
-        # in the channel solely because the sign changes after commitment.
+        self.branches["finish"] = side
+        self.committed_branches.add("finish")
         rear_s = snap["s"] + self.rules["rear_axle_offset_m"]
         # Give the stopping controller runoff beyond the scoring line. Using
         # the scoring line itself as a stop target can halt before the rear

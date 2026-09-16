@@ -19,11 +19,12 @@ from stier_state_manager.mission import MissionEngine, PARKING_ROUTES
 
 
 class SyntheticReplay:
-    def __init__(self, parking_branch, lane):
-        if parking_branch not in ('left', 'right') or lane not in ('left', 'right'):
-            raise ValueError('Branch and lane must be left or right')
-        self.parking_branch, self.lane = parking_branch, lane
-        self.engine = MissionEngine({'rules': {'front_bumper_offset_m': .5}})
+    def __init__(self, parking_branch, finish_branch):
+        if parking_branch not in ('left', 'right') or finish_branch not in ('left', 'right'):
+            raise ValueError('Parking and finish branches must be left or right')
+        self.parking_branch, self.finish_branch = parking_branch, finish_branch
+        self.engine = MissionEngine({'rules': {'front_bumper_offset_m': .5},
+                                     'finish_branch': finish_branch})
         self.selector = SelectorCore()
         self.now, self.epoch, self.route = 1.0, 1, '1_right'
         self.request = ('1_right', 'RDDF', 1)
@@ -33,15 +34,15 @@ class SyntheticReplay:
     def section(self):
         return int(self.route.split('_')[0].split('-')[0])
 
-    def step(self, s=0.0, speed=.5, signal='UNKNOWN', blocked=False,
-             central=False, parking=False, lane=False, leg=None, path_available=True):
+    def step(self, s=0.0, speed=.5, signal='UNKNOWN', parking=False,
+             leg=None, path_available=True):
         self.now = round(self.now + .25, 8)
         section = self.section
         length = 18.0 if section in (5, 10) else 20.0
         marks = {'hill_start_s': 2.0, 'hill_stop_s': 5.0, 'hill_top_s': 9.0,
                  'stop_line_s': 10.0, 'intersection_exit_s': 15.0,
                  'parking_confirm_s': 18.0, 'parking_yaw_rad': math.pi,
-                 'parking_exit_s': 19.0, 'lane_decision_s': 13.258, 'finish_s': 19.0}
+                 'parking_exit_s': 19.0, 'finish_branch_s': 13.258, 'finish_s': 19.0}
         name, mode, direction = self.request
         yaw = math.pi if direction < 0 else 0.0
         poses = tuple(Pose('map', (float(x), 0.0, 0.0),
@@ -54,16 +55,13 @@ class SyntheticReplay:
                                                  *self.request), candidates, self.now)
         spaces = {'stamp': self.now, 'left': 'BLOCKED', 'right': 'BLOCKED'}
         spaces[self.parking_branch] = 'CLEAR'
-        lanes = {'stamp': self.now, 'left': 'X', 'right': 'X'}
-        lanes[self.lane] = 'DOWN'
         snapshot = {'now': self.now, 'decision_id': self.epoch,
                     'healthy': True, 'calibrated': True, 'route': self.route,
                     'section': section, 'length': length, 's': s, 'raw_s': s,
                     'at_end': s >= length, 'speed': speed, 'yaw': yaw,
                     'landmarks': {self.route: marks}, 'path_ready': selection.ready,
                     'signal': {'stamp': self.now, 'route': self.route, 'value': signal},
-                    'dynamic': {'stamp': self.now, 'blocked': blocked, 'central_stopped': central},
-                    'parking': spaces if parking else {}, 'lane': lanes if lane else {}}
+                    'parking': spaces if parking else {}}
         if leg is not None:
             snapshot['parking_maneuver'] = dict(leg, stamp=self.now,
                 decision_id=self.epoch, route=self.route)
@@ -162,10 +160,6 @@ class SyntheticReplay:
         self.traffic(left=True)
         self.advance('8_dynamic-obstacle')
         self.step()
-        self.step(s=5.0, blocked=True)
-        for _ in range(14):
-            self.step(s=5.0, speed=0.0, blocked=True, central=True)
-        self.step(s=5.0)
         self.step(s=20.0)
         self.advance('9')
         for s in (0.0, 1.0, 2.0):
@@ -174,33 +168,31 @@ class SyntheticReplay:
         self.park('parallel')
         self.advance('12')
         self.step(s=13.258, speed=0.0)
-        for _ in range(3):
-            self.step(s=13.258, speed=0.0, lane=True)
-        if self.lane == 'right':
-            self.step(s=20.0, lane=True)
-        self.advance('13_' + self.lane)
+        if self.finish_branch == 'right':
+            self.step(s=20.0)
+        self.advance('13_' + self.finish_branch)
         self.step()
         self.step(s=19.0)
         if 'finish' not in self.last['completed_missions']:
             raise AssertionError('Synthetic mission replay did not finish')
         return {'simulation_only': True, 'fixture': 'SYNTHETIC_LOGICAL_MESSAGES_NOT_DRIVING_SIMULATION',
-                'parking_branch': self.parking_branch, 'lane': self.lane,
+                'parking_branch': self.parking_branch, 'finish_branch': self.finish_branch,
                 'vehicle_output': False, 'reverse_output_supported': True,
                 'completed_missions': self.last['completed_missions'],
                 'sections': sorted({event['section'] for event in self.events}), 'events': self.events}
 
 
-def replay(parking_branch='left', lane='left'):
-    return SyntheticReplay(parking_branch, lane).run()
+def replay(parking_branch='left', finish_branch='left'):
+    return SyntheticReplay(parking_branch, finish_branch).run()
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--parking-branch', choices=('left', 'right'), default='left')
-    parser.add_argument('--lane', choices=('left', 'right'), default='left')
+    parser.add_argument('--finish-branch', choices=('left', 'right'), default='left')
     parser.add_argument('--output', type=Path, help='Optional JSON trace destination')
     args = parser.parse_args()
-    result = replay(args.parking_branch, args.lane)
+    result = replay(args.parking_branch, args.finish_branch)
     if args.output:
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print('SYNTHETIC message replay only; no ROS or vehicle output.')

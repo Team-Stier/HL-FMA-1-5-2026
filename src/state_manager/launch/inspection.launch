@@ -9,9 +9,7 @@
     <arg name="config_file" value="$(arg config_file)"/>
     <arg name="calibration_file" value="$(arg calibration_file)"/>
     <arg name="start_rviz" value="false"/>
-  </include>
-  <include if="$(arg start_detection)" file="$(find object_detection)/launch/rddf_roi_detection.launch">
-    <arg name="start_viewer" value="false"/>
+    <arg name="start_object_detection" value="$(arg start_detection)"/>
   </include>
   <node pkg="state_manager" type="mission_inspection_node" name="mission_inspection" output="screen" required="true"/>
   <node if="$(arg start_rviz)" pkg="rviz" type="rviz" name="inspection_rviz"

@@ -73,16 +73,13 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['stop_requested'])
         self.assertFalse(result['valid'])
 
-    def test_static_collision_does_not_erase_dynamic_hold(self):
+    def test_collision_stops_on_ordinary_section_eight_transit(self):
         self.config['start_route'] = '8_dynamic-obstacle'
         runtime = MissionRuntime(self.routes, self.config)
-        for i in range(32):
-            now = 1 + i/10
-            data = self.data(now)
-            data['dynamic'] = {'stamp': now, 'blocked': True, 'central_stopped': True}
-            data['scan']['hits'].append((.7, 0))
-            result = runtime.step(now, data, self.candidate(runtime, now))
-        self.assertIn('dynamic_hold', result['completed_missions'])
+        data = self.data(1)
+        data['scan']['hits'].append((.7, 0))
+        result = runtime.step(1, data, self.candidate(runtime, 1))
+        self.assertEqual(result['mission'], 'RDDF_TRANSIT')
         self.assertTrue(result['safety']['stop'])
         self.assertTrue(result['stop_requested'])
 

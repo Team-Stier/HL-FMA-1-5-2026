@@ -7,7 +7,7 @@ import rospy
 from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry
 from planning_interfaces.msg import (RouteMap, MissionState, SafetyStatus, PathStatus,
-                                    PlannedPath, SignalObservation, LaneSignals, DynamicObservation)
+                                    PlannedPath, SignalObservation)
 from sensor_msgs.msg import LaserScan, PointCloud2
 from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker, MarkerArray
@@ -35,9 +35,7 @@ class InspectionNode:
                     ('/molit/sensors/lidar/scan', LaserScan, 'scan'),
                     ('/object_detection/roi_points', PointCloud2, 'roi'),
                     ('/dbscan_clusters', MarkerArray, 'clusters'),
-                    ('/perception/traffic_signal', SignalObservation, 'signal'),
-                    ('/perception/lane_signals', LaneSignals, 'lane'),
-                    ('/perception/dynamic_obstacle', DynamicObservation, 'dynamic')]
+                    ('/perception/traffic_signal', SignalObservation, 'signal')]
         bindings += [('/path/' + name, PlannedPath, name) for name in ('rddf', 'local', 'park')]
         self.subscribers = [rospy.Subscriber(topic, kind, self.receive, callback_args=key, queue_size=1)
                             for topic, kind, key in bindings]
@@ -83,21 +81,16 @@ class InspectionNode:
             elif key == 'signal':
                 sample['text'] = '%s | route=%s junction=%s confidence=%.2f' % (
                     msg.value, msg.route_name, msg.junction_id, msg.confidence)
-            elif key == 'lane':
-                sample['text'] = 'left=%s right=%s confidence=%.2f' % (msg.left, msg.right, msg.confidence)
-            elif key == 'dynamic':
-                sample['text'] = 'detected=%s central_stopped=%s confidence=%.2f' % (
-                    msg.detected, msg.central_stopped, msg.confidence)
             elif key == 'scan':
                 sample['text'] = '%d rays | %s' % (len(msg.ranges), msg.header.frame_id)
             elif key == 'roi':
                 sample['text'] = '%d points (not a free-space verdict)' % (msg.width * msg.height)
             elif key == 'clusters':
                 additions = [m for m in msg.markers if m.action == Marker.ADD]
-                # DELETEALL-only messages have no observation stamp: do not call them clear.
-                sample['stamp'] = min((m.header.stamp.to_sec() for m in additions), default=0.)
+                sample['stamp'] = min((m.header.stamp.to_sec() for m in msg.markers
+                                       if m.header.stamp.to_sec() > 0), default=0.)
                 count = sum(m.ns == 'dbscan_clusters' for m in additions)
-                sample['text'] = '%d groups (no object class / motion tracking)' % count
+                sample['text'] = '%d static groups' % count
             else:
                 sample.update(stamp=min(stamp, msg.path.header.stamp.to_sec()),
                               frame=msg.path.header.frame_id if msg.header.frame_id == 'map' else '',

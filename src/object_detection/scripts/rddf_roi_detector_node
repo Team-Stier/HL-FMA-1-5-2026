@@ -76,14 +76,16 @@ def _color(cluster_id):
     return ColorRGBA(red, green, blue, 1.0)
 
 
-def _clear_markers():
+def _clear_markers(header=None):
     clear = Marker()
+    if header is not None:
+        clear.header = header
     clear.action = Marker.DELETEALL
     return MarkerArray([clear])
 
 
 def roi_markers(header, polylines, centers, radius, vehicle_box=None):
-    output = _clear_markers()
+    output = _clear_markers(header)
     circles = Marker()
     circles.header = header
     circles.ns = "rddf_roi_circles"
@@ -149,7 +151,10 @@ def roi_markers(header, polylines, centers, radius, vehicle_box=None):
 
 
 def cluster_markers(header, xyz, labels, point_size, centroid_size):
-    output = _clear_markers()
+    # The stamped DELETEALL marker is also the validity heartbeat for a scan
+    # that produced zero clusters. Consumers must distinguish that from the
+    # headerless clear emitted when detector input is invalid.
+    output = _clear_markers(header)
     for cluster_id in sorted(set(labels.tolist()) - {NOISE}):
         points = xyz[labels == cluster_id]
         color = _color(cluster_id)

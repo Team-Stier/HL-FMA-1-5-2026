@@ -1,10 +1,9 @@
 # Path Planner
 
-**기존 로컬 Frenet의 ROS 비의존 C++14 코어만 추린 통합용 라이브러리**다.
-공개 namespace와 라이브러리 target 이름은 모두 `path_planner`다.
-ROS 노드, launch, selector, localization, 센서, 검출기, 제어기, RRT 비교 백엔드는 포함하지 않는다.
-차량 실측 설정·RDDF/rosbag·개인 경로도 포함하지 않는다. 테스트 치수/장애물은 합성 조건이다.
-`catkin_make`가 자동 시작하는 패키지가 아니며 통합자가 자신의 빌드에서 연결한다.
+로컬 Frenet C++14 코어와 ROS Noetic wrapper를 함께 제공한다. 공개 C++ namespace는
+`path_planner`, 라이브러리 target은 `path_planner_core`, 실행 노드는
+`path_planner_node`다. 차량 실측값과 rosbag은 포함하지 않으며 테스트 치수/장애물은
+합성 조건이다.
 
 ## 포함된 알고리즘
 
@@ -54,7 +53,10 @@ wrapper가 하던 안전 검사가 자동으로 이 라이브러리에 들어온
 - GPS가 천천히 치우치거나 연석이 가려지면 점프 검사/관측만으로 해결되지 않는다.
   측량·위치·추종·치수 오차를 고려한 주행 가능 경계와 여유거리 관리가 필요하다.
 
-현재 ROS wrapper는 포함하지 않는다. 통합자는 자신의 노드에서 동일 의미를 구현해야 한다.
+ROS wrapper는 `/route/map`, `/mission/state`, Localization Odometry와 stamped
+`/dbscan_clusters`를 검사하고 LOCAL 요청에서만 `/path/local`을 발행한다. 입력이 stale이거나
+frame·decision·방향이 다르면 마지막 성공 경로를 재사용하지 않는다. 상태는
+`/path_planner/status`로 발행한다.
 
 ## 장애물 구간 전용 / 전체 전진 구간
 
@@ -68,21 +70,20 @@ GPS 좌표 하나를 경계로 토글하거나 실패 시 막힌 일반 경로�
 전체 RDDF·분기·끝점·경계의 후보 유효성과 계산 시간을 검증해야 한다. `speed_limit_kph`와
 `mission_zone`은 읽는 메타데이터일 뿐 속도 제어나 ON/OFF 명령이 아니다. 후진 주차는 지원하지 않는다.
 
-## 차선 선택과의 관계
-
-이 코어의 목표는 **현재 기준선 d=0 복귀**다. 연석 기반 차선 선택 코어의 `(s, target_d)`를
-자동 소비하지 않는다. 그 기능은 별도 라이브러리이며, 새 목표 기준선/목표 d profile 연결은
-통합 후속 작업이다. 탐색 범위 ±1.50 m를 단순히 키워서 차선 변경을 완료했다고 판단하지 않는다.
-
 ## 빌드·시험
 
-`src/path_planner` 폴더에서:
+워크스페이스 루트에서:
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j2
-(cd build && ctest --output-on-failure -V)
+source /opt/ros/noetic/setup.bash
+catkin_make --pkg planning_interfaces path_planner
+source devel/setup.bash
+roslaunch path_planner path_planner.launch
 ```
+
+기본 설정은 `calibration_required: true`라 경로를 발행하지 않는다. 실측 차량 치수와
+RDDF 좌우 주행 가능 경계를 `config/path_planner.yaml`에 넣고 검증한 뒤
+`roslaunch path_planner path_planner.launch calibration_required:=false`로 실행한다.
 
 시험은 ROS 설치/GTest 다운로드 없이 빈 도로, 라바콘 회피, 전폭 차단·reset, 잘못된 치수/방향,
 동일 s 비교, 위치/변환 점프의 여섯 시나리오 그룹을 검사한다. 현장 주행/제동 검증이 아니다.

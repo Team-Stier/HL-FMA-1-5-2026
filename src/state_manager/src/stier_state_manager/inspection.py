@@ -36,7 +36,6 @@ def inspection_specs(routes, samples, now, timeout=.5):
         lines.append('Observed RDDF: UNKNOWN (%s)' % reason)
     for key, label in (('mission', 'Manager'), ('scan', 'LiDAR'), ('roi', 'ROI points'),
                        ('clusters', 'Clusters'), ('signal', 'Traffic signal'),
-                       ('lane', 'Lane signals'), ('dynamic', 'Dynamic observation'),
                        ('safety', 'Safety'), ('selection', 'Selector')):
         item = samples.get(key)
         if not item:

@@ -1,0 +1,54 @@
+# 실차 치수와 도로 경계를 측정한 뒤 false로 바꾼다. true인 동안 노드는
+# 토픽 연결과 상태 진단만 수행하고 /path/local을 발행하지 않는다.
+calibration_required: true
+
+frame_id: map
+planning_rate_hz: 5.0
+input_timeout_s: 0.5
+future_tolerance_s: 0.05
+planning_deadline_ms: 80.0
+
+# RDDF 중심선부터 실제 주행 가능 경계까지의 거리다. 차체 반폭을 뺀 값이 아니다.
+road_left_bound_m: 0.0
+road_right_bound_m: 0.0
+
+vehicle:
+  length_m: 0.0
+  width_m: 0.0
+  wheelbase_m: 0.0
+  rear_axle_to_center_m: 0.0
+
+planner:
+  horizon_m: 8.0
+  sample_interval_m: 0.10
+  lateral_sample_interval_m: 0.25
+  maximum_lateral_offset_m: 1.50
+  collision_margin_m: 0.15
+  boundary_margin_m: 0.10
+  maximum_curvature_per_m: 0.48
+  maximum_curvature_rate_per_m2: 0.80
+  maximum_lateral_slope: 0.80
+  minimum_longitudinal_scale: 0.20
+  boundary_perimeter_sample_interval_m: 0.10
+
+projection:
+  back_window_m: 3.0
+  forward_window_m: 15.0
+  heading_weight: 2.0
+  maximum_pose_distance_m: 2.0
+  obstacle_maximum_distance_m: 5.0
+  obstacle_station_tolerance_m: 4.0
+
+obstacles:
+  topic: /dbscan_clusters
+  namespace: dbscan_clusters
+  minimum_extent_m: 0.10
+  maximum_extent_m: 5.0
+  maximum_count: 100
+
+pose_jump:
+  translation_tolerance_m: 0.25
+  yaw_tolerance_rad: 0.0872664626
+  maximum_speed_mps: 5.0
+  maximum_yaw_rate_rad_per_sec: 2.0943951024
+  maximum_pose_interval_sec: 0.50

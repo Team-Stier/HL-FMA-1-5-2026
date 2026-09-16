@@ -199,8 +199,7 @@ class MissionRuntime:
                         calibrated=self.vehicle_ok and self.config.get('landmarks_validated') is True
                         and not self.config.get('calibration_mode', False),
                         landmarks=self.config.get('landmarks', {}),
-                        signal=data.get('signal', {}), lane=data.get('lane', {}),
-                        dynamic=data.get('dynamic', {}), path_ready=selection.ready,
+                        signal=data.get('signal', {}), path_ready=selection.ready,
                         decision_id=self.decision_id,
                         parking_maneuver=data.get('parking_maneuver', {}),
                         parking=self._parking_preview(data, tracked['section']) if healthy else {})
