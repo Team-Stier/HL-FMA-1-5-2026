@@ -1,6 +1,6 @@
 # 실차 치수와 도로 경계를 측정한 뒤 false로 바꾼다. true인 동안 노드는
 # 토픽 연결과 상태 진단만 수행하고 /path/local을 발행하지 않는다.
-calibration_required: true
+calibration_required: false
 
 frame_id: map
 planning_rate_hz: 5.0
@@ -9,8 +9,8 @@ future_tolerance_s: 0.05
 planning_deadline_ms: 80.0
 
 # RDDF 중심선부터 실제 주행 가능 경계까지의 거리다. 차체 반폭을 뺀 값이 아니다.
-road_left_bound_m: 0.0
-road_right_bound_m: 0.0
+road_left_bound_m: 1.7
+road_right_bound_m: 1.7
 
 vehicle:
   # base_link는 후륜축 중심이다. 충돌 검사용 실제 차체 외곽 치수다.

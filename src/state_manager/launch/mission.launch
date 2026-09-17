@@ -5,7 +5,6 @@
   <arg name="calibration_mode" default="false"/>
   <arg name="start_object_detection" default="true"/>
   <arg name="start_local_planner" default="true"/>
-  <arg name="local_planner_calibration_required" default="true"/>
   <arg name="start_traffic_light" default="false"/>
   <arg name="traffic_light_device" default="auto"/>
   <arg name="start_control" default="true"/>
@@ -25,9 +24,7 @@
     <arg name="start_viewer" value="false"/>
   </include>
   <include if="$(arg start_local_planner)"
-           file="$(find path_planner)/launch/path_planner.launch">
-    <arg name="calibration_required" value="$(arg local_planner_calibration_required)"/>
-  </include>
+           file="$(find path_planner)/launch/path_planner.launch"/>
   <include if="$(arg start_traffic_light)"
            file="$(find traffic_light)/launch/traffic_light.launch">
     <arg name="device" value="$(arg traffic_light_device)"/>

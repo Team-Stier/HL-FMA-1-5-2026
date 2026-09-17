@@ -1,6 +1,6 @@
 <launch>
   <arg name="config_file" default="$(find path_planner)/config/path_planner.yaml"/>
-  <arg name="calibration_required" default="true"/>
+  <arg name="calibration_required" default="false"/>
   <arg name="obstacle_topic" default="/dbscan_clusters"/>
 
   <node pkg="path_planner"
