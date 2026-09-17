@@ -24,6 +24,24 @@ PurePursuitConfig t870Config() {
   return config;
 }
 
+TEST(PurePursuit, FarLateralPathUsesNearbyForwardRecoveryTarget) {
+  for (double y : {-5.0, 5.0}) {
+    const auto result = computePurePursuit({{-2.0, y}, {20.0, y}},
+                                         0.5, 0.0, t870Config());
+    ASSERT_TRUE(result.valid);
+    EXPECT_NEAR(result.target.x, result.lookahead_m, 1e-9);
+    EXPECT_NEAR(result.target.y, y, 1e-9);
+    EXPECT_GT(result.steering_angle_rad * y, 0.0);
+  }
+}
+
+TEST(PurePursuit, RecoveryNeverTargetsBehindVehicle) {
+  EXPECT_FALSE(computePurePursuit({{-20.0, 5.0}, {-2.0, 5.0}},
+                                 0.5, 0.0, t870Config()).valid);
+  EXPECT_FALSE(computePurePursuit({{0.0, 5.0}, {-20.0, 5.0}},
+                                 0.5, 0.0, t870Config()).valid);
+}
+
 TEST(PurePursuit, StraightPathRequestsZeroSteering) {
   const std::vector<Point2d> path{{0.0, 0.0}, {1.0, 0.0}, {3.0, 0.0}};
   const PurePursuitResult result =

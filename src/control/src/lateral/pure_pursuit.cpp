@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -119,18 +120,45 @@ PurePursuitResult computePurePursuit(
   }
 
   if (!found_target) {
-    double farthest_distance = -1.0;
-    for (const Point2d& point : path_in_rear_axle_frame) {
-      if (!isFinitePoint(point) || point.x <= 0.0) {
-        continue;
-      }
-      const double distance = std::hypot(point.x, point.y);
-      if (distance > farthest_distance) {
-        farthest_distance = distance;
-        target = point;
+    // Project onto the nearest segment, then advance along the path instead
+    // of aiming at its far end when the lookahead circle cannot reach it.
+    double nearest_distance = std::numeric_limits<double>::infinity();
+    std::size_t next_index = path_in_rear_axle_frame.size();
+    for (std::size_t i = 1; i < path_in_rear_axle_frame.size(); ++i) {
+      const auto& a = path_in_rear_axle_frame[i - 1];
+      const auto& b = path_in_rear_axle_frame[i];
+      if (!isFinitePoint(a) || !isFinitePoint(b)) continue;
+      const double dx = b.x - a.x, dy = b.y - a.y;
+      const double length_squared = dx * dx + dy * dy;
+      if (length_squared <= 1e-12) continue;
+      const double t = std::max(0.0, std::min(1.0,
+          -(a.x * dx + a.y * dy) / length_squared));
+      const Point2d projection{a.x + t * dx, a.y + t * dy};
+      const double distance = std::hypot(projection.x, projection.y);
+      if (distance < nearest_distance) {
+        nearest_distance = distance;
+        target = projection;
+        next_index = i;
       }
     }
-    if (farthest_distance < config.minimum_target_distance_m) {
+    if (!std::isfinite(nearest_distance)) return result;
+    double remaining = result.lookahead_m;
+    for (std::size_t i = next_index; i < path_in_rear_axle_frame.size(); ++i) {
+      const auto& point = path_in_rear_axle_frame[i];
+      if (!isFinitePoint(point)) return result;
+      const double distance = std::hypot(point.x - target.x, point.y - target.y);
+      if (distance > remaining) {
+        const double t = remaining / distance;
+        target = {target.x + t * (point.x - target.x),
+                  target.y + t * (point.y - target.y)};
+        break;
+      }
+      target = point;
+      remaining -= distance;
+      if (remaining <= 1e-9) break;
+    }
+    if (target.x <= 0.0 ||
+        std::hypot(target.x, target.y) < config.minimum_target_distance_m) {
       return result;
     }
   }
