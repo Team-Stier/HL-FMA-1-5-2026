@@ -21,7 +21,7 @@
   <arg name="global_ekf_node_name" default="odometry_gps_global_ekf"/>
 
   <group if="$(arg start_static_tf_publisher)">
-    <node pkg="mando_localization" type="static_transform_publisher_node"
+    <node respawn="true" respawn_delay="3.0" pkg="mando_localization" type="static_transform_publisher_node"
           name="$(arg static_tf_publisher_node_name)" output="screen" clear_params="true">
       <rosparam command="load" file="$(arg tf_config)"/>
       <rosparam command="load" file="$(arg interfaces_config)"/>
@@ -32,7 +32,7 @@
   </group>
 
   <group if="$(arg start_supervisor)">
-    <node pkg="mando_localization" type="localization_supervisor_node"
+    <node respawn="true" respawn_delay="3.0" pkg="mando_localization" type="localization_supervisor_node"
           name="$(arg supervisor_node_name)" output="screen" clear_params="true">
       <rosparam command="load" file="$(arg interfaces_config)"/>
       <rosparam command="load" file="$(arg status_policy_config)"/>
@@ -46,7 +46,7 @@
   </group>
 
   <group if="$(arg start_output_gate)">
-    <node pkg="mando_localization" type="localization_output_gate_node"
+    <node respawn="true" respawn_delay="3.0" pkg="mando_localization" type="localization_output_gate_node"
           name="$(arg output_gate_node_name)" output="screen" clear_params="true">
       <rosparam command="load" file="$(arg interfaces_config)"/>
       <rosparam command="load" file="$(arg status_policy_config)"/>

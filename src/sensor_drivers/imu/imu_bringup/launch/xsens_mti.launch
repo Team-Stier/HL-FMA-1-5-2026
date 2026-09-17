@@ -10,7 +10,7 @@
   <arg name="covariance_config"
        default="$(find imu_bringup)/config/imu_covariance.yaml" />
 
-  <node name="xsens_mti_node"
+  <node respawn="true" respawn_delay="3.0" name="xsens_mti_node"
         pkg="xsens_mti_driver"
         type="xsens_mti_node"
         output="screen">
@@ -25,13 +25,12 @@
     <remap from="imu/data" to="$(arg raw_topic)" />
   </node>
 
-  <node if="$(arg apply_measured_covariance)"
+  <node respawn="true" respawn_delay="3.0" if="$(arg apply_measured_covariance)"
         name="imu_covariance_override"
         pkg="imu_bringup"
         type="imu_covariance_override_node"
         output="screen"
-        clear_params="true"
-        required="true">
+        clear_params="true">
     <rosparam command="load" file="$(arg covariance_config)" />
     <param name="input_topic" value="$(arg raw_topic)" />
     <param name="output_topic" value="$(arg output_topic)" />

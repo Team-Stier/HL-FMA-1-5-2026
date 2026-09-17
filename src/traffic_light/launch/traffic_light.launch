@@ -4,11 +4,10 @@
   <arg name="device" default="auto"/>
   <arg name="route_name" default=""/>
 
-  <node pkg="traffic_light"
+  <node respawn="true" respawn_delay="3.0" pkg="traffic_light"
         type="traffic_light_node"
         name="traffic_light_node"
-        output="screen"
-        required="true">
+        output="screen">
     <rosparam command="load" file="$(find traffic_light)/config/detector.yaml"/>
     <param name="image_topic" value="$(arg image_topic)"/>
     <param name="model_path" value="$(arg model_path)"/>

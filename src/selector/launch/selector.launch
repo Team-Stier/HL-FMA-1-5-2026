@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="selector" type="selector_node" name="selector" output="screen">
+  <node respawn="true" respawn_delay="3.0" pkg="selector" type="selector_node" name="selector" output="screen">
     <param name="legacy_mode" value="false"/>
     <param name="input_timeout" value="0.5"/>
     <param name="max_pose_spacing_m" value="2.0"/>

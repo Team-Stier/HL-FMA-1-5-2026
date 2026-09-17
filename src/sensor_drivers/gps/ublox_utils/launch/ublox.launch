@@ -74,7 +74,7 @@
     </node>
 
     <!-- This node transforms mavros/rtcm to rtcm/Message -->
-    <node name="rtcm_transform" pkg="topic_tools" type="transform" output="screen"
+    <node respawn="true" respawn_delay="3.0" name="rtcm_transform" pkg="topic_tools" type="transform" output="screen"
           args="/ntrip_client/rtcm /ublox_position_receiver/rtcm rtcm_msgs/Message 'rtcm_msgs.msg.Message(header=m.header, message=m.data)' --import rtcm_msgs --wait-for-start"/>
 
     <!-- This node relays the current NMEA $GPGGA position to the NTRIP caster and returns the RTCM corrections -->

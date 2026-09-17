@@ -11,10 +11,10 @@
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
   <arg name="start_rviz" default="false"/>
-  <node pkg="mando_localization" type="rddf_route_provider.py" name="rddf_route_provider" output="screen" required="true">
+  <node respawn="true" respawn_delay="3.0" pkg="mando_localization" type="rddf_route_provider.py" name="rddf_route_provider" output="screen">
     <param name="rddf_directory" value="$(find mando_localization)/rddf"/>
   </node>
-  <node pkg="state_manager" type="state_manager_node" name="state_manager" output="screen" required="true">
+  <node respawn="true" respawn_delay="3.0" pkg="state_manager" type="state_manager_node" name="state_manager" output="screen">
     <param name="config_file" value="$(arg config_file)"/>
     <param name="calibration_file" value="$(arg calibration_file)"/>
     <param name="calibration_mode" value="$(arg calibration_mode)"/>
@@ -35,7 +35,7 @@
     <arg name="lateral_controller" value="$(arg lateral_controller)"/>
     <arg name="calibration_required" value="$(arg control_calibration_required)"/>
   </include>
-  <node if="$(arg calibration_mode)" pkg="state_manager" type="landmark_editor_node" name="landmark_editor" output="screen">
+  <node respawn="true" respawn_delay="3.0" if="$(arg calibration_mode)" pkg="state_manager" type="landmark_editor_node" name="landmark_editor" output="screen">
     <param name="config_file" value="$(arg config_file)"/>
     <param name="calibration_mode" value="true"/>
     <param name="calibration_file" value="$(arg calibration_file)"/>

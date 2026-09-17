@@ -22,7 +22,7 @@
 
     <include file="$(find utm_lla)/launch/coordinate_convertion.launch" />
 
-    <node name="gps_status"
+    <node respawn="true" respawn_delay="3.0" name="gps_status"
           pkg="gps_bringup"
           type="gps_status_node.py"
           output="screen">

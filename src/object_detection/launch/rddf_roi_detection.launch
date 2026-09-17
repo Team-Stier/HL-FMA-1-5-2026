@@ -11,7 +11,7 @@
   <arg name="corridor_enabled" default="true"/>
   <arg name="map_frame" default="map"/>
 
-  <node pkg="object_detection" type="rddf_roi_detector_node"
+  <node respawn="true" respawn_delay="3.0" pkg="object_detection" type="rddf_roi_detector_node"
         name="rddf_roi_detector" output="screen" clear_params="true">
     <rosparam command="load" file="$(arg roi_config)" ns="roi"/>
     <rosparam command="load" file="$(arg dbscan_config)"/>

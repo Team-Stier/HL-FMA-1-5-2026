@@ -10,9 +10,8 @@
   <param name="control_node/calibration_required"
          value="$(arg calibration_required)"/>
 
-  <node pkg="control"
+  <node respawn="true" respawn_delay="3.0" pkg="control"
         type="control_node"
         name="control_node"
-        output="screen"
-        required="true"/>
+        output="screen"/>
 </launch>
