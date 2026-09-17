@@ -80,6 +80,16 @@ def manual_initialization_request(match, stamp):
     return result
 
 
+def manual_candidate_menu_required(match):
+    """Require an explicit source-route choice when one click fits multiple RDDFs."""
+    if not match:
+        return False
+    if match.get('reason') == 'AMBIGUOUS_ROUTE':
+        return True
+    routes = {candidate['route'] for candidate in match.get('candidates', ())}
+    return match.get('accepted', False) and len(routes) > 1
+
+
 def scene_marker_updates(markers, known_keys):
     """Replace stable identities and retire absent objects, even after a dropped frame."""
     from visualization_msgs.msg import Marker
@@ -661,10 +671,10 @@ def run_gui(model, seek, live=False, config=None):
                 x, y = topdown_screen_to_map(point.x(), point.y(), self.render_panel.width(),
                     self.render_panel.height(), *props, pixel_ratio=self.render_panel.devicePixelRatioF())
                 self.preview = self.route_map.match(x, y, self.manual_snap_distance, route_name=route)
-                if self.preview.get('accepted'):
-                    self.selection_message = ''
-                elif self.preview.get('reason') == 'AMBIGUOUS_ROUTE':
+                if manual_candidate_menu_required(self.preview):
                     self.selection_message = '경로가 겹칩니다. 클릭해서 경로와 차량 방향을 고르세요'
+                elif self.preview.get('accepted'):
+                    self.selection_message = ''
                 else:
                     self.selection_message = '선택한 RDDF 선 가까이 마우스를 이동하세요: '+self.preview.get('reason', '')
             except (ValueError, TypeError, RuntimeError) as error:
@@ -682,7 +692,7 @@ def run_gui(model, seek, live=False, config=None):
                               QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.MouseButtonDblClick):
                     self.update_preview(event.pos())
                     if kind == QtCore.QEvent.MouseButtonPress and event.button() == QtCore.Qt.LeftButton:
-                        if self.preview and self.preview.get('reason') == 'AMBIGUOUS_ROUTE':
+                        if manual_candidate_menu_required(self.preview):
                             self.choose_overlap(event.globalPos())
                         else:
                             self.submit_manual_pose()

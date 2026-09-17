@@ -304,6 +304,9 @@ class ConfigurationContractTest(unittest.TestCase):
             2.0,
             gps_reference["quality"]["max_reanchor_candidate_distance_m"],
         )
+        self.assertEqual(30.0, gps_reference["quality"]["max_step_distance_m"])
+        self.assertEqual(30.0,
+                         gps_reference["quality"]["max_position_innovation_m"])
         lever_arm = gps_reference["lever_arm"]
         self.assertNotIn("enabled", lever_arm)
         self.assertEqual(0.65, lever_arm["x_m"])
@@ -314,8 +317,12 @@ class ConfigurationContractTest(unittest.TestCase):
 
     def test_dead_reckoning_is_bounded(self):
         policy = load_yaml("status_policy.yaml")
-        self.assertEqual(2.0, policy["dead_reckoning"]["max_duration_sec"])
-        self.assertEqual(10.0, policy["dead_reckoning"]["max_distance_m"])
+        self.assertEqual(
+            30.0,
+            policy["absolute_sources"]["max_global_consistency_distance_m"],
+        )
+        self.assertEqual(200.0, policy["dead_reckoning"]["max_duration_sec"])
+        self.assertEqual(1000.0, policy["dead_reckoning"]["max_distance_m"])
         self.assertEqual("first_exceeded", policy["dead_reckoning"]["limit_policy"])
         self.assertFalse(policy["output_gate"]["publish_last_pose_when_invalid"])
 
@@ -553,7 +560,7 @@ class ConfigurationContractTest(unittest.TestCase):
             "STATUS_SBAS_FIX",
             "STATUS_GBAS_FIX",
             "COVARIANCE_TYPE_UNKNOWN",
-            "10.0 m",
+            "30.0 m",
             "GpsGateReanchor",
             "transaction_id",
             "automatic_reset_enabled: false",

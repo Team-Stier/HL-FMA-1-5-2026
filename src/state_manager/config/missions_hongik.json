@@ -3,13 +3,13 @@
     "latitude": 37.5511496,
     "longitude": 126.9250846
   },
-  "input_timeout_s": 0.5,
+  "input_timeout_s": 2.0,
   "min_confidence": 0.8,
   "rate_hz": 10,
   "path_lookahead_m": 20.0,
   "dynamic_obstacle": {
     "route_token": "dynamic",
-    "input_timeout_s": 0.5,
+    "input_timeout_s": 2.0,
     "lookahead_m": 2.0,
     "corridor_half_width_m": 0.65,
     "maximum_cluster_extent_m": 5.0,
@@ -78,12 +78,12 @@
   "rules": {
     "hill_hold_s": 3.0,
     "standstill_speed_mps": 0.5,
+    "parking_hold_s": 1.0,
     "stop_tolerance_m": 0.2,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
     "traffic_force_departure_s": 20.0,
-    "t_parking_transition_hold_s": 2.0,
     "parking_stable_observations": 3,
     "finish_sign_stable_observations": 3,
     "hill_hold_position_tolerance_m": 0.02

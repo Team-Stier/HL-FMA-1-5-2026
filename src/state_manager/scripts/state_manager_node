@@ -226,7 +226,7 @@ class StateManagerNode:
         if not self.routes or not match.get('matched'):
             return
         now = self.last_clock
-        timeout = float(self.config.get('input_timeout_s', .5))
+        timeout = float(self.config.get('input_timeout_s', 2.0))
         if (not isinstance(now, (int, float)) or
                 not 0 <= now - match.get('stamp', 0) <= timeout or
                 not 0 <= now - match.get('received', 0) <= timeout or
@@ -281,7 +281,7 @@ class StateManagerNode:
             if frame != 'map' or not math.isfinite(stamp) or stamp <= 0:
                 raise ValueError('DYNAMIC_OBSTACLE_HEARTBEAT_INVALID')
             config = self.config.get('dynamic_obstacle', {})
-            timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', .5)))
+            timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', 2.0)))
             maximum_extent = float(config.get('maximum_cluster_extent_m', 5.0))
             maximum_count = int(config.get('maximum_cluster_count', 100))
             maximum_points = int(config.get('maximum_point_count', 10000))

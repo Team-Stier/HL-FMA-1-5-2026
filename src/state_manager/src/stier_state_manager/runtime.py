@@ -5,7 +5,7 @@ from .geometry import Route, braking_distance, project
 from .mission import MissionEngine
 
 
-def fresh(stamp, now, timeout=0.5):
+def fresh(stamp, now, timeout=2.0):
     return (isinstance(stamp, (int, float)) and math.isfinite(stamp)
             and stamp > 0 and 0 <= now - stamp <= timeout)
 
@@ -124,7 +124,7 @@ class MissionRuntime:
         if not required:
             return result
         observation = data.get('clusters', {})
-        timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', .5)))
+        timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', 2.0)))
         if (not observation.get('valid')
                 or not fresh(observation.get('stamp'), now, timeout)
                 or not fresh(observation.get('receipt_stamp'), now, timeout)
@@ -157,7 +157,7 @@ class MissionRuntime:
         return result
 
     def _health(self, data, now):
-        timeout = self.config.get('input_timeout_s', 0.5)
+        timeout = self.config.get('input_timeout_s', 2.0)
         odom = data.get('odom', {})
         valid = data.get('localization', {})
         if not fresh(odom.get('stamp'), now, timeout):
@@ -174,7 +174,7 @@ class MissionRuntime:
     def _matched_progress(self, data, now):
         """Consume Localization's projection for the active RDDF."""
         observation = data.get('rddf_match', {})
-        timeout = self.config.get('input_timeout_s', 0.5)
+        timeout = self.config.get('input_timeout_s', 2.0)
         if (not fresh(observation.get('stamp'), now, timeout)
                 or not fresh(observation.get('received'), now, timeout)
                 or not fresh(observation.get('pose_stamp'), now, timeout)):
@@ -233,7 +233,7 @@ class MissionRuntime:
             # Only an externally validated, exact next request may bridge the
             # first selector acknowledgement. All freshness checks still apply.
             status = data.get('prefetch_statuses', {}).get(expected, {})
-        timeout = self.config.get('input_timeout_s', 0.5)
+        timeout = self.config.get('input_timeout_s', 2.0)
         if (not fresh(status.get('stamp'), now, timeout)
                 or not fresh(status.get('receipt_stamp'), now, timeout)):
             result['reason'] = 'SELECTOR_STATUS_STALE'

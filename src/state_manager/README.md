@@ -125,14 +125,18 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 | 1 left/right | 앞·뒤 정지구역 마커 중앙 접근, 연속 3초 이상 정차, 재출발 | 경사로 정상 통과 후 2로 연결. 0.5m 이상 밀림은 fault |
 | 2 | 비허용 신호에서 정지선 가상 벽, fresh `GREEN`에서 RDDF 직진 | 정차 20초 후 강제 출발, 허가 후 교차로를 빠져나갈 때까지 진입 상태 유지 |
 | 3 | S자 정적 장애물 회피 | `LOCAL` 경로 필수. 없거나 충돌/미관측이면 정지 |
-| 4 | 2와 같은 신호 처리 | 교차로 통과 후 `parking_branches.t`에 설정된 T자 주차 경로로 연결 |
-| 5/6 | 선택한 T 주차 `in` RDDF를 후진, `out` RDDF를 전진 추종 | 5 끝에서 정지 요청, 6 시작에서 실제 정차 2초 확인 후 전진; 6 끝에서 7 연결 |
+| 4 | 2와 같은 신호 처리 | 끝점을 latch하고 0.5 m/s 이하를 연속 1초 확인한 뒤, 정지를 유지하며 설정된 5번 후진 RDDF를 요청 |
+| 5/6 | 선택한 T 주차 `in` RDDF를 후진, `out` RDDF를 전진 추종 | 5 끝점을 latch해 0.5 m/s 이하 1초 후 6을 요청, 6 경로 승인 후 전진; 6 끝에서 7 연결 |
 | 7 | 정지선 가상 벽에서 `LEFT_ARROW` 대기, 허용 시 RDDF 좌회전 | 일반 녹색은 좌회전 허가가 아니며 정차 20초 후에만 강제 출발 |
 | 8 | RDDF 추종 + DBSCAN 동적장애물 감시 | 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 구간 끝에서 9로 연결 |
 | 9 | 기준경로 추종 | 구간 끝에서 `parking_branches.parallel`에 설정된 평행주차 경로로 연결 |
-| 10/11 | 선택한 평행주차 RDDF 쌍 추종 | 설정된 누적거리에서 실제 정차 후 기어 변경; 10 끝에서 11, 11 끝에서 12 연결 |
+| 10/11 | 선택한 평행주차 RDDF 쌍 추종 | 설정된 누적거리에서 0.5 m/s 이하를 1초 연속 확인한 후 기어 변경; 10 끝에서 11, 11 끝에서 12 연결 |
 | 12 | 카메라 종료 표지 판정 | 좌·우 중 `DOWN`인 쪽을 3회 연속 확인해 선택; `X`는 진입 불가 |
 | 13 left/right | 선택된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
+
+모든 미션의 정차 속도 판정은 `standstill_speed_mps=0.5`를 공통으로 사용한다.
+주차 기어 변경은 이 상태가 `parking_hold_s=1.0`동안 연속으로 유지돼야 한다.
+경사로 3초, 신호 대기 20초처럼 더 긴 규정 시간은 각 미션 규칙을 그대로 적용한다.
 
 주차 좌우 분기는 `missions.json`의 `parking_branches.t`와
 `parking_branches.parallel`로 각각 지정한다. 기본값은 둘 다 `left`다. State Manager는
@@ -140,15 +144,20 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 RDDF만으로 동작한다.
 
 RDDF의 주차 `reverse` 표시는 **시작 차체 방향** 메타데이터다. T 주차는
-`5_T-*-in` 전체를 `RDDF/REVERSE_ENTRY(-1)`로 주행하고 5번 RDDF 끝에서 정지한다.
-Localization이 6번을 활성화하면 실제 정차를 `t_parking_transition_hold_s`(기본 2초)
-동안 확인한 뒤 `6_T-*-out`을 `RDDF/FORWARD_EXIT(+1)`로 주행한다. T 주차에는
+4번 끝에서 현재 경로의 정지 명령을 유지한 채 0.5 m/s 이하를 연속 1초 확인한 후
+정확한 `5_T-*-in`을 요청한다. 전환된 5번 전체를 `RDDF/REVERSE_ENTRY(-1)`로
+주행하고 RDDF 끝에서 정지한다.
+5번 끝에서 0.5 m/s 이하를 `parking_hold_s`(기본 1초) 확인한 후
+정확한 `6_T-*-out`을 요청한다. 새 경로가 Selector에서 승인될 때까지는
+공통 `REQUESTED_PATH_UNAVAILABLE` 정지 조건이 이동을 막고, 승인 후
+`RDDF/FORWARD_EXIT(+1)`로 주행한다. T 주차에는
 `/parking/maneuver`와 `/path/park`를 요구하지 않는다.
 
 평행주차 기어 구간은 `parallel_parking_profiles`의 실제 RDDF 누적거리로 정한다.
 Left in은 전진 1→9, 후진 9→10이고, Right in은 전진 1→4, 후진 4→16,
 전진 16→17이다. Left/Right out은 모두 후진 1→2, 전진 2→13이다. 전환점에
-도달하면 State Manager가 경로를 그 지점까지만 잘라 정지시키고, 실제 정차 후
+도달하면 State Manager가 경로를 그 지점까지만 잘라 정지시키고, 0.5 m/s 이하를
+`parking_hold_s`(기본 1초) 연속 확인한 후
 `direction`과 `decision_id`를 바꿔 다음 RDDF 구간을 발행한다. `/parking/maneuver`와
 `/path/park`는 사용하지 않는다. Control은 `MissionState.direction=-1`에서 후진 명령을
 만들며 Arduino는 실측 0속도를 확인한 뒤 기어를 바꾼다.

@@ -17,12 +17,13 @@ class RuntimeTests(unittest.TestCase):
                        '2': Route('2', [(x, 0, 0) for x in range(10, 21)]),
                        '8_dynamic-obstacle': Route('8_dynamic-obstacle', [(x, 0, 0) for x in range(11)])}
         self.config = {'start_route': '1_right', 'landmarks_validated': True,
+                       'input_timeout_s': 2.0,
                        'vehicle': {'validated': True, 'curb_visibility_validated': True,
                                    'front_m': .5, 'rear_m': .5, 'width_m': 1.0,
                                    'max_speed_mps': 2.0, 'max_yaw_rate_rps': 1.0,
                                    'deceleration_mps2': 1.0, 'reaction_s': .2, 'margin_m': .1},
                        'stop_buffer_m': .05,
-                       'dynamic_obstacle': {'route_token': 'dynamic', 'input_timeout_s': .5,
+                       'dynamic_obstacle': {'route_token': 'dynamic', 'input_timeout_s': 2.0,
                                             'lookahead_m': 10.0, 'corridor_half_width_m': .65},
                        'landmarks': {'1_right': {'hill_start_s': 1, 'hill_stop_s': 4, 'hill_top_s': 8},
                                      '2': {'stop_line_s': 5}}}
@@ -97,7 +98,7 @@ class RuntimeTests(unittest.TestCase):
             runtime.active_source_routes = ('1_right', '2')
             runtime.activate_route('2')
             prepared = dict(previous, route='2', decision_id=expected[0])
-            if failure == 'stale': prepared['stamp'] = 9.0
+            if failure == 'stale': prepared['stamp'] = 8.0
             if failure == 'wrong': prepared['decision_id'] += 1
             if failure == 'rejected': prepared['ready'] = False
             data = self.data(10.1, x=10, runtime=runtime)
@@ -276,9 +277,9 @@ class RuntimeTests(unittest.TestCase):
     def test_stale_dynamic_clusters_do_not_assert_estop(self):
         self.config['start_route'] = '8_dynamic-obstacle'
         runtime = MissionRuntime(self.routes, self.config)
-        data = self.cluster_data(1, [(2.0, 0.0)])
+        data = self.cluster_data(3, [(2.0, 0.0)])
         data['clusters']['stamp'] = .1
-        result = runtime.step(1, data, self.candidate(runtime, 1))
+        result = runtime.step(3, data, self.candidate(runtime, 3))
         self.assertFalse(result['emergency_stop_requested'])
         self.assertFalse(result['dynamic_obstacle']['valid'])
         self.assertTrue(result['stop_requested'])

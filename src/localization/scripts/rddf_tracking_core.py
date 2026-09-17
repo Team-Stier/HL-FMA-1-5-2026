@@ -228,8 +228,11 @@ class RddfTracker:
         """Select only a connected next-numbered route near its entry point."""
         current_points = self.route_map.routes[self.active_source]
         current_last_segment = len(current_points) - 2
+        mission_owned = self._section(self.active_source) in (4, 5, 9, 10)
         candidates = []
         for source in self._successors(self.active_source):
+            if mission_owned and source != self.requested_successor:
+                continue
             start = self.route_map.routes[source][0]
             connection = self.route_map.match(
                 float(start[0]), float(start[1]), self.join_tolerance, 0.0,

@@ -1,5 +1,7 @@
+import csv
 import math
 import os
+from pathlib import Path
 import sys
 import unittest
 from dataclasses import replace
@@ -71,6 +73,43 @@ class SelectorTests(unittest.TestCase):
         result = self.evaluate(state=replace(self.state, direction=-1),
                                path=replace(self.path, direction=-1))
         self.assertEqual(result.reason, 'PATH_BODY_DIRECTION_MISMATCH')
+
+    def test_real_t_parking_reverse_routes_are_accepted_and_wrong_yaw_is_blocked(self):
+        root = Path(__file__).resolve().parents[2] / 'localization' / 'rddf'
+        for route_name in ('5_T-left-in', '5_T-right-in'):
+            with self.subTest(route=route_name):
+                with (root / ('yongin_' + route_name + '.csv')).open(newline='') as stream:
+                    rows = list(csv.DictReader(stream))
+                positions = tuple((float(row['east_m']), float(row['north_m']), 0.)
+                                  for row in rows)
+
+                def poses(reverse_body):
+                    result = []
+                    for index, position in enumerate(positions):
+                        adjacent = (positions[index + 1]
+                                    if index + 1 < len(positions)
+                                    else positions[index - 1])
+                        if index + 1 < len(positions):
+                            motion_yaw = math.atan2(adjacent[1] - position[1],
+                                                    adjacent[0] - position[0])
+                        else:
+                            motion_yaw = math.atan2(position[1] - adjacent[1],
+                                                    position[0] - adjacent[0])
+                        body_yaw = motion_yaw + (math.pi if reverse_body else 0.0)
+                        result.append(Pose(
+                            'map', position,
+                            (0., 0., math.sin(body_yaw / 2), math.cos(body_yaw / 2))))
+                    return tuple(result)
+
+                state = replace(self.state, route_name=route_name, direction=-1)
+                candidate = replace(self.path, route_name=route_name, direction=-1,
+                                    poses=poses(True))
+                self.assertEqual(self.evaluate(state=state, path=candidate).reason,
+                                 'PATH_READY')
+
+                wrong = replace(candidate, poses=poses(False))
+                self.assertEqual(self.evaluate(state=state, path=wrong).reason,
+                                 'PATH_BODY_DIRECTION_MISMATCH')
 
     def test_reversed_positions_can_keep_forward_facing_body(self):
         self.assertTrue(self.evaluate(state=replace(self.state, direction=-1),

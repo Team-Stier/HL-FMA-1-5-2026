@@ -64,26 +64,34 @@ class ParkingRuntimeTests(unittest.TestCase):
     def prime(self, now=1.0, x=0.0, speed=0.0):
         return self.runtime.step(now, self.data(now, x, speed), {})
 
+    def hold(self, start, x, speed=0.0):
+        result = None
+        for index in range(5):
+            now = start + index * .25
+            result = self.runtime.step(now, self.data(now, x, speed),
+                                       self.candidate(now))
+        return result
+
     def test_rddf_path_is_clipped_to_current_gear_leg(self):
         result = self.prime()
         self.assertEqual((result['path_mode'], result['direction']), ('RDDF', 1))
         self.assertAlmostEqual(self.runtime.rddf_points(1.1, {})[-1][0], 5.0)
 
-        switched = self.runtime.step(1.1, self.data(1.1, 4.9, 0.0), self.candidate(1.1))
+        switched = self.hold(1.1, 4.9)
         self.assertEqual((switched['direction'], switched['decision_id']), (-1, 2))
-        points = self.runtime.rddf_points(1.2, {})
+        points = self.runtime.rddf_points(2.2, {})
         self.assertAlmostEqual(points[0][0], 5.0)
         self.assertAlmostEqual(points[-1][0], 15.0)
 
     def test_gear_change_waits_for_actual_standstill_and_new_path(self):
         self.prime()
-        moving = self.runtime.step(1.1, self.data(1.1, 4.9, .2), self.candidate(1.1))
+        moving = self.runtime.step(1.1, self.data(1.1, 4.9, .6), self.candidate(1.1))
         self.assertEqual((moving['reason'], moving['direction'], moving['decision_id']),
                          ('PARALLEL_GEAR_CHANGE', 1, 1))
-        stopped = self.runtime.step(1.2, self.data(1.2, 4.9, 0.0), self.candidate(1.2))
+        stopped = self.hold(1.2, 4.9)
         self.assertEqual((stopped['reason'], stopped['direction'], stopped['decision_id']),
                          ('WAIT_NEW_PATH', -1, 2))
-        ready = self.runtime.step(1.3, self.data(1.3, 6.0, -.2), self.candidate(1.3))
+        ready = self.runtime.step(2.3, self.data(2.3, 6.0, -.6), self.candidate(2.3))
         self.assertFalse(ready['stop_requested'], ready)
 
     def test_direct_midroute_start_selects_matching_gear_leg(self):
@@ -93,7 +101,7 @@ class ParkingRuntimeTests(unittest.TestCase):
 
     def test_second_change_selects_forward_leg(self):
         self.prime(x=10.0)
-        switched = self.runtime.step(1.1, self.data(1.1, 14.9, 0.0), self.candidate(1.1))
+        switched = self.hold(1.1, 14.9)
         self.assertEqual((switched['direction'], switched['parking_leg_index']), (1, 2))
 
     def test_real_parallel_right_route_uses_saved_profile_without_planner(self):
