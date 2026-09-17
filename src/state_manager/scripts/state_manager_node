@@ -72,6 +72,7 @@ class StateManagerNode:
         self.safety_pub = rospy.Publisher('/mission/safety', SafetyStatus, queue_size=1)
         self.constraint_pub = rospy.Publisher('/mission/traffic_constraint', TrafficConstraint, queue_size=1)
         self.path_pub = rospy.Publisher('/path/rddf', PlannedPath, queue_size=1)
+        self.prefetch_pub = rospy.Publisher('/path/rddf_prefetch', PlannedPath, queue_size=1)
         self.marker_pub = rospy.Publisher('/mission/markers', MarkerArray, queue_size=1)
         self.diagnostics_pub = rospy.Publisher('/mission/diagnostics', String, queue_size=1)
         self.successor_pub = rospy.Publisher('/mission/rddf_successor', String, queue_size=1)
@@ -88,6 +89,8 @@ class StateManagerNode:
                              self.on_lane_signals, queue_size=1),
             rospy.Subscriber('/path/selector_status', PathStatus,
                              self.on_selector_status, queue_size=1),
+            rospy.Subscriber('/path/rddf_prefetch_status', PathStatus,
+                             self.on_selector_status, callback_args='prefetch_status', queue_size=1),
         ]
         rate = float(self.config.get('rate_hz', 10))
         if not math.isfinite(rate) or not 0 < rate <= 50:
@@ -236,9 +239,8 @@ class StateManagerNode:
             return
         if self.runtime is None and route.section == 1 and route_name != self.start_route:
             return
-        if self.runtime is not None:
-            self.runtime.active_source_routes = tuple(match.get('active_routes', ()))
         if self.runtime is not None and route_name == self.active_match_route:
+            self.runtime.active_source_routes = tuple(match.get('active_routes', ()))
             return
         fraction = match['segment_fraction']
         initial_s = (route.s[segment_index] + fraction *
@@ -351,9 +353,9 @@ class StateManagerNode:
                                  'route': msg.route_name,
                                  'left': left, 'right': right}
 
-    def on_selector_status(self, msg):
+    def on_selector_status(self, msg, key='selector_status'):
         with self.lock:
-            self.data['selector_status'] = {
+            self.data[key] = {
                 'stamp': msg.header.stamp.to_sec(),
                 'receipt_stamp': self.clock_now(),
                 'decision_id': int(msg.decision_id),
@@ -364,9 +366,16 @@ class StateManagerNode:
                 'reason': msg.reason,
                 'path_fingerprint': msg.path_fingerprint,
             }
+            if key == 'prefetch_status':
+                cache = self.data.setdefault('prefetch_statuses', {})
+                request = (int(msg.decision_id), msg.route_name, msg.source, int(msg.direction))
+                cache[request] = self.data[key]
+                for old in list(cache):
+                    if self.data[key]['receipt_stamp'] - cache[old]['receipt_stamp'] > .5:
+                        del cache[old]
 
-    def rddf_candidate(self, now):
-        runtime = self.runtime
+    def rddf_candidate(self, now, runtime=None, publisher=None):
+        runtime = runtime or self.runtime
         if runtime is None or runtime.request is None:
             return
         name, mode, direction = runtime.request
@@ -391,7 +400,31 @@ class StateManagerNode:
             pose.pose.orientation.z = math.sin(body_yaw / 2)
             pose.pose.orientation.w = math.cos(body_yaw / 2)
             wrapper.path.poses.append(pose)
-        self.path_pub.publish(wrapper)
+        (publisher or self.path_pub).publish(wrapper)
+
+    def prefetch_rddf(self, now):
+        runtime = self.runtime
+        if runtime is None or runtime.request != (runtime.active_route_name, 'RDDF', 1):
+            return
+        route = runtime.active_route
+        if route.section in (3, 5, 6, 10, 11):
+            return
+        successors = [runtime.routes[name] for name in (runtime.active_source_routes or ())
+                      if name in runtime.routes and name != route.name]
+        if len(successors) != 1:
+            return
+        successor = successors[0]
+        if (successor.section != route.section + 1 or successor.section in (3, 5, 6, 10, 11)
+                or successor.direction != 1
+                or math.hypot(route.end[0]-successor.start[0],
+                              route.end[1]-successor.start[1]) > 2.5):
+            return
+        config = dict(runtime.config, start_route=successor.name)
+        preview = MissionRuntime(runtime.source_routes, config)
+        preview.active_source_routes = (successor.name,)
+        preview.request = (successor.name, 'RDDF', 1)
+        preview.decision_id = runtime.decision_id + 1
+        self.rddf_candidate(now, preview, self.prefetch_pub)
 
     def fault_decision(self, reason):
         runtime = self.runtime
@@ -464,6 +497,8 @@ class StateManagerNode:
                        'dynamic_obstacle': decision.get('dynamic_obstacle'),
                        'hill_target_s': decision.get('hill_target_s'),
                        'hill_hold_elapsed_s': decision.get('hill_hold_elapsed_s', 0.0)}
+        diagnostics['traffic_wait_elapsed_s'] = decision.get('traffic_wait_elapsed_s', 0.0)
+        diagnostics['traffic_force_departure_s'] = decision.get('traffic_force_departure_s')
         self.diagnostics_pub.publish(String(data=json.dumps(diagnostics, ensure_ascii=False, sort_keys=True, allow_nan=False)))
         self.marker_pub.publish(to_marker_array(marker_specs(self.routes, decision, self.data.get('odom'), self.config), state.header.stamp))
 
@@ -476,8 +511,11 @@ class StateManagerNode:
                     decision = self.fault_decision(
                         self.clock_fault or self.map_fault or self.configuration_fault or waiting)
                 else:
-                    self.rddf_candidate(now)
                     decision = self.runtime.step(now, self.data)
+                    # Publish the new request's path in the same tick as its
+                    # mission, while the selector already holds its preview.
+                    self.rddf_candidate(now)
+                    self.prefetch_rddf(now)
                 self.last_decision = decision
                 self.publish(decision, now)
             except Exception as error:  # Keep the heartbeat fail-closed on adapter/runtime failure.

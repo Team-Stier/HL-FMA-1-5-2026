@@ -119,6 +119,9 @@ def marker_specs(routes, decision, odom=None, config=None):
         text += "\nParking leg %d: %s (target %.2f m)" % (decision["parking_leg_index"], decision.get("parking_leg_phase", ""), decision.get("parking_leg_target_s", -1.0))
     if decision.get("hill_target_s") is not None:
         text += "\nHill target %.2f m / hold %.1f s" % (decision["hill_target_s"], decision.get("hill_hold_elapsed_s", 0.0))
+    if decision.get("section") in (2, 4, 7):
+        text += "\nSignal wait %.1f / %.1f s" % (decision.get("traffic_wait_elapsed_s", 0.0),
+                                                 decision.get("traffic_force_departure_s", 20.0))
     markers.append({"kind": "TEXT_VIEW_FACING", "ns": "mission_status", "key": "status",
                     "position": anchor, "scale": (0, 0, .43), "text": text,
                     "color": (1, .35, .25, 1) if stop else (.3, 1, .45, 1)})

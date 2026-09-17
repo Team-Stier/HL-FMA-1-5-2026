@@ -30,6 +30,26 @@ class ViewerTest(unittest.TestCase):
 
     def tearDown(self): self.tmp.cleanup()
 
+    def test_tracker_active_window_is_buffered_for_live_and_recorded_display(self):
+        from mando_localization.msg import RddfMatch
+        model = v.SceneData(self.root, frame_mode='rddf_map')
+        message = RddfMatch()
+        message.matched = True
+        message.source_route_name = '1_left'
+        message.active_source_route_names = ['1_left', '2']
+        message.header.stamp = rospy.Time.from_sec(100.)
+        model.ingest('rddf', message, 100., True)
+        message.source_route_name = '2'
+        message.active_source_route_names = ['2', '3_s-static-obstacle']
+        message.header.stamp = rospy.Time.from_sec(101.)
+        model.ingest('rddf', message, 101., True)
+        self.assertEqual(model.data['rddf'][0]['active_sources'], ['1_left', '2'])
+        self.assertEqual(model.data['rddf'][1]['active_sources'], ['2', '3_s-static-obstacle'])
+        message.matched = False
+        message.active_source_route_names = []
+        model.ingest('rddf', message, 101.1, True)
+        self.assertFalse(model.data['rddf'][-1]['accepted'])
+
     def test_current_rddf_projects_onto_route_and_rejects_far_position(self):
         from rddf_initialization_core import RddfRouteMap
         routes = RddfRouteMap(self.root)

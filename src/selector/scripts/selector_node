@@ -19,11 +19,15 @@ class SelectorNode:
         self.state = None
         self.candidates = {}
         self.messages = {}
+        self.rddf_cache = {}
         self.last_time = None
         self.path_pub = rospy.Publisher('/path/final', Path, queue_size=1)
         self.status_pub = rospy.Publisher('/path/selector_status', PathStatus, queue_size=1)
+        self.prefetch_status_pub = rospy.Publisher('/path/rddf_prefetch_status', PathStatus, queue_size=1)
         self.subscribers = [rospy.Subscriber('/mission/state', MissionState,
                                              self.on_state, queue_size=1)]
+        self.subscribers.append(rospy.Subscriber('/path/rddf_prefetch', PlannedPath,
+                                                self.on_path, callback_args='PREFETCH', queue_size=1))
         for source, topic in [('RDDF', '/path/rddf'), ('LOCAL', '/path/local'),
                               ('PARKING', '/path/park')]:
             self.subscribers.append(rospy.Subscriber(topic, PlannedPath, self.on_path,
@@ -36,6 +40,7 @@ class SelectorNode:
             self.state = None
             self.candidates.clear()
             self.messages.clear()
+            self.rddf_cache.clear()
         self.last_time = now
         return now
 
@@ -54,15 +59,42 @@ class SelectorNode:
                                (p.pose.orientation.x, p.pose.orientation.y,
                                 p.pose.orientation.z, p.pose.orientation.w))
                           for p in msg.path.poses)
-            self.candidates[source] = Candidate(
+            candidate = Candidate(
                 msg.header.stamp.to_sec(), now, msg.decision_id, msg.route_name,
                 msg.direction, msg.header.frame_id, msg.path.header.frame_id,
                 msg.path.header.stamp.to_sec(), poses)
+            if source in ('RDDF', 'PREFETCH'):
+                key = (msg.decision_id, msg.route_name, msg.direction)
+                self.rddf_cache[key] = (candidate, msg)
+                # Keep current and prepared requests separately so either
+                # callback order at handoff selects the correct geometry.
+                for old in list(self.rddf_cache):
+                    if not self.core._fresh(self.rddf_cache[old][0].stamp, now):
+                        del self.rddf_cache[old]
+                if source == 'PREFETCH':
+                    probe = State(candidate.stamp, now, msg.decision_id,
+                                  msg.route_name, 'RDDF', msg.direction, True, False)
+                    result = self.core.evaluate(probe, {'RDDF': candidate}, now)
+                    status = PathStatus()
+                    status.header.stamp = msg.header.stamp
+                    status.header.frame_id = self.core.frame_id
+                    status.decision_id, status.route_name = msg.decision_id, msg.route_name
+                    status.direction, status.source = msg.direction, 'RDDF'
+                    status.ready, status.reason = result.ready, result.reason
+                    status.path_fingerprint = path_fingerprint(candidate) if result.ready else ''
+                    self.prefetch_status_pub.publish(status)
+                    return
+            self.candidates[source] = candidate
             self.messages[source] = msg
 
     def tick(self, _event):
         with self.lock:
             now = self.clock()
+            if self.state and self.state.path_mode == 'RDDF':
+                key = (self.state.decision_id, self.state.route_name, self.state.direction)
+                cached = self.rddf_cache.get(key)
+                if cached:
+                    self.candidates['RDDF'], self.messages['RDDF'] = cached
             result = self.core.evaluate(self.state, self.candidates, now)
             status = PathStatus()
             status.header.stamp = rospy.Time.from_sec(now)

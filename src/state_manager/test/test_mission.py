@@ -155,6 +155,33 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(result["remaining_stop_m"], 0)
         self.assertTrue(result["stop_requested"])
 
+    def test_signal_wait_latches_across_stop_threshold_position_jitter(self):
+        for i in range(201):
+            # Regression: crossing 9.8 used to alternate APPROACH/WAIT_SIGNAL
+            # and reset the timeout every time the estimate moved backward.
+            s = 9.85 if i % 2 == 0 else 9.75
+            result = self.run_at(2, now=i*.1, s=s, speed=0.0)
+            if i < 200:
+                self.assertTrue(result['stop_requested'])
+                self.assertEqual(result['phase'], 'WAIT_SIGNAL')
+            self.assertAlmostEqual(result['traffic_wait_elapsed_s'], i*.1)
+        self.assertEqual(result['phase'], 'CROSSING')
+        self.assertFalse(result['virtual_stop']['active'])
+
+    def test_signal_wait_does_not_start_timer_before_first_standstill(self):
+        for i in range(201):
+            result = self.run_at(2, now=i*.1, s=9.9, speed=1.0)
+        self.assertEqual(result['traffic_wait_elapsed_s'], 0.0)
+        self.assertTrue(result['stop_requested'])
+
+    def test_signal_wait_green_authorizes_before_line_after_stopping(self):
+        self.run_at(2, now=1, s=9.9, speed=0.0)
+        result = self.run_at(2, now=1.1, s=9.75, speed=0.0,
+                             signal={'stamp': 1.1, 'route': '2', 'value': 'GREEN'})
+        self.assertFalse(result['stop_requested'])
+        red = self.run_at(2, now=1.2, s=9.75, speed=0.0)
+        self.assertFalse(red['stop_requested'])
+
     def test_stale_future_and_wrong_route_signals_do_not_authorize(self):
         for signal in (
             {"stamp": 8, "route": "2", "value": "GREEN"},

@@ -68,6 +68,43 @@ class RuntimeTests(unittest.TestCase):
         self.assertGreater(points[-1][0], 10.0)
         self.assertLessEqual(points[-1][0], 14.45 + 1e-6)
 
+    def test_prevalidated_next_rddf_handoff_keeps_drive_and_traffic_stop(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        self.run_step(runtime, 10)
+        previous = self.candidate(runtime, 10)
+        runtime.active_source_routes = ('1_right', '2')
+        expected = (runtime.decision_id + 1, '2', 'RDDF', 1)
+        prepared = dict(previous, decision_id=expected[0], route='2')
+        runtime.activate_route('2')
+        data = self.data(10.1, x=10, runtime=runtime)
+        data['prefetch_statuses'] = {expected: prepared}
+        result = runtime.step(10.1, data, previous)
+        self.assertFalse(result['stop_requested'], result)
+        self.assertEqual(result['decision_id'], expected[0])
+        # A prepared path never authorizes crossing a red signal.
+        data = self.data(10.2, x=14.5, runtime=runtime)
+        data['prefetch_statuses'] = {expected: prepared}
+        stopped = runtime.step(10.2, data, previous)
+        self.assertTrue(stopped['stop_requested'])
+        self.assertEqual(stopped['phase'], 'WAIT_SIGNAL')
+
+    def test_missing_stale_or_wrong_prefetch_cannot_skip_path_wait(self):
+        for failure in ('missing', 'stale', 'wrong', 'rejected'):
+            runtime = MissionRuntime(self.routes, self.config)
+            self.run_step(runtime, 10)
+            previous = self.candidate(runtime, 10)
+            expected = (runtime.decision_id + 1, '2', 'RDDF', 1)
+            runtime.active_source_routes = ('1_right', '2')
+            runtime.activate_route('2')
+            prepared = dict(previous, route='2', decision_id=expected[0])
+            if failure == 'stale': prepared['stamp'] = 9.0
+            if failure == 'wrong': prepared['decision_id'] += 1
+            if failure == 'rejected': prepared['ready'] = False
+            data = self.data(10.1, x=10, runtime=runtime)
+            data['prefetch_statuses'] = {} if failure == 'missing' else {expected: prepared}
+            result = runtime.step(10.1, data, previous)
+            self.assertTrue(result['stop_requested'], (failure, result))
+
     def test_rddf_preview_does_not_append_parking(self):
         routes = dict(self.routes)
         routes['4'] = Route('4', [(0, 0, 0), (10, 0, 0)])
@@ -388,21 +425,17 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual(result['reason'], 'TRAFFIC_FORCE_DEPARTURE_AFTER_TIMEOUT')
                 self.assertFalse(result['virtual_stop']['active'])
 
-    def test_force_departure_timer_requires_continuous_standstill(self):
+    def test_force_departure_timer_survives_speed_noise_after_first_stop(self):
         runtime = self.traffic_runtime()
         result = None
-        for index in range(251):
+        for index in range(201):
             now = 1.0 + index / 10.0
             speed = 0.1 if index == 50 else 0.0
             signal = {'stamp': now, 'route': '2', 'value': 'UNKNOWN'}
             data = dict(self.data(now, x=4.5, speed=speed, runtime=runtime), signal=signal)
             result = runtime.step(now, data, self.candidate(runtime, now))
-        self.assertTrue(result['stop_requested'], result)
-        now = 26.1
-        signal = {'stamp': now, 'route': '2', 'value': 'UNKNOWN'}
-        data = dict(self.data(now, x=4.5, speed=0.0, runtime=runtime), signal=signal)
-        result = runtime.step(now, data, self.candidate(runtime, now))
         self.assertFalse(result['stop_requested'], result)
+        self.assertEqual(result['traffic_wait_elapsed_s'], 20.0)
 
     def test_left_turn_green_uses_same_force_departure_timeout(self):
         runtime = self.traffic_runtime('7')

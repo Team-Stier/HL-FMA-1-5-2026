@@ -318,6 +318,8 @@ class MissionEngine:
             "counters": {}, "diagnostics": [], "completed_missions": {},
             "parking_candidates": {}, "virtual_stop": None,
             "hill_target_s": None, "hill_hold_elapsed_s": 0.0,
+            "traffic_wait_elapsed_s": 0.0,
+            "traffic_force_departure_s": self.rules["traffic_force_departure_s"],
             "parking_leg_index": -1,
             "parking_leg_phase": "",
             "parking_leg_target_s": None,
@@ -561,29 +563,34 @@ class MissionEngine:
         permitted = self._fresh(signal, now, snap["route"]) and signal.get("value") == required
         out["virtual_stop"] = self._traffic_constraint(snap["route"], required, marks, None, now, signal)
         mission_key = "intersection:" + snap["route"]
+        waiting = state.get("traffic_wait_latched", False)
+        since = state.get("signal_wait_since")
+        if since is not None:
+            out["traffic_wait_elapsed_s"] = max(0.0, now - since)
         if mission_key in self.completed_missions:
             state["authorized"] = True
         if not state.get("authorized"):
             out["remaining_stop_m"] = max(0.0, stop - front_s)
-            if front_s >= stop and permitted:
+            if (front_s >= stop or waiting) and permitted:
                 state["authorized"] = True
                 state.setdefault("intersection_entered", now)
                 state["signal_wait_since"] = None
-            elif front_s > stop + self.rules["stop_tolerance_m"]:
+            elif not waiting and front_s > stop + self.rules["stop_tolerance_m"]:
                 self._once("unauthorized_intersection_entry", snap["route"])
                 self._stop(out, "INTERSECTION_ENTERED_WITHOUT_PERMISSION", "FAULT")
                 return
             elif not permitted:
                 out["reason"] = "WAIT_" + required
-                if front_s >= stop - self.rules["stop_tolerance_m"]:
+                if waiting or front_s >= stop - self.rules["stop_tolerance_m"]:
+                    # Once waiting at the line, pose jitter must not command
+                    # another approach. Start the timer at first standstill.
+                    state["traffic_wait_latched"] = True
                     standing = abs(snap["speed"]) <= self.rules["standstill_speed_mps"]
-                    if standing:
-                        if state.get("signal_wait_since") is None:
-                            state["signal_wait_since"] = now
-                        waited = now - state["signal_wait_since"]
-                    else:
-                        state["signal_wait_since"] = None
-                        waited = 0.0
+                    if standing and state.get("signal_wait_since") is None:
+                        state["signal_wait_since"] = now
+                    since = state.get("signal_wait_since")
+                    waited = max(0.0, now - since) if since is not None else 0.0
+                    out["traffic_wait_elapsed_s"] = waited
                     if standing and waited >= self.rules["traffic_force_departure_s"]:
                         state["authorized"] = True
                         state["intersection_entered"] = now

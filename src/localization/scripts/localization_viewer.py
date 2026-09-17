@@ -36,6 +36,7 @@ FRAME = 'localization_debug'
 PREFIX = '/mando_localization/visualization/debug'
 DEFAULT_CONFIG = yaml.safe_load((PACKAGE/'config/localization_viewer.yaml').read_text())
 TOPICS = dict(DEFAULT_CONFIG['topics'])
+TOPICS['rddf'] = '/molit/localization/rddf/current'
 COLORS = {key:tuple(value) for key,value in DEFAULT_CONFIG['colors'].items()}
 INITIALIZATION_PREFIX = '/mando_localization/internal/initialization'
 
@@ -194,6 +195,13 @@ def final_bag(path):
 
 
 def decode_sample(key, message, project):
+    if key == 'rddf':
+        return dict(accepted=bool(message.matched), reason=message.reason,
+                    route=message.source_route_name,
+                    active_sources=list(getattr(message, 'active_source_route_names',
+                                                [message.source_route_name] if message.matched else [])),
+                    distance=message.nearest.distance_m,
+                    stamp=message.header.stamp.to_sec())
     if key in ('local', 'global'):
         p = message.pose.pose.position
         value = (p.x, p.y, yaw_of(message.pose.pose.orientation))
@@ -752,6 +760,7 @@ def run_gui(model, seek, live=False, config=None):
                 self.input_dropped += 1
 
         def subscribe_live(self):
+            from mando_localization.msg import RddfMatch
             from nav_msgs.msg import Odometry
             from sensor_msgs.msg import Imu, NavSatFix, LaserScan
             from diagnostic_msgs.msg import DiagnosticArray
@@ -760,7 +769,7 @@ def run_gui(model, seek, live=False, config=None):
             types = dict(local=Odometry, **{'global':Odometry}, gps=NavSatFix, scan=LaserScan,
                          speed=SerialFeedBack, state=String, valid=Bool, imu_raw=Imu,
                          imu_normalized=Imu, imu_calibrated=Imu, calibration=DiagnosticArray,
-                         diagnostics=DiagnosticArray)
+                         diagnostics=DiagnosticArray, rddf=RddfMatch)
             subs = [rospy.Subscriber(topic,types[key],lambda msg,k=key:self.enqueue(k,msg),queue_size=100)
                     for key,topic in TOPICS.items()]
             subs.append(rospy.Subscriber('/tf_static',TFMessage,lambda msg:self.enqueue('tf',msg),queue_size=20))
@@ -950,7 +959,26 @@ def run_gui(model, seek, live=False, config=None):
                 names = rddf_match['routes']
             else:
                 names = []
-            for name in current_rddf_members(self.route_map, names):
+            members = current_rddf_members(self.route_map, names)
+            # Tracker owns current + next activation; use the recorded sample
+            # at the displayed time, including live mode. No independent match
+            # may replace the tracker's branch selection in live operation.
+            tracked_index = bisect.bisect_right(self.times['rddf'], self.position)-1
+            if tracked_index >= 0 or live:
+                tracked = self.data['rddf'][tracked_index] if tracked_index >= 0 else None
+                fresh = (tracked is not None and
+                         0 <= display_now - self.times['rddf'][tracked_index] <= .5 and
+                         self.model.start is not None and
+                         0 <= self.model.start + display_now - tracked['stamp'] <= .5)
+                accepted = bool(fresh and tracked['accepted'])
+                members = ([name for name in tracked['active_sources'] if name in self.routes]
+                           if accepted else [])
+                rddf_match = dict(tracked or {}, accepted=accepted,
+                                  text=('RDDF: {} | active {} | {:.2f} m'.format(
+                                      tracked['route'], ' + '.join(members), tracked['distance'])
+                                        if accepted else 'RDDF: tracker waiting / invalid / stale'))
+                route_color = (1., .8, .15) if accepted else (1., .5, .15)
+            for name in members:
                 markers.append(self.marker(0, Marker.LINE_STRIP, route_color,
                     self.routes[name], .35, 'current_rddf/'+name))
                 markers[-1].pose.position.z = .08

@@ -46,6 +46,7 @@ class MissionRuntime:
         self.request = None
         self.rddf_bounds = None
         self.active_source_routes = None
+        self.prefetch_handoff_request = None
         self.last_time = None
         self.clock_fault = False
         self.vehicle_ok = validate_vehicle(config)
@@ -69,6 +70,18 @@ class MissionRuntime:
         if not math.isfinite(progress_s):
             raise ValueError('route progress must be finite')
         changed = route_name != self.active_route_name
+        if changed:
+            previous = self.active_route
+            eligible = (self.request == (previous.name, 'RDDF', 1)
+                        and route_name in (self.active_source_routes or ())
+                        and route.section == previous.section + 1
+                        and previous.section not in (3, 5, 6, 10, 11)
+                        and route.section not in (3, 5, 6, 10, 11)
+                        and route.direction == 1
+                        and math.hypot(previous.end[0]-route.start[0],
+                                       previous.end[1]-route.start[1]) <= 2.5)
+            self.prefetch_handoff_request = ((self.decision_id + 1, route_name, 'RDDF', 1)
+                                             if eligible else None)
         self.active_route_name = route_name
         self.active_route = route
         self.progress_s = min(route.length, max(0.0, progress_s))
@@ -213,6 +226,13 @@ class MissionRuntime:
                   'path_fingerprint': ''}
         if self.request is None:
             return result
+        expected = (self.decision_id,) + self.request
+        status_key = (status.get('decision_id'), status.get('route'),
+                      status.get('source'), status.get('direction'))
+        if status_key != expected and self.prefetch_handoff_request == expected:
+            # Only an externally validated, exact next request may bridge the
+            # first selector acknowledgement. All freshness checks still apply.
+            status = data.get('prefetch_statuses', {}).get(expected, {})
         timeout = self.config.get('input_timeout_s', 0.5)
         if (not fresh(status.get('stamp'), now, timeout)
                 or not fresh(status.get('receipt_stamp'), now, timeout)):
