@@ -54,13 +54,11 @@ class MissionTests(unittest.TestCase):
         return result
 
     def select_parking(self, kind="t", side="left", start=0.0):
+        branches = {"t": "left", "parallel": "left"}
+        branches[kind] = side
+        self.engine = MissionEngine({"parking_branches": branches})
         section = 4 if kind == "t" else 9
-        for offset in (0.0, 0.1, 0.2):
-            now = start + offset
-            parking = {"stamp": now, "left": "BLOCKED", "right": "BLOCKED"}
-            parking[side] = "CLEAR"
-            result = self.run_at(section, now=now, parking=parking)
-        return result
+        return self.run_at(section, now=start)
 
     def test_hill_requires_three_seconds_of_continuous_standstill(self):
         self.assertTrue(self.run_at(now=0.0, s=5.0, speed=0.0)["stop_requested"])
@@ -186,23 +184,23 @@ class MissionTests(unittest.TestCase):
         self.assertTrue(result["stop_requested"])
         self.assertIsNone(result["next_route"])
 
-    def test_unknown_parking_is_not_free(self):
+    def test_default_parallel_parking_branch_is_left_without_observation(self):
         result = self.run_at(9, s=20, at_end=True)
-        self.assertEqual(result["phase"], "WAIT_SPACE")
-        self.assertIsNone(result["selected_branch"])
+        self.assertEqual(result["selected_branch"], "left")
+        self.assertEqual(result["next_route"], "10_parallel-left-in")
 
-    def test_replayed_parking_stamp_is_one_observation(self):
+    def test_parking_observation_does_not_override_configured_branch(self):
         for now in (0.0, 0.1, 0.2, 0.3):
             result = self.run_at(9, now=now, parking={"stamp": 0, "left": "CLEAR", "right": "BLOCKED"})
-        self.assertIsNone(result["selected_branch"])
+        self.assertEqual(result["selected_branch"], "left")
 
-    def test_parking_branch_is_stable_and_latched(self):
+    def test_configured_parking_branch_is_stable_and_latched(self):
         result = self.select_parking("parallel", "right")
         self.assertEqual(result["selected_branch"], "right")
         changed = self.run_at(9, now=0.3, s=20, at_end=True,
                               parking={"stamp": 0.3, "left": "CLEAR", "right": "BLOCKED"})
         self.assertEqual(changed["selected_branch"], "right")
-        self.assertTrue(changed["stop_requested"])
+        self.assertEqual(changed["next_route"], "10_parallel-right-in")
         clear = self.run_at(9, now=0.4, s=20, at_end=True,
                             parking={"stamp": 0.4, "left": "BLOCKED", "right": "CLEAR"})
         self.assertEqual(clear["next_route"], "10_parallel-right-in")
@@ -363,13 +361,13 @@ class MissionTests(unittest.TestCase):
         result = self.run_at(5, now=1, route="5_T-right-in")
         self.assertEqual(result["reason"], "PARKING_BRANCH_NOT_AUTHORIZED")
 
-    def test_parking_can_reselect_confirmed_alternative_before_entry(self):
+    def test_parking_cannot_reselect_from_observation(self):
         self.select_parking("parallel", "left")
         for now in (0.3, 0.4, 0.5):
             result = self.run_at(9, now=now, s=20, at_end=True,
                                  parking={"stamp": now, "left": "BLOCKED", "right": "CLEAR"})
-        self.assertEqual(result["selected_branch"], "right")
-        self.assertEqual(result["next_route"], "10_parallel-right-in")
+        self.assertEqual(result["selected_branch"], "left")
+        self.assertEqual(result["next_route"], "10_parallel-left-in")
 
     def test_committed_parking_branch_cannot_switch_during_manoeuvre(self):
         self.select_parking("parallel", "left")
@@ -378,7 +376,23 @@ class MissionTests(unittest.TestCase):
             result = self.run_at(9, now=now, s=20, at_end=True,
                                  parking={"stamp": now, "left": "BLOCKED", "right": "CLEAR"})
         self.assertEqual(result["selected_branch"], "left")
-        self.assertTrue(result["stop_requested"])
+        self.assertEqual(result["next_route"], "10_parallel-left-in")
+
+    def test_t_and_parallel_parking_branches_are_independently_configurable(self):
+        self.engine = MissionEngine({
+            "parking_branches": {"t": "right", "parallel": "left"},
+        })
+        t_result = self.run_at(4, s=20, at_end=True,
+                               signal={"stamp": 0, "route": "4", "value": "GREEN"})
+        self.assertEqual(t_result["selected_branch"], "right")
+        self.assertEqual(t_result["next_route"], "5_T-right-in")
+        parallel_result = self.run_at(9, now=0.1, s=20, at_end=True)
+        self.assertEqual(parallel_result["selected_branch"], "left")
+        self.assertEqual(parallel_result["next_route"], "10_parallel-left-in")
+
+    def test_invalid_parking_branch_configuration_is_rejected(self):
+        with self.assertRaises(ValueError):
+            MissionEngine({"parking_branches": {"t": "camera", "parallel": "left"}})
 
     def test_parking_exit_cannot_skip_confirmation(self):
         self.select_parking("t", "left")

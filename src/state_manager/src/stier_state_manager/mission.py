@@ -146,12 +146,21 @@ class MissionEngine:
         self.finish_branch = self.config.get("finish_branch", "left")
         if self.finish_branch not in ("left", "right"):
             raise ValueError("finish_branch must be left or right")
+        configured_parking = self.config.get("parking_branches", {})
+        if not isinstance(configured_parking, dict):
+            raise ValueError("parking_branches must be an object")
+        self.parking_branches = {
+            "t": configured_parking.get("t", "left"),
+            "parallel": configured_parking.get("parallel", "left"),
+        }
+        if any(side not in ("left", "right") for side in self.parking_branches.values()):
+            raise ValueError("parking branches must be left or right")
         self.speeds = dict(SPEED_DEFAULTS)
         self.speeds.update(self.config.get("speeds", {}))
         if any(not _number(value) or value <= 0 for value in self.speeds.values()):
             raise ValueError("mission speed limits must be positive finite numbers")
         self.states = {}
-        self.branches = {}
+        self.branches = dict(self.parking_branches)
         self.committed_branches = set()
         self.completed_missions = {}
         self.counters = {}
@@ -602,35 +611,20 @@ class MissionEngine:
         return evidence["count"] >= count
 
     def _parking_preview(self, snap, out, kind):
+        """Expose the configured branch; parking-space perception is not used."""
         observations = self._parking_observations(snap, kind)
-        stable = []
         for side in ("left", "right"):
             observation = observations.get(side, {})
             fresh = self._fresh(observation, snap["now"])
             out["parking_candidates"][side] = observation.get("value") if fresh else "UNKNOWN"
-            if self._stable_candidate("parking:" + kind, side, observation, snap["now"], "CLEAR",
-                                      self.rules["parking_stable_observations"]):
-                stable.append(side)
-        selected = self.branches.get(kind)
-        selected_observation = observations.get(selected, {})
-        selected_clear = (self._fresh(selected_observation, snap["now"])
-                          and selected_observation.get("value") == "CLEAR")
-        if kind not in self.committed_branches and stable and (not selected or not selected_clear):
-            preferred = self.config.get("preferred_parking_branch", "left")
-            self.branches[kind] = preferred if preferred in stable else stable[0]
-        if kind in self.branches:
-            out["selected_branch"] = self.branches[kind]
+        out["selected_branch"] = self.branches[kind]
         if snap["section"] == 9:
-            out["phase"] = "SPACE_SELECTED" if kind in self.branches else "SEARCH_SPACE"
+            out["phase"] = "SPACE_SELECTED"
 
     def _parking_handoff(self, snap, out, kind):
         side = self.branches.get(kind)
         if not side:
             self._stop(out, "PARKING_SPACE_UNCONFIRMED", "WAIT_SPACE")
-            return
-        observation = self._parking_observations(snap, kind).get(side, {})
-        if not self._fresh(observation, snap["now"]) or observation.get("value") != "CLEAR":
-            self._stop(out, "SELECTED_PARKING_SPACE_NOT_CLEAR", "WAIT_SPACE")
             return
         out["selected_branch"] = side
         self._next(out, PARKING_ROUTES[kind][side][0])

@@ -144,11 +144,11 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 1 | RDDF | 경사로 정지구역 3초 정차 |
 | 2, 4 | RDDF | GREEN과 정지선으로 직진 허가 결정 |
 | 3 | LOCAL | DBSCAN 장애물을 사용한 Frenet 정적 회피 경로 필수 |
-| 5, 6 | PARKING | T 주차; Planner는 아직 없음 |
+| 5, 6 | PARKING | `parking_branches.t`에 설정된 T자 주차; Planner는 아직 없음 |
 | 7 | RDDF | LEFT_ARROW와 정지선으로 좌회전 허가 결정 |
 | 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 설정한 lookahead·경로 반폭 안에 있으면 E-Stop 요청(차량 치수 불필요) |
-| 9 | RDDF | 평행주차 접근 및 주차 공간 선택 |
-| 10, 11 | PARKING | 평행주차; Planner는 아직 없음 |
+| 9 | RDDF | `parking_branches.parallel`에 설정된 평행주차 분기로 접근 |
+| 10, 11 | PARKING | 설정된 평행주차; Planner는 아직 없음 |
 | 12 | RDDF | `finish_branch` 고정 설정에 따라 13 left/right 연결 |
 | 13 | RDDF | 원본 RDDF 끝에서 마지막 방향으로 3 m 연장한 경로 끝에서 정지 |
 

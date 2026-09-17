@@ -28,6 +28,10 @@
     "max_speed_mps": null
   },
   "finish_branch": "left",
+  "parking_branches": {
+    "t": "left",
+    "parallel": "left"
+  },
   "rules": {
     "hill_hold_s": 3.0,
     "standstill_speed_mps": 0.05,
