@@ -23,15 +23,15 @@ class MissionTests(unittest.TestCase):
         }[section]
         marks = {
             "hill_start_s": 2.0, "hill_stop_s": 5.0, "hill_top_s": 9.0,
-            "stop_line_s": 10.0, "intersection_exit_s": 15.0,
+            "stop_line_s": 10.0,
             "parking_confirm_s": 18.0, "parking_exit_s": 19.0,
-            "finish_branch_s": 13.258, "finish_s": 19.0,
         }
         value = {
             "now": now, "healthy": True, "reason": "", "route": route, "decision_id": 1,
             "section": section, "s": 0.0, "length": 20.0, "at_end": False,
             "speed": 1.0, "yaw": 0.0, "calibrated": True,
             "landmarks": {route: marks}, "path_ready": True, "collision": False,
+            "finish_branch_s": 13.258,
             "signal": {"stamp": now, "route": route, "value": "UNKNOWN"},
             "parking": {"stamp": now, "left": "UNKNOWN", "right": "UNKNOWN"},
         }
@@ -172,12 +172,11 @@ class MissionTests(unittest.TestCase):
         unsafe = self.run_at(2, now=20.1, s=10, collision=True)
         self.assertTrue(unsafe["stop_requested"])
 
-    def test_intersection_clearance_uses_rear_axle_and_30_second_limit(self):
-        self.engine = MissionEngine({"rules": {"rear_axle_offset_m": -1}})
+    def test_intersection_completes_at_rddf_end_and_reports_30_second_limit(self):
         self.run_at(2, now=0, s=10, signal={"stamp": 0, "route": "2", "value": "GREEN"})
         not_clear = self.run_at(2, now=1, s=15)
         self.assertNotIn("intersection:2", not_clear["completed_missions"])
-        late_clear = self.run_at(2, now=30.1, s=16)
+        late_clear = self.run_at(2, now=30.1, s=20, at_end=True)
         self.assertIn("INTERSECTION_CLEARANCE_TIMEOUT", late_clear["diagnostics"])
         self.assertIn("intersection:2", late_clear["completed_missions"])
 
@@ -410,7 +409,7 @@ class MissionTests(unittest.TestCase):
             self.assertIsNone(result["next_route"])
 
     def test_calibration_null_or_out_of_route_prevents_execution(self):
-        for section in (1, 2, 4, 5, 6, 7, 10, 11, 12, 13):
+        for section in (1, 2, 4, 5, 6, 7, 10, 11):
             result = self.run_at(section, landmarks={})
             self.assertTrue(result["stop_requested"])
             self.assertTrue(result["reason"].startswith("CALIBRATION_REQUIRED:"))
@@ -436,20 +435,19 @@ class MissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MissionEngine({"finish_branch": "camera"})
 
-    def test_finish_requires_rear_axle_to_cross_calibrated_line(self):
-        self.engine = MissionEngine({"rules": {"rear_axle_offset_m": -1.0}})
-        before = self.run_at(13, now=1, s=19.9)
+    def test_finish_occurs_at_extended_route_endpoint(self):
+        before = self.run_at(13, now=1, s=22.7, length=23.0)
         self.assertFalse(before["stop_requested"])
         self.assertNotIn("finish", before["completed_missions"])
-        finish = self.run_at(13, now=2, s=20)
+        finish = self.run_at(13, now=2, s=22.8, length=23.0)
         self.assertEqual(finish["reason"], "COURSE_COMPLETE")
         self.assertEqual(finish["completed_missions"]["finish"], 2)
 
     def test_race_clock_freezes_when_rear_axle_finishes(self):
         self.run_at(12, now=0, s=0, speed=1)
-        finished = self.run_at(13, now=10, s=19)
+        finished = self.run_at(13, now=10, s=20)
         self.assertEqual(finished["elapsed_time_s"], 10)
-        parked = self.run_at(13, now=900, s=19, speed=0)
+        parked = self.run_at(13, now=900, s=20, speed=0)
         self.assertEqual(parked["elapsed_time_s"], 10)
         self.assertNotIn("MISSION_DEADLINE_EXCEEDED", parked["diagnostics"])
         self.assertNotIn("NO_MOTION_TIMEOUT", parked["diagnostics"])

@@ -102,8 +102,5 @@
       }
     }
   },
-  "pending": {
-    "intersection_exit_s": ["2", "4", "7"],
-    "note": "The supplied traffic CSV files identify stop lines only; no intersection exit was inferred."
-  }
+  "pending": {}
 }

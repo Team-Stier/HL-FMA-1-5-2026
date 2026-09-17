@@ -16,7 +16,7 @@
     "route_token": "dynamic",
     "input_timeout_s": 0.5,
     "lookahead_m": 20.0,
-    "path_margin_m": 0.25,
+    "corridor_half_width_m": 0.65,
     "maximum_cluster_extent_m": 5.0,
     "maximum_cluster_count": 100,
     "maximum_point_count": 10000
@@ -42,6 +42,7 @@
     "stop_tolerance_m": 0.2,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
+    "finish_runout_m": 3.0,
     "parking_stable_observations": 3,
     "hill_hold_position_tolerance_m": 0.02
   },
@@ -59,8 +60,7 @@
     "max_heading_error_rad": 1.0,
     "max_speed_mps": 8.0,
     "progress_slack_m": 0.8,
-    "end_tolerance_m": 0.8,
-    "branch_13_left_s_m": 13.258
+    "end_tolerance_m": 0.8
   },
   "landmarks": {
     "10_parallel-left-in": {
@@ -77,15 +77,9 @@
     "11_parallel-right-out": {
       "parking_exit_s": null
     },
-    "12": {
-      "finish_branch_s": null
-    },
-    "13_left": {
-      "finish_s": null
-    },
-    "13_right": {
-      "finish_s": null
-    },
+    "12": {},
+    "13_left": {},
+    "13_right": {},
     "1_left": {
       "hill_start_s": null,
       "hill_stop_s": null,
@@ -101,13 +95,11 @@
       "hill_zone_end_s": 35.9868936586
     },
     "2": {
-      "stop_line_s": 58.0297205375,
-      "intersection_exit_s": null
+      "stop_line_s": 58.0297205375
     },
     "3_s-static-obstacle": {},
     "4": {
-      "stop_line_s": 33.898125592,
-      "intersection_exit_s": null
+      "stop_line_s": 33.898125592
     },
     "5_T-left-in": {
       "parking_confirm_s": null,
@@ -124,21 +116,12 @@
       "parking_exit_s": null
     },
     "7": {
-      "stop_line_s": 93.4368413704,
-      "intersection_exit_s": null
+      "stop_line_s": 93.4368413704
     },
     "8_dynamic-obstacle": {},
     "9": {}
   },
-  "landmark_hints": {
-    "12": {
-      "finish_branch_s": {
-        "index": 36,
-        "distance_m": 13.258,
-        "note": "Configured finish-route fork; confirm on site before validation."
-      }
-    }
-  },
+  "landmark_hints": {},
   "landmark_provenance": {
     "source": "src/localization/rddf/yongin_mission_landmarks.json",
     "confirmed_2026_09_16": [
@@ -150,11 +133,7 @@
       "4.stop_line_s",
       "7.stop_line_s"
     ],
-    "pending": [
-      "2.intersection_exit_s",
-      "4.intersection_exit_s",
-      "7.intersection_exit_s"
-    ]
+    "pending": []
   },
   "localization_sigma_margin": 2.0
 }

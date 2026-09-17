@@ -137,15 +137,18 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 3 | LOCAL | DBSCAN 장애물을 사용한 Frenet 정적 회피 경로 필수 |
 | 5, 6 | PARKING | T 주차; Planner는 아직 없음 |
 | 7 | RDDF | LEFT_ARROW와 정지선으로 좌회전 허가 결정 |
-| 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 RDDF 진행 경로와 겹치면 E-Stop 요청 |
+| 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 설정한 lookahead·경로 반폭 안에 있으면 E-Stop 요청(차량 치수 불필요) |
 | 9 | RDDF | 평행주차 접근 및 주차 공간 선택 |
 | 10, 11 | PARKING | 평행주차; Planner는 아직 없음 |
 | 12 | RDDF | `finish_branch` 고정 설정에 따라 13 left/right 연결 |
-| 13 | RDDF | 종료선 통과 후 정지 |
+| 13 | RDDF | 원본 RDDF 끝에서 마지막 방향으로 3 m 연장한 경로 끝에서 정지 |
 
 신호 정지선은 Frenet Planner 입력이 아니다. 2·4·7구간은 RDDF 모드이며 State Manager가
 신호 상태와 정지선으로 경로 길이·정지 요청을 정한다. Selector는 그 RDDF 후보를 고르고,
 Control이 속도 상한과 정지 요청을 함께 적용한다.
+
+신호 허가 후에는 별도 출구 landmark 없이 활성 RDDF 끝에서 구간 완료로 판단한다.
+12→13 left 분기 위치도 JSON landmark가 아니라 두 RDDF의 연결 형상에서 자동 계산한다.
 
 ## Launch 상태
 

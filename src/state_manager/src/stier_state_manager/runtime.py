@@ -33,9 +33,10 @@ def footprint(pose, vehicle):
 
 class MissionRuntime:
     def __init__(self, routes, config):
-        self.routes, self.config = routes, config
-        self.tracker = RouteTracker(routes, config.get('start_route', '1_right'), config.get('tracker'))
+        self.config = config
         self.engine = MissionEngine(config)
+        self.routes = self._with_finish_runout(routes, self.engine.rules['finish_runout_m'])
+        self.tracker = RouteTracker(self.routes, config.get('start_route', '1_right'), config.get('tracker'))
         self.selector = SelectorCore(timeout=config.get('input_timeout_s', 0.5), future_tolerance=0,
                                      max_path_heading_error_rad=config.get('max_path_heading_error_rad', 1.0))
         self.decision_id = 0
@@ -55,6 +56,19 @@ class MissionRuntime:
             if minimum_stop > self.engine.rules['stop_tolerance_m']:
                 self.vehicle_ok = False
 
+    @staticmethod
+    def _with_finish_runout(routes, distance):
+        """Append a straight control path after each section-13 RDDF endpoint."""
+        extended = dict(routes)
+        for name, route in routes.items():
+            if route.section != 13:
+                continue
+            x, y, yaw = route.end
+            endpoint = (x + distance * math.cos(yaw),
+                        y + distance * math.sin(yaw), yaw)
+            extended[name] = Route(name, list(route.points) + [endpoint], route.direction)
+        return extended
+
     def _dynamic_obstacle(self, now, tracked, data):
         """Return an E-Stop request only for a cluster on a dynamic RDDF route."""
         config = self.config.get('dynamic_obstacle', {})
@@ -63,9 +77,6 @@ class MissionRuntime:
         result = {'required': required, 'valid': not required, 'active': False,
                   'reason': 'NOT_DYNAMIC_ROUTE', 'clearance_m': -1.0}
         if not required:
-            return result
-        if not self.vehicle_ok:
-            result['reason'] = 'DYNAMIC_OBSTACLE_VEHICLE_CALIBRATION_REQUIRED'
             return result
         observation = data.get('clusters', {})
         timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', .5)))
@@ -76,14 +87,14 @@ class MissionRuntime:
             result['reason'] = observation.get('reason', 'DYNAMIC_OBSTACLE_CLUSTERS_UNAVAILABLE')
             return result
         lookahead = float(config.get('lookahead_m', self.config.get('path_lookahead_m', 20.0)))
-        margin = float(config.get('path_margin_m', self.config['vehicle'].get('margin_m', .25)))
-        if not (math.isfinite(lookahead) and lookahead > 0 and math.isfinite(margin) and margin >= 0):
+        half_width = float(config.get('corridor_half_width_m', math.nan))
+        if not (math.isfinite(lookahead) and lookahead > 0
+                and math.isfinite(half_width) and half_width > 0):
             result['reason'] = 'DYNAMIC_OBSTACLE_CONFIG_INVALID'
             return result
         route = self.tracker.current
-        minimum_s = max(0.0, tracked['s'] - self.config['vehicle']['rear_m'])
+        minimum_s = max(0.0, tracked['s'])
         maximum_s = min(route.length, tracked['s'] + lookahead)
-        corridor_half_width = self.config['vehicle']['width_m'] * .5 + margin
         nearest = None
         for cluster in observation.get('clusters', []):
             points = list(cluster)
@@ -92,7 +103,7 @@ class MissionRuntime:
                                sum(p[1] for p in points) / len(points)))
             for x, y in points:
                 matched = project(route, x, y, minimum_s, maximum_s)
-                if matched is not None and matched['distance'] <= corridor_half_width:
+                if matched is not None and matched['distance'] <= half_width:
                     clearance = max(0.0, matched['s'] - tracked['s'])
                     nearest = clearance if nearest is None else min(nearest, clearance)
         result.update(valid=True, reason='DYNAMIC_OBSTACLE_CLEAR')
@@ -256,7 +267,8 @@ class MissionRuntime:
                         signal=data.get('signal', {}), path_ready=selection.ready,
                         decision_id=self.decision_id,
                         parking_maneuver=data.get('parking_maneuver', {}),
-                        parking=self._parking_preview(data, tracked['section']) if healthy else {})
+                        parking=self._parking_preview(data, tracked['section']) if healthy else {},
+                        finish_branch_s=self.tracker.finish_left_branch_s)
         # Dynamic-obstacle E-Stop evaluation remains independent of mission
         # dwell accounting, so it cannot reset a route-specific hold timer.
         decision = self.engine.update(snapshot)

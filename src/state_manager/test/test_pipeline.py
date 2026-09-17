@@ -28,8 +28,8 @@ def fixture_config(start='1_right'):
             'stop_buffer_m': .05,
             'landmarks': {'1_right': {'hill_start_s': 1.0, 'hill_stop_s': 4.0,
                                       'hill_top_s': 8.0},
-                          '2': {'stop_line_s': 5.0, 'intersection_exit_s': 8.0},
-                          '4': {'stop_line_s': 5.0, 'intersection_exit_s': 8.0}}}
+                          '2': {'stop_line_s': 5.0},
+                          '4': {'stop_line_s': 5.0}}}
 
 
 class Pipeline:

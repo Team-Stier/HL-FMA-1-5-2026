@@ -34,11 +34,9 @@ def measured(routes):
         if item.section == 1:
             marks.update(hill_start_s=2., hill_stop_s=5., hill_top_s=9.)
         if item.section in (2, 4, 7):
-            marks.update(stop_line_s=5., intersection_exit_s=8.)
+            marks.update(stop_line_s=5.)
         if item.section in (5, 10):
             marks.update(parking_confirm_s=item.length, parking_yaw_rad=math.pi)
-        if item.section == 12:
-            marks['finish_branch_s'] = 13.258
         if marks:
             config['landmarks'][name] = marks
     return config
@@ -68,7 +66,7 @@ class CalibrationTests(unittest.TestCase):
         self.assertEqual(self.config, original)
         self.assertEqual(changed['vehicle'], original['vehicle'])
         self.assertEqual(changed['landmarks']['1_left'], original['landmarks']['1_left'])
-        self.assertEqual(changed['landmarks']['2']['intersection_exit_s'], 8.)
+        self.assertNotIn('intersection_exit_s', changed['landmarks']['2'])
         self.assertEqual(changed['landmarks']['2']['stop_line_s'], 4.)
         self.assertEqual(changed['landmark_points']['2']['stop_line_s'], point)
         self.assertFalse(changed['landmarks_validated'])
@@ -100,12 +98,10 @@ class CalibrationTests(unittest.TestCase):
         self.assertTrue(any('Unknown landmark route' in e for e in errors))
         self.assertTrue(any('unknown landmark typo' in e for e in errors))
 
-    def test_hill_minimum_one_metre_zone_and_signal_order(self):
+    def test_hill_minimum_one_metre_zone(self):
         self.config['landmarks']['1_left']['hill_stop_s'] = 2.8
-        self.config['landmarks']['7']['intersection_exit_s'] = 4
         errors = validate_landmarks(self.config, self.routes)
         self.assertTrue(any('ramp boundaries' in e for e in errors))
-        self.assertTrue(any('must precede' in e for e in errors))
 
     def test_parking_requires_measured_yaw_and_endpoint_handoff(self):
         del self.config['landmarks']['5_T-left-in']['parking_yaw_rad']
@@ -118,54 +114,35 @@ class CalibrationTests(unittest.TestCase):
         self.config['landmarks']['5_T-left-in']['parking_yaw_rad'] = 90
         self.assertTrue(validate_landmarks(self.config, self.routes))
 
-    def test_finish_branch_must_match_interior_left_fork(self):
-        self.config['landmarks']['12']['finish_branch_s'] = 20
+    def test_finish_branch_is_derived_from_rddf_geometry(self):
+        self.routes['13_left'] = Route('13_left', [(100., 100., 0.), (101., 100., 0.)])
         errors = validate_landmarks(self.config, self.routes)
-        self.assertTrue(any('13_left handoff' in e for e in errors))
-
-    def test_fork_configuration_must_match_actual_rddf_geometry(self):
-        self.config['tracker'] = {'branch_13_left_s_m': 10}
-        self.config['landmarks']['12']['finish_branch_s'] = 10
-        errors = validate_landmarks(self.config, self.routes)
-        self.assertTrue(any('RDDF geometry' in e for e in errors))
+        self.assertTrue(any('fork does not match RDDF geometry' in e for e in errors))
 
     def test_fork_missing_or_invalid_tolerance_fails(self):
         del self.routes['13_left']
-        self.config['landmarks'].pop('13_left')
         self.config['tracker'] = {'end_tolerance_m': 3}
         errors = validate_landmarks(self.config, self.routes)
         self.assertTrue(any('required to verify' in e for e in errors))
         self.assertTrue(any('end_tolerance_m' in e for e in errors))
 
-    def test_finish_route_must_include_clearance_after_the_rear_axle_crosses(self):
-        self.config['landmarks']['13_left']['finish_s'] = self.routes['13_left'].length
+    def test_obsolete_finish_landmark_is_rejected(self):
+        self.config['landmarks']['13_left'] = {'finish_s': 19.0}
         errors = validate_landmarks(self.config, self.routes)
-        self.assertTrue(any('13_left' in e and 'past the RDDF endpoint' in e for e in errors))
-        self.config['landmarks']['13_left']['finish_s'] = self.routes['13_left'].length - .5
-        self.assertEqual(validate_landmarks(self.config, self.routes), [])
-
-    def test_finish_clearance_uses_base_rules_and_rear_axle_offset(self):
-        self.config['rules'] = {'finish_clearance_m': 1., 'rear_axle_offset_m': -.5}
-        self.config['landmarks']['13_right']['finish_s'] = 19.
-        errors = validate_landmarks(self.config, self.routes)
-        self.assertTrue(any('13_right' in e and 'past the RDDF endpoint' in e for e in errors))
-        self.config['landmarks']['13_right']['finish_s'] = 18.5
-        self.assertEqual(validate_landmarks(self.config, self.routes), [])
+        self.assertTrue(any('13_left: unknown landmark finish_s' in e for e in errors))
 
     def test_overlay_preserves_actual_base_rules_and_only_replaces_selected_fields(self):
-        base = {'rules': {'finish_clearance_m': 1., 'rear_axle_offset_m': -.5},
-                'tracker': {'branch_13_left_s_m': 13.258}, 'vehicle': {'width_m': 2.}}
+        base = {'rules': {'finish_runout_m': 3., 'rear_axle_offset_m': -.5},
+                'tracker': {'end_tolerance_m': .8}, 'vehicle': {'width_m': 2.}}
         overlay = copy.deepcopy(self.config)
-        overlay['rules'] = {'finish_clearance_m': 2.}
-        overlay['landmarks']['13_left']['finish_s'] = 18.
+        overlay['rules'] = {'finish_runout_m': 4.}
         combined = merge_overlay(base, overlay)
-        self.assertEqual(combined['rules'], {'finish_clearance_m': 2., 'rear_axle_offset_m': -.5})
+        self.assertEqual(combined['rules'], {'finish_runout_m': 4., 'rear_axle_offset_m': -.5})
         self.assertEqual(combined['vehicle']['width_m'], 2.)
         self.assertEqual(combined['vehicle']['unchanged'], 'value')
-        self.assertEqual(base['rules']['finish_clearance_m'], 1.)
+        self.assertEqual(base['rules']['finish_runout_m'], 3.)
         self.assertNotIn('rear_axle_offset_m', overlay['rules'])
-        self.assertTrue(any('13_left' in e and 'past the RDDF endpoint' in e
-                            for e in validate_landmarks(combined, self.routes)))
+        self.assertEqual(validate_landmarks(combined, self.routes), [])
 
     def test_validated_config_requires_matching_catalogue_digest(self):
         self.config['landmarks_validated'] = True

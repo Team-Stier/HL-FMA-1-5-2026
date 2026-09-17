@@ -120,12 +120,12 @@ class PipelineSmoke(unittest.TestCase):
                       self.publish_default_inputs)
         with self.lock:
             seen = dict(self.seen)
-        # The global calibration flags no longer invalidate an unrelated
-        # route. Section 8 still requests stop because its cluster-based
-        # E-Stop specifically requires measured vehicle geometry.
+        # Vehicle dimensions are not part of the section-8 path-corridor
+        # check. With no stamped cluster heartbeat, the perception input is
+        # unavailable and the dynamic route still remains stopped.
         self.assertTrue(seen['state'].valid)
         self.assertTrue(seen['state'].stop_requested)
-        self.assertEqual(seen['state'].reason, 'DYNAMIC_OBSTACLE_VEHICLE_CALIBRATION_REQUIRED')
+        self.assertEqual(seen['state'].reason, 'DYNAMIC_OBSTACLE_CLUSTERS_UNAVAILABLE')
         self.assertTrue(seen['markers'].markers)
         self.assertTrue(seen['safety'].stop)
         self.assertTrue(seen['constraint'].valid)

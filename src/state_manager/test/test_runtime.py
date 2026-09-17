@@ -23,8 +23,10 @@ class RuntimeTests(unittest.TestCase):
                                    'max_speed_mps': 2.0, 'max_yaw_rate_rps': 1.0,
                                    'deceleration_mps2': 1.0, 'reaction_s': .2, 'margin_m': .1},
                        'stop_buffer_m': .05,
+                       'dynamic_obstacle': {'route_token': 'dynamic', 'input_timeout_s': .5,
+                                            'lookahead_m': 10.0, 'corridor_half_width_m': .65},
                        'landmarks': {'1_right': {'hill_start_s': 1, 'hill_stop_s': 4, 'hill_top_s': 8},
-                                     '2': {'stop_line_s': 5, 'intersection_exit_s': 8}}}
+                                     '2': {'stop_line_s': 5}}}
 
     def data(self, now, x=0.0, speed=0.0):
         hits, rays = scan_to_geometry([math.inf]*361, -math.pi, math.pi/180, 0.01, 30,
@@ -124,14 +126,14 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result['safety']['stop'], result)
         self.assertFalse(result['stop_requested'], result)
 
-    def test_unvalidated_vehicle_stops_only_dynamic_geometry_feature(self):
+    def test_unvalidated_vehicle_does_not_block_dynamic_path_check(self):
         self.config['start_route'] = '8_dynamic-obstacle'
         self.config['vehicle']['validated'] = False
         runtime = MissionRuntime(self.routes, self.config)
         result = runtime.step(1, self.cluster_data(1, []), self.candidate(runtime, 1))
         self.assertTrue(result['valid'])
-        self.assertTrue(result['stop_requested'])
-        self.assertEqual(result['reason'], 'DYNAMIC_OBSTACLE_VEHICLE_CALIBRATION_REQUIRED')
+        self.assertFalse(result['stop_requested'], result)
+        self.assertEqual(result['dynamic_obstacle']['reason'], 'DYNAMIC_OBSTACLE_CLEAR')
 
     def cluster_data(self, now, points):
         data = self.data(now)
@@ -142,7 +144,7 @@ class RuntimeTests(unittest.TestCase):
     def test_dynamic_route_cluster_on_rddf_requests_estop(self):
         self.config['start_route'] = '8_dynamic-obstacle'
         self.config['dynamic_obstacle'] = {'route_token': 'dynamic', 'input_timeout_s': .5,
-                                           'lookahead_m': 10.0, 'path_margin_m': .25}
+                                           'lookahead_m': 10.0, 'corridor_half_width_m': .65}
         runtime = MissionRuntime(self.routes, self.config)
         data = self.cluster_data(1, [(2.0, -.2), (2.2, .2)])
         result = runtime.step(1, data, self.candidate(runtime, 1))
@@ -165,6 +167,17 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result['emergency_stop_requested'])
         self.assertFalse(result['stop_requested'], result)
         self.assertEqual(result['dynamic_obstacle']['reason'], 'DYNAMIC_OBSTACLE_CLEAR')
+
+    def test_dynamic_corridor_uses_configured_half_width_only(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        self.config['vehicle']['validated'] = False
+        inside = MissionRuntime(self.routes, self.config)
+        result = inside.step(1, self.cluster_data(1, [(2.0, .64)]), self.candidate(inside, 1))
+        self.assertTrue(result['emergency_stop_requested'])
+        outside = MissionRuntime(self.routes, self.config)
+        result = outside.step(1, self.cluster_data(1, [(2.0, .66)]), self.candidate(outside, 1))
+        self.assertFalse(result['emergency_stop_requested'])
+        self.assertFalse(result['stop_requested'], result)
 
     def test_cluster_on_non_dynamic_route_never_requests_estop(self):
         runtime = MissionRuntime(self.routes, self.config)
@@ -248,10 +261,27 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(origin['lat'], 37.288731)
         self.assertLess(math.hypot(*(a-b for a,b in zip(catalogue['12'].pose_at(13.258)[:2], catalogue['13_left'].start[:2]))), .01)
 
+    def test_finish_route_is_extended_three_metres_and_stops_at_runout_end(self):
+        self.routes['13_left'] = Route('13_left', [(x, 0, 0) for x in range(11)])
+        self.config.update(start_route='13_left', finish_branch='left')
+        self.config.setdefault('rules', {})['finish_runout_m'] = 3.0
+        runtime = MissionRuntime(self.routes, self.config)
+        self.assertAlmostEqual(runtime.tracker.current.length, 13.0)
+        self.assertEqual(runtime.tracker.current.end, (13.0, 0.0, 0.0))
+        self.assertEqual(runtime.rddf_points(1, {})[-1], (13.0, 0.0, 0.0))
+        runtime.tracker.set_initial_progress(9.0)
+        before = runtime.step(1, self.data(1, x=9), self.candidate(runtime, 1))
+        self.assertFalse(before['finished'])
+        almost = runtime.step(1.5, self.data(1.5, x=12.7), self.candidate(runtime, 1.5))
+        self.assertFalse(almost['finished'])
+        finished = runtime.step(1.6, self.data(1.6, x=12.8), self.candidate(runtime, 1.6))
+        self.assertTrue(finished['finished'])
+        self.assertEqual(finished['reason'], 'COURSE_COMPLETE')
+
     def traffic_runtime(self, name='2'):
         self.routes[name] = Route(name, [(x, 0, 0) for x in range(11)])
         self.config['start_route'] = name
-        self.config['landmarks'][name] = {'stop_line_s': 5, 'intersection_exit_s': 8}
+        self.config['landmarks'][name] = {'stop_line_s': 5}
         return MissionRuntime(self.routes, self.config)
 
     def planned_prefix(self, runtime, now, signal):

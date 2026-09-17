@@ -28,7 +28,7 @@ import tempfile
 from pathlib import Path
 
 from .geometry import RouteTracker, project
-from .mission import REQUIRED_LANDMARKS, RULE_DEFAULTS, HILL_ZONE_KEYS, landmark_keys, hill_target
+from .mission import REQUIRED_LANDMARKS, HILL_ZONE_KEYS, landmark_keys, hill_target
 
 
 def number(value):
@@ -160,11 +160,6 @@ def validate_landmarks(config, routes, explicit_validation=False):
     rules = config.get('rules', {})
     if not isinstance(rules, dict):
         return ['rules must be an object']
-    finish_clearance = rules.get('finish_clearance_m', RULE_DEFAULTS.get('finish_clearance_m', 0.5))
-    rear_offset = rules.get('rear_axle_offset_m', RULE_DEFAULTS.get('rear_axle_offset_m', 0.0))
-    finish_rule_valid = number(finish_clearance) and finish_clearance > 0 and number(rear_offset)
-    if not finish_rule_valid:
-        errors.append('rules.finish_clearance_m must be positive and rear_axle_offset_m must be finite')
     tolerance = tracker.get('end_tolerance_m', RouteTracker.DEFAULTS['end_tolerance_m'])
     if not number(tolerance) or tolerance <= 0 or tolerance > 0.8:
         errors.append('tracker.end_tolerance_m must be within (0, 0.8] m')
@@ -210,21 +205,7 @@ def validate_landmarks(config, routes, explicit_validation=False):
                 hill_target(values)
             except ValueError as error:
                 errors.append(name + ': hill stop must be at least 1 m inside both ramp boundaries; ' + str(error))
-        if route.section in (2, 4, 7) and values['stop_line_s'] >= values['intersection_exit_s']:
-            errors.append(name + ': stop_line_s must precede intersection_exit_s')
-        if route.section == 13 and finish_rule_valid:
-            stop_reference_s = values['finish_s'] + finish_clearance - rear_offset
-            if stop_reference_s > route.length + 1e-9:
-                errors.append(name + ': finish_s plus finish clearance minus rear-axle offset '
-                              'extends past the RDDF endpoint; extend the route or measure an earlier finish line')
         if route.section == 12:
-            branch = tracker.get('branch_13_left_s_m', RouteTracker.DEFAULTS['branch_13_left_s_m'])
-            if not number(branch) or not 0 <= branch <= route.length:
-                errors.append(name + ': tracker.branch_13_left_s_m is outside the route')
-                continue
-            if abs(values['finish_branch_s'] - branch) > tolerance:
-                errors.append(name + ': finish_branch_s must coincide with the 13_left '
-                              'handoff within {:.3f} m'.format(tolerance))
             left = routes.get('13_left')
             if left is None:
                 errors.append(name + ': 13_left route is required to verify the fork')
@@ -234,9 +215,8 @@ def validate_landmarks(config, routes, explicit_validation=False):
                                    RouteTracker.DEFAULTS['transition_join_tolerance_m'])
                 if not number(join) or join <= 0:
                     errors.append('tracker.transition_join_tolerance_m must be positive')
-                elif (match is None or match['distance'] > join
-                      or abs(match['s'] - branch) > tolerance):
-                    errors.append(name + ': configured 13_left fork does not match RDDF geometry')
+                elif match is None or match['distance'] > join:
+                    errors.append(name + ': 13_left fork does not match RDDF geometry')
     return errors
 
 

@@ -94,7 +94,6 @@ class RouteTracker:
         "max_heading_error_rad": 1.0, "max_speed_mps": 8.0,
         "progress_slack_m": 0.8, "rollback_m": 0.75, "end_tolerance_m": 0.8,
         "max_update_dt_s": 1.0, "transition_join_tolerance_m": 2.5,
-        "branch_13_left_s_m": 13.258,
     }
 
     def __init__(self, routes, start_route="1_right", config=None):
@@ -113,6 +112,20 @@ class RouteTracker:
         self._acquired = False
         self._result = None
         self.transition_reason = ""
+        self.finish_left_branch_s = self._finish_left_branch()
+
+    def _finish_left_branch(self):
+        """Derive the 12 -> 13_left handoff from RDDF geometry."""
+        source = next((route for route in self.routes.values()
+                       if route.section == 12), None)
+        target = self.routes.get("13_left")
+        if source is None or target is None:
+            return None
+        matched = project(source, target.start[0], target.start[1])
+        if (matched is None or
+                matched["distance"] > self.config["transition_join_tolerance_m"]):
+            return None
+        return matched["s"]
 
     def set_initial_progress(self, distance):
         """Seed acquisition near a matched point without claiming it is healthy."""
@@ -223,7 +236,10 @@ class RouteTracker:
             return False
         target = self.routes[next_route]
         fork = self.current.section == 12 and target.section == 13 and target.branch == "left"
-        boundary = self.config["branch_13_left_s_m"] if fork else self.current.length
+        boundary = self.finish_left_branch_s if fork else self.current.length
+        if boundary is None:
+            self.transition_reason = "finish_branch_geometry_invalid"
+            return False
         # raw_s (not remembered maximum progress) prevents transition after a
         # vehicle has rolled away from a previously reached endpoint.
         if abs(self._result["raw_s"] - boundary) > self.config["end_tolerance_m"] + 1e-9:

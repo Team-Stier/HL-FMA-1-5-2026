@@ -72,10 +72,10 @@ class YonginLandmarkIntegrationTests(unittest.TestCase):
             expected = self.source["landmarks"][route_name]["derived_hill_stop_s_m"]
             self.assertAlmostEqual(target, expected, places=8)
 
-    def test_unsupplied_intersection_exits_remain_explicitly_unset(self):
-        self.assertEqual(self.source["pending"]["intersection_exit_s"], ["2", "4", "7"])
+    def test_traffic_sections_require_only_the_measured_stop_line(self):
+        self.assertEqual(self.source["pending"], {})
         for route_name in ("2", "4", "7"):
-            self.assertIsNone(self.config["landmarks"][route_name]["intersection_exit_s"])
+            self.assertNotIn("intersection_exit_s", self.config["landmarks"][route_name])
 
 
 if __name__ == "__main__":

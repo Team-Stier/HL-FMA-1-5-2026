@@ -21,7 +21,7 @@ RULE_DEFAULTS = {
     "stop_tolerance_m": 0.2,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
-    "finish_clearance_m": 0.5,
+    "finish_runout_m": 3.0,
     "hill_rollback_limit_m": 0.5,
     "hill_clearance_timeout_s": 30.0,
     "mission_deadline_s": 480.0,
@@ -53,12 +53,11 @@ PARKING_ROUTES = {
 }
 REQUIRED_LANDMARKS = {
     1: ("hill_start_s", "hill_stop_s", "hill_top_s"),
-    2: ("stop_line_s", "intersection_exit_s"),
-    4: ("stop_line_s", "intersection_exit_s"),
+    2: ("stop_line_s",),
+    4: ("stop_line_s",),
     5: ("parking_confirm_s",), 6: ("parking_exit_s",),
-    7: ("stop_line_s", "intersection_exit_s"),
+    7: ("stop_line_s",),
     10: ("parking_confirm_s",), 11: ("parking_exit_s",),
-    12: ("finish_branch_s",), 13: ("finish_s",),
 }
 
 
@@ -136,7 +135,7 @@ class MissionEngine:
             if not 0 < self.rules[name] <= maximum:
                 raise ValueError("invalid intersection rule: " + name)
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
-                     "finish_clearance_m", "hill_hold_position_tolerance_m"):
+                     "finish_runout_m", "hill_hold_position_tolerance_m"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
         for name in ("parking_stable_observations",):
@@ -229,9 +228,6 @@ class MissionEngine:
                 hill_target(landmarks)
             except ValueError as error:
                 return None, str(error)
-        if section in (2, 4, 7):
-            if landmarks["stop_line_s"] >= landmarks["intersection_exit_s"]:
-                return None, "INTERSECTION_LANDMARK_ORDER_INVALID"
         return landmarks, None
 
     def _base(self, snapshot):
@@ -376,7 +372,7 @@ class MissionEngine:
             self._traffic(snapshot, landmarks, state, out)
             if section == 4:
                 self._parking_preview(snapshot, out, "t")
-                if snapshot.get("at_end") and state.get("crossed") and not out["stop_requested"]:
+                if snapshot.get("at_end") and state.get("authorized") and not out["stop_requested"]:
                     self._parking_handoff(snapshot, out, "t")
         elif section == 3:
             out["phase"] = "AVOIDING"
@@ -397,9 +393,9 @@ class MissionEngine:
             if snapshot.get("at_end"):
                 self._parking_handoff(snapshot, out, "parallel")
         elif section == 12:
-            self._finish_approach(snapshot, landmarks, out)
+            self._finish_approach(snapshot, out)
         elif section == 13:
-            self._finish(snapshot, landmarks, out)
+            self._finish(snapshot, out)
         if not snapshot.get("path_ready", False) and not out["stop_requested"]:
             self._stop(out, "REQUESTED_PATH_UNAVAILABLE", "WAIT_PATH")
         return self._finish_output(out)
@@ -490,7 +486,7 @@ class MissionEngine:
 
     def _traffic_constraint(self, route, required, marks, error, now, signal):
         state = self.states.get(route, {})
-        entered = state.get("authorized") or state.get("crossed") or "intersection:" + route in self.completed_missions
+        entered = state.get("authorized") or "intersection:" + route in self.completed_missions
         permitted = self._fresh(signal, now, route) and signal.get("value") == required
         return {"valid": error is None, "active": not (entered or permitted) or error is not None,
                 "stop_line_s": marks["stop_line_s"] if marks else None,
@@ -500,15 +496,15 @@ class MissionEngine:
     def _traffic(self, snap, marks, state, out):
         now, s = snap["now"], snap["s"]
         front_s = s + self.rules["front_bumper_offset_m"]
-        stop, exit_s = marks["stop_line_s"], marks["intersection_exit_s"]
+        stop = marks["stop_line_s"]
         required = "LEFT_ARROW" if snap["section"] == 7 else "GREEN"
         signal = snap.get("signal", {})
         permitted = self._fresh(signal, now, snap["route"]) and signal.get("value") == required
         out["virtual_stop"] = self._traffic_constraint(snap["route"], required, marks, None, now, signal)
         mission_key = "intersection:" + snap["route"]
         if mission_key in self.completed_missions:
-            state["crossed"] = True
-        if not state.get("authorized") and not state.get("crossed"):
+            state["authorized"] = True
+        if not state.get("authorized"):
             out["remaining_stop_m"] = max(0.0, stop - front_s)
             if front_s >= stop and permitted:
                 state["authorized"] = True
@@ -527,32 +523,29 @@ class MissionEngine:
                 # crosses still revokes entry; no early authorization latch.
                 out["remaining_stop_m"] = None
                 out["phase"] = "APPROACH_PERMITTED"
-        if state.get("authorized") or state.get("crossed"):
+        if state.get("authorized"):
             out["remaining_stop_m"] = None
             out["phase"] = "CROSSING"
-            rear_s = s + self.rules["rear_axle_offset_m"]
-            if not state.get("crossed"):
-                if abs(snap["speed"]) <= self.rules["standstill_speed_mps"]:
-                    if state.get("intersection_stop_since") is None:
-                        state["intersection_stop_since"] = now
-                    stopped_for = now - state["intersection_stop_since"]
-                    if stopped_for >= self.rules["intersection_stop_penalty_s"]:
-                        self._once("intersection_stop_penalty", snap["route"])
-                        out["diagnostics"].append("INTERSECTION_STOP_AT_LEAST_3S")
-                    if stopped_for >= self.rules["intersection_stop_timeout_s"]:
-                        self._once("intersection_stop_timeout", snap["route"])
-                        out["diagnostics"].append("INTERSECTION_STOP_AT_LEAST_20S")
-                else:
-                    state["intersection_stop_since"] = None
-                entered = state.get("intersection_entered")
-                if entered is not None and now - entered > self.rules["intersection_clearance_timeout_s"]:
-                    self._once("intersection_clearance_timeout", snap["route"])
-                    out["diagnostics"].append("INTERSECTION_CLEARANCE_TIMEOUT")
-            if rear_s >= exit_s:
-                state["crossed"] = True
+            if abs(snap["speed"]) <= self.rules["standstill_speed_mps"]:
+                if state.get("intersection_stop_since") is None:
+                    state["intersection_stop_since"] = now
+                stopped_for = now - state["intersection_stop_since"]
+                if stopped_for >= self.rules["intersection_stop_penalty_s"]:
+                    self._once("intersection_stop_penalty", snap["route"])
+                    out["diagnostics"].append("INTERSECTION_STOP_AT_LEAST_3S")
+                if stopped_for >= self.rules["intersection_stop_timeout_s"]:
+                    self._once("intersection_stop_timeout", snap["route"])
+                    out["diagnostics"].append("INTERSECTION_STOP_AT_LEAST_20S")
+            else:
+                state["intersection_stop_since"] = None
+            entered = state.get("intersection_entered")
+            if entered is not None and now - entered > self.rules["intersection_clearance_timeout_s"]:
+                self._once("intersection_clearance_timeout", snap["route"])
+                out["diagnostics"].append("INTERSECTION_CLEARANCE_TIMEOUT")
+            if snap.get("at_end"):
                 self._complete(mission_key, now)
                 out["phase"] = "COMPLETE"
-        if snap.get("at_end") and state.get("crossed") and snap["section"] != 4:
+        if snap.get("at_end") and state.get("authorized") and snap["section"] != 4:
             self._next(out, ROUTES[3 if snap["section"] == 2 else 8])
 
     def _parking_observations(self, snap, kind):
@@ -784,30 +777,32 @@ class MissionEngine:
                 out["phase"] = "COMPLETE"
                 self._next(out, ROUTES[7 if kind == "t" else 12])
 
-    def _finish_approach(self, snap, marks, out):
+    def _finish_approach(self, snap, out):
         """Follow the configured finish branch without camera lane control."""
         side = self.finish_branch
         self.branches["finish"] = side
         out["selected_branch"] = side
         out["phase"] = "FINISH_BRANCH_SELECTED"
-        if side == "left" and snap["s"] >= marks["finish_branch_s"]:
-            self._next(out, "13_left")
+        if side == "left":
+            branch_s = snap.get("finish_branch_s")
+            if not _number(branch_s):
+                self._stop(out, "FINISH_BRANCH_GEOMETRY_INVALID", "UNAVAILABLE")
+            elif snap["s"] >= branch_s:
+                self._next(out, "13_left")
         elif side == "right" and snap.get("at_end"):
             self._next(out, "13_right")
 
-    def _finish(self, snap, marks, out):
+    def _finish(self, snap, out):
         side = _branch(snap["route"])
         if not side or self.finish_branch != side:
             self._stop(out, "FINISH_BRANCH_NOT_CONFIGURED", "UNAVAILABLE")
             return
         self.branches["finish"] = side
         self.committed_branches.add("finish")
-        rear_s = snap["s"] + self.rules["rear_axle_offset_m"]
-        # Give the stopping controller runoff beyond the scoring line. Using
-        # the scoring line itself as a stop target can halt before the rear
-        # axle crosses because of the controller's stopping buffer.
-        out["remaining_stop_m"] = max(0.0, marks["finish_s"] + self.rules["finish_clearance_m"] - rear_s)
+        # Runtime extends only section 13 by finish_runout_m. Therefore this
+        # route endpoint is exactly the requested point beyond the RDDF end.
+        out["remaining_stop_m"] = max(0.0, snap["length"] - snap["s"])
         out["phase"] = "FINISH_APPROACH"
-        if rear_s >= marks["finish_s"]:
+        if snap["s"] >= snap["length"] - self.rules["stop_tolerance_m"]:
             self._complete("finish", snap["now"])
             self._stop(out, "COURSE_COMPLETE", "COMPLETE")

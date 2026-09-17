@@ -38,11 +38,11 @@ class SyntheticReplay:
              leg=None, path_available=True):
         self.now = round(self.now + .25, 8)
         section = self.section
-        length = 18.0 if section in (5, 10) else 20.0
+        length = 18.0 if section in (5, 10) else 23.0 if section == 13 else 20.0
         marks = {'hill_start_s': 2.0, 'hill_stop_s': 5.0, 'hill_top_s': 9.0,
-                 'stop_line_s': 10.0, 'intersection_exit_s': 15.0,
+                 'stop_line_s': 10.0,
                  'parking_confirm_s': 18.0, 'parking_yaw_rad': math.pi,
-                 'parking_exit_s': 19.0, 'finish_branch_s': 13.258, 'finish_s': 19.0}
+                 'parking_exit_s': 19.0}
         name, mode, direction = self.request
         yaw = math.pi if direction < 0 else 0.0
         poses = tuple(Pose('map', (float(x), 0.0, 0.0),
@@ -59,6 +59,7 @@ class SyntheticReplay:
                     'healthy': True, 'calibrated': True, 'route': self.route,
                     'section': section, 'length': length, 's': s, 'raw_s': s,
                     'at_end': s >= length, 'speed': speed, 'yaw': yaw,
+                    'finish_branch_s': 13.258,
                     'landmarks': {self.route: marks}, 'path_ready': selection.ready,
                     'signal': {'stamp': self.now, 'route': self.route, 'value': signal},
                     'parking': spaces if parking else {}}
@@ -172,7 +173,7 @@ class SyntheticReplay:
             self.step(s=20.0)
         self.advance('13_' + self.finish_branch)
         self.step()
-        self.step(s=19.0)
+        self.step(s=23.0)
         if 'finish' not in self.last['completed_missions']:
             raise AssertionError('Synthetic mission replay did not finish')
         return {'simulation_only': True, 'fixture': 'SYNTHETIC_LOGICAL_MESSAGES_NOT_DRIVING_SIMULATION',
