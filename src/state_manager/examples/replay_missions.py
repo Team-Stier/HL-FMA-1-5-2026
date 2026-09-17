@@ -24,7 +24,11 @@ class SyntheticReplay:
             raise ValueError('Parking and finish branches must be left or right')
         self.parking_branch, self.finish_branch = parking_branch, finish_branch
         self.engine = MissionEngine({'rules': {'front_bumper_offset_m': .5},
-                                     'finish_branch': finish_branch})
+                                     'finish_branch': finish_branch,
+                                     'parking_branches': {
+                                         't': parking_branch,
+                                         'parallel': parking_branch,
+                                     }})
         self.selector = SelectorCore()
         self.now, self.epoch, self.route = 1.0, 1, '1_right'
         self.request = ('1_right', 'RDDF', 1)
@@ -118,12 +122,8 @@ class SyntheticReplay:
         entry, exit_route = PARKING_ROUTES[kind][self.parking_branch]
         self.advance(entry)
         if kind == 't':
-            approach = self.leg('FORWARD_APPROACH', 0, 0, 5, False)
-            self.step(speed=0.0, leg=approach)
-            self.step(s=2.0, leg=approach)
-            self.step(s=5.0, speed=0.0, leg=approach)
-            reverse = self.leg('REVERSE_ENTRY', 1, 5, 18, True)
-            self.step(s=5.0, speed=0.0, leg=reverse)
+            reverse = self.leg('REVERSE_ENTRY', 0, 0, 18, True)
+            self.step(speed=0.0, leg=reverse)
         else:
             reverse = self.leg('REVERSE_ENTRY', 0, 0, 18, True)
             self.step(speed=0.0, leg=reverse)

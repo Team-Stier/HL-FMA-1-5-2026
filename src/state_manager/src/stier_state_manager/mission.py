@@ -641,8 +641,8 @@ class MissionEngine:
         """Accept a stamped leg only at its measured, stopped start pose.
 
         RDDFs have no gear-switch annotations. A planner must advertise those
-        bounds explicitly. Entry supports forward setup then reverse parking;
-        parallel entry may begin in reverse after setup on the approach route.
+        bounds explicitly. T entry is one reverse leg. Parallel parking keeps
+        its existing forward-setup/reverse or direct-reverse leg contract.
         All entry legs advance along the ordered RDDF, even when the body is
         travelling backwards. Final entry still requires the measured checkline.
         """
@@ -671,10 +671,12 @@ class MissionEngine:
         tolerance = self.rules["stop_tolerance_m"]
         checkpoint = marks["parking_confirm_s" if entry else "parking_exit_s"]
         if entry:
-            valid_phase = ((phase == "FORWARD_APPROACH" and not final
-                            and target < checkpoint - tolerance)
-                           or (phase == "REVERSE_ENTRY" and final
-                               and abs(target - checkpoint) <= 1e-6))
+            reverse_to_checkpoint = (phase == "REVERSE_ENTRY" and final
+                                     and abs(target - checkpoint) <= 1e-6)
+            valid_phase = (reverse_to_checkpoint if kind == "t" else
+                           ((phase == "FORWARD_APPROACH" and not final
+                             and target < checkpoint - tolerance)
+                            or reverse_to_checkpoint))
         else:
             valid_phase = (phase == "FORWARD_EXIT" and final
                            and abs(target - checkpoint) <= 1e-6)
@@ -703,8 +705,9 @@ class MissionEngine:
                 return None
             near_start = abs(raw_s - active["target_s"]) <= tolerance
         else:
-            allowed_first = ((entry and phase == "FORWARD_APPROACH")
-                             or (entry and kind == "parallel" and phase == "REVERSE_ENTRY")
+            allowed_first = ((entry and kind == "t" and phase == "REVERSE_ENTRY")
+                             or (entry and kind == "parallel"
+                                 and phase in ("FORWARD_APPROACH", "REVERSE_ENTRY"))
                              or (not entry and phase == "FORWARD_EXIT"))
             if index != 0 or not allowed_first or abs(start) > 1e-6:
                 self._stop(out, "PARKING_INITIAL_LEG_INVALID", "WAIT_PARKING_PLAN")

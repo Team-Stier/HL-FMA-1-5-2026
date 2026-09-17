@@ -223,22 +223,29 @@ class MissionTests(unittest.TestCase):
                 self.engine = MissionEngine()
                 side = "left" if kind == "t" else "right"
                 self.select_parking(kind, side)
-                accepted = self.run_at(entry_section, route=entry, now=1, s=0, speed=0,
-                                      parking_maneuver=self.maneuver(entry, 1))
-                self.assertEqual(accepted["reason"], "PARKING_LEG_ACCEPTED")
-                self.assertEqual(accepted["direction"], 1)
-                forward = self.run_at(entry_section, route=entry, now=1.1, s=2,
-                                     parking_maneuver=self.maneuver(entry, 1.1))
-                self.assertFalse(forward["stop_requested"])
-                self.assertEqual(forward["phase"], "FORWARD_APPROACH")
-                stop = self.run_at(entry_section, route=entry, now=1.2, s=5, speed=0,
-                                  parking_maneuver=self.maneuver(entry, 1.2))
-                self.assertEqual(stop["phase"], "WAIT_GEAR_CHANGE")
-                reverse = dict(phase="REVERSE_ENTRY", leg_index=1, start_s=5,
-                               target_s=18, final_leg=True)
-                accepted = self.run_at(entry_section, route=entry, now=1.3, s=5, speed=0,
-                                      parking_maneuver=self.maneuver(entry, 1.3, **reverse))
+                if kind == "t":
+                    reverse = dict(phase="REVERSE_ENTRY", leg_index=0, start_s=0,
+                                   target_s=18, final_leg=True)
+                    accepted = self.run_at(entry_section, route=entry, now=1, s=0, speed=0,
+                                          parking_maneuver=self.maneuver(entry, 1, **reverse))
+                else:
+                    accepted = self.run_at(entry_section, route=entry, now=1, s=0, speed=0,
+                                          parking_maneuver=self.maneuver(entry, 1))
+                    self.assertEqual(accepted["reason"], "PARKING_LEG_ACCEPTED")
+                    self.assertEqual(accepted["direction"], 1)
+                    forward = self.run_at(entry_section, route=entry, now=1.1, s=2,
+                                         parking_maneuver=self.maneuver(entry, 1.1))
+                    self.assertFalse(forward["stop_requested"])
+                    self.assertEqual(forward["phase"], "FORWARD_APPROACH")
+                    stop = self.run_at(entry_section, route=entry, now=1.2, s=5, speed=0,
+                                      parking_maneuver=self.maneuver(entry, 1.2))
+                    self.assertEqual(stop["phase"], "WAIT_GEAR_CHANGE")
+                    reverse = dict(phase="REVERSE_ENTRY", leg_index=1, start_s=5,
+                                   target_s=18, final_leg=True)
+                    accepted = self.run_at(entry_section, route=entry, now=1.3, s=5, speed=0,
+                                          parking_maneuver=self.maneuver(entry, 1.3, **reverse))
                 self.assertTrue(accepted["stop_requested"])
+                self.assertEqual(accepted["reason"], "PARKING_LEG_ACCEPTED")
                 self.assertEqual(accepted["direction"], -1)
                 reversing = self.run_at(entry_section, route=entry, now=1.4, s=10, speed=-0.5,
                                        parking_maneuver=self.maneuver(entry, 1.4, **reverse))
@@ -263,40 +270,44 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(result["parking_leg_index"], -1)
         self.assertNotIn("parking:parallel:entry", result["completed_missions"])
 
-    def test_t_parking_cannot_skip_forward_entry_and_parallel_can_start_reverse(self):
-        for kind, section, route in (("t", 5, "5_T-left-in"),
-                                     ("parallel", 10, "10_parallel-left-in")):
-            self.engine = MissionEngine()
-            self.select_parking(kind)
-            leg = self.maneuver(route, 1, phase="REVERSE_ENTRY", target_s=18, final_leg=True)
-            result = self.run_at(section, now=1, speed=0, parking_maneuver=leg)
-            self.assertEqual(result["reason"], "PARKING_INITIAL_LEG_INVALID" if kind == "t"
-                             else "PARKING_LEG_ACCEPTED")
+    def test_t_parking_accepts_only_single_reverse_entry(self):
+        route = "5_T-left-in"
+        self.select_parking("t")
+        reverse = self.maneuver(route, 1, phase="REVERSE_ENTRY", target_s=18,
+                                final_leg=True)
+        accepted = self.run_at(5, now=1, speed=0, parking_maneuver=reverse)
+        self.assertEqual(accepted["reason"], "PARKING_LEG_ACCEPTED")
+        self.assertEqual(accepted["direction"], -1)
+
+        self.select_parking("t")
+        forward = self.run_at(5, now=1, speed=0,
+                              parking_maneuver=self.maneuver(route, 1))
+        self.assertEqual(forward["reason"], "PARKING_MANEUVER_CHECKPOINT_INVALID")
 
     def test_direction_switch_requires_standstill_at_prior_leg_end(self):
-        route = "5_T-left-in"
-        self.select_parking()
-        self.run_at(5, now=1, speed=0, parking_maneuver=self.maneuver(route, 1))
+        route = "10_parallel-left-in"
+        self.select_parking("parallel")
+        self.run_at(10, now=1, speed=0, parking_maneuver=self.maneuver(route, 1))
         for now, s, raw_s, speed, expected in (
             (1.1, 5, 5, .5, "WAIT_STANDSTILL_FOR_PARKING_LEG"),
             (1.2, 5, 3, 0, "PARKING_LEG_START_POSE_MISMATCH"),
         ):
             reverse = self.maneuver(route, now, phase="REVERSE_ENTRY", leg_index=1,
                                     start_s=5, target_s=18, final_leg=True)
-            result = self.run_at(5, now=now, s=s, raw_s=raw_s, speed=speed,
+            result = self.run_at(10, now=now, s=s, raw_s=raw_s, speed=speed,
                                  parking_maneuver=reverse)
             self.assertEqual(result["reason"], expected)
             self.assertEqual(result["direction"], 1)
             self.assertEqual(result["parking_leg_index"], 0)
 
     def test_planner_cannot_move_active_leg_target_or_skip_leg_index(self):
-        route = "5_T-left-in"
-        self.select_parking()
-        self.run_at(5, now=1, speed=0, parking_maneuver=self.maneuver(route, 1))
-        result = self.run_at(5, now=1.1, speed=0,
+        route = "10_parallel-left-in"
+        self.select_parking("parallel")
+        self.run_at(10, now=1, speed=0, parking_maneuver=self.maneuver(route, 1))
+        result = self.run_at(10, now=1.1, speed=0,
                              parking_maneuver=self.maneuver(route, 1.1, target_s=7))
         self.assertEqual(result["reason"], "PARKING_ACTIVE_LEG_CHANGED")
-        result = self.run_at(5, now=1.2, s=5, speed=0,
+        result = self.run_at(10, now=1.2, s=5, speed=0,
                              parking_maneuver=self.maneuver(route, 1.2, phase="REVERSE_ENTRY",
                                                            leg_index=2, start_s=5, target_s=18, final_leg=True))
         self.assertEqual(result["reason"], "PARKING_LEG_SEQUENCE_INVALID")
@@ -345,12 +356,12 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(result["next_route"], "11-parallel-left-out")
 
     def test_overshooting_forward_setup_latches_parking_fault(self):
-        self.select_parking()
-        route = "5_T-left-in"
-        self.run_at(5, now=1, speed=0, parking_maneuver=self.maneuver(route, 1))
-        result = self.run_at(5, now=1.1, s=5.3, parking_maneuver=self.maneuver(route, 1.1))
+        self.select_parking("parallel")
+        route = "10_parallel-left-in"
+        self.run_at(10, now=1, speed=0, parking_maneuver=self.maneuver(route, 1))
+        result = self.run_at(10, now=1.1, s=5.3, parking_maneuver=self.maneuver(route, 1.1))
         self.assertEqual(result["reason"], "PARKING_LEG_TARGET_MISSED")
-        result = self.run_at(5, now=1.2, s=5, speed=0,
+        result = self.run_at(10, now=1.2, s=5, speed=0,
                              parking_maneuver=self.maneuver(route, 1.2, phase="REVERSE_ENTRY",
                                                            leg_index=1, start_s=5, target_s=18, final_leg=True))
         self.assertEqual(result["phase"], "FAULT")
