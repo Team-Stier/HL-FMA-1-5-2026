@@ -16,6 +16,7 @@
   <arg name="enable_gps_fusion" default="$(arg enable_gps)"/>
   <arg name="start_rddf_initialization" default="true"/>
   <arg name="start_rddf_tracking" default="true"/>
+  <arg name="start_localization_rviz" default="true"/>
 
   <!-- Mission, perception, planning and control. -->
   <arg name="start_object_detection" default="true"/>
@@ -52,7 +53,7 @@
     <arg name="enable_gps_fusion" value="$(arg enable_gps_fusion)"/>
     <arg name="start_rddf_initialization" value="$(arg start_rddf_initialization)"/>
     <arg name="start_rddf_tracking" value="$(arg start_rddf_tracking)"/>
-    <arg name="start_rviz" value="false"/>
+    <arg name="start_rviz" value="$(arg start_localization_rviz)"/>
   </include>
 
   <include file="$(find state_manager)/launch/mission.launch">
