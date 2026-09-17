@@ -30,14 +30,14 @@ flowchart TB
     subgraph INPUT[1. 센서 · 경로 입력과 1차 처리]
         direction LR
         CAMERA[USB Camera]:::sensor --> TL[Traffic Light<br/>launch 기본 OFF]:::gated
-        MOTION[GPS · IMU · Encoder]:::sensor --> LOC[Localization<br/>Odometry · valid · TF<br/>RDDF match]:::active
+        MOTION[GPS · IMU · Encoder]:::sensor --> LOC[Localization<br/>Odometry · valid · TF<br/>RDDF match · 순서 연속성]:::active
         LIDAR[2D LiDAR]:::sensor --> OD[Object Detection<br/>RDDF ROI + DBSCAN]:::active
         FILES[RDDF CSV]:::sensor --> LOADER[RDDF 파일 로더<br/>rddf_route_provider]:::active
     end
 
     subgraph PLAN[2. 미션 판단 · 경로 후보 생성]
         direction LR
-        SM[State Manager<br/>Mission FSM · route 선택<br/>RDDF 구간 절단]:::active
+        SM[State Manager<br/>Mission FSM · mode/branch 요청<br/>RDDF 구간 절단]:::active
         LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
         PARK[Parking Planner<br/>아직 미구현]:::later
     end
@@ -49,6 +49,7 @@ flowchart TB
 
     TL -->|traffic signal| SM
     LOC -->|Odometry · valid · current RDDF match| SM
+    SM -.->|선택 분기 힌트<br/>활성화 검증은 Localization| LOC
     LOADER -->|/route/map| SM
 
     OD -->|/dbscan_clusters| LP
@@ -83,7 +84,12 @@ Object Detection·Path Planner·PP로 가는 위치 정보, RDDF 파일 로더�
 `/molit/localization/rddf/current`로 현재 위치에 맞는 원본 RDDF·segment·fraction을
 계산한다. State Manager는 이를 매 주기 받아 활성 구간과 진행거리로 사용하며 Odometry를
 RDDF에 다시 투영하지 않는다. 최초 시작과 이후 구간 변경 모두 Localization이 확정한
-현재 RDDF를 따르고, State Manager는 그 기준으로 RDDF를 잘라 Selector에 보낸다.
+현재 RDDF를 따른다. Localization은 교차점에서도 기존 RDDF를 유지하고, 연결된 다음 번호
+RDDF에 진입할 때만 활성 경로를 바꾼다. State Manager는 RDDF 순서를 다시 판단하지 않고
+그 기준으로 RDDF를 잘라 Selector에 보낸다. 미션상 주차·종료 분기 선택은 활성 위치 판정이
+아니라 주행 경로 요청이므로 State Manager 책임으로 남는다. 이때 State Manager는 선택한
+후속 경로 이름만 `/mission/rddf_successor`로 알리고, 실제 연결성과 전환 위치는 Localization이
+검증한다.
 
 ## 경로 선택 규칙
 

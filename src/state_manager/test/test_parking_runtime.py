@@ -1,4 +1,4 @@
-"""Replay parking plan epochs through the real tracker, selector and runtime."""
+"""Replay parking plan epochs through localization matches and the runtime."""
 
 import importlib.util
 import math
@@ -8,7 +8,7 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from stier_state_manager.geometry import Route, RouteTracker, project
+from stier_state_manager.geometry import Route, project
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -42,7 +42,7 @@ class ParkingRuntimeTests(unittest.TestCase):
                      'position_variance': .01, 'yaw_variance': .01},
             'localization': {'stamp': now, 'valid': True},
         }
-        route = self.runtime.source_routes[self.runtime.tracker.route_name]
+        route = self.runtime.source_routes[self.runtime.active_route_name]
         matched = project(route, x, y)
         segment = matched['segment']
         length = route.s[segment + 1] - route.s[segment]
@@ -113,10 +113,6 @@ class ParkingRuntimeTests(unittest.TestCase):
         self.config['landmarks'][name]['parking_confirm_s'] = self.route.length
         self.runtime = self.make_runtime()
         x, y, yaw = self.route.start
-        # The previous section-wide -1 request caused a pi-radian mismatch on
-        # this real forward-facing starting pose, before a planner could reply.
-        old_check = RouteTracker({name: self.route}, name).update(x, y, yaw, 1, body_direction=-1)
-        self.assertEqual(old_check['reason'], 'heading_mismatch')
         result = self.runtime.step(1, self.data(1, x=x, y=y, yaw=yaw), {})
         self.assertTrue(result['tracking']['healthy'])
         self.assertTrue(result['valid'])

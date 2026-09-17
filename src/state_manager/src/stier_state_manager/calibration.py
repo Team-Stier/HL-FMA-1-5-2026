@@ -27,8 +27,12 @@ import os
 import tempfile
 from pathlib import Path
 
-from .geometry import RouteTracker, project
+from .geometry import project
 from .mission import REQUIRED_LANDMARKS, HILL_ZONE_KEYS, landmark_keys, hill_target
+
+
+DEFAULT_END_TOLERANCE_M = 0.8
+DEFAULT_TRANSITION_JOIN_TOLERANCE_M = 2.5
 
 
 def number(value):
@@ -160,7 +164,7 @@ def validate_landmarks(config, routes, explicit_validation=False):
     rules = config.get('rules', {})
     if not isinstance(rules, dict):
         return ['rules must be an object']
-    tolerance = tracker.get('end_tolerance_m', RouteTracker.DEFAULTS['end_tolerance_m'])
+    tolerance = tracker.get('end_tolerance_m', DEFAULT_END_TOLERANCE_M)
     if not number(tolerance) or tolerance <= 0 or tolerance > 0.8:
         errors.append('tracker.end_tolerance_m must be within (0, 0.8] m')
         tolerance = 0.8
@@ -212,7 +216,7 @@ def validate_landmarks(config, routes, explicit_validation=False):
             else:
                 match = project(route, left.start[0], left.start[1])
                 join = tracker.get('transition_join_tolerance_m',
-                                   RouteTracker.DEFAULTS['transition_join_tolerance_m'])
+                                   DEFAULT_TRANSITION_JOIN_TOLERANCE_M)
                 if not number(join) or join <= 0:
                     errors.append('tracker.transition_join_tolerance_m must be positive')
                 elif match is None or match['distance'] > join:

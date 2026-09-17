@@ -45,8 +45,11 @@ State Manager는 이 토픽을 사용하며 다른 패키지의 RDDF 파일을 �
 `/molit/localization/rddf/current`의 유효한 `source_route_name`으로 연다. 따라서
 어느 RDDF에서 초기화하든 그 RDDF 안의 조건부터 판단할 수 있다. 이후에도 이 토픽의
 segment와 fraction을 매 주기 진행거리로 사용한다. State Manager는 Odometry를 RDDF에
-다시 투영하지 않는다. 매치가 다른 RDDF로 바뀌면 기존처럼 새 `decision_id`로 해당
-구간의 독립 미션을 시작한다. 유효한 match가 없으면 정지 상태로 대기한다.
+다시 투영하거나 다음 활성 RDDF 순서를 판정하지 않는다. Localization match가 다른 원본
+RDDF로 바뀌면 새 `decision_id`로 해당 구간의 독립 미션을 시작한다. 유효한 match가 없으면
+정지 상태로 대기한다. `next_route`는 미션 진단용 힌트일 뿐 State Manager 내부 추적기를
+전환하지 않는다. 분기가 필요한 경우 `/mission/rddf_successor`로 이름만 전달하고,
+Localization이 현재 RDDF와의 연결·진입 위치를 확인한 뒤 활성 RDDF를 전환한다.
 Selector와 공유하는 순수 Python 검증 코어로 플래너 응답을 동일하게 확인한다.
 `decision_id`는 경로·모드·요청 방향이 바뀔 때 변경된다. 플래너는 이 값을 그대로
 응답해야 하며 이전 구간의 유효한 경로라도 새 요청에 재사용할 수 없다.
@@ -329,6 +332,7 @@ Localization의 `/valid` 판단을 따른다.
 | `/dbscan_clusters` | `visualization_msgs/MarkerArray` | Object Detection의 stamped `map` 군집. dynamic RDDF E-Stop과 3구간 Local Planner가 공유 |
 | `/parking/maneuver` | `ParkingManeuver` | 현재 요청 ID를 반영한 주차 단계·방향·RDDF 시작/목표 거리 |
 | `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지·전용 E-Stop 제약 |
+| `/mission/rddf_successor` | `std_msgs/String` | 주차·종료 분기에서 원하는 다음 RDDF 이름. Localization이 연결·진입 위치를 검증 |
 | `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치를 진단·검증용으로 제공 |
 | `/path/rddf`, `/path/local`, `/path/park` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
 | `/path/selector_status` | `PathStatus` | 외부 Selector의 유일한 경로 승인 결과. State Manager는 후보 경로를 재검사하지 않음 |

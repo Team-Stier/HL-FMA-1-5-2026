@@ -28,7 +28,7 @@ class RuntimeTests(unittest.TestCase):
                                      '2': {'stop_line_s': 5}}}
 
     def match(self, runtime, now, x=0.0, y=0.0):
-        route = runtime.source_routes[runtime.tracker.route_name]
+        route = runtime.source_routes[runtime.active_route_name]
         matched = project(route, x, y)
         segment = matched['segment']
         length = route.s[segment + 1] - route.s[segment]
@@ -51,7 +51,7 @@ class RuntimeTests(unittest.TestCase):
                 'rddf_match': self.match(runtime, now, x)}
 
     def candidate(self, runtime, now):
-        name, mode, direction = runtime.request or (runtime.tracker.route_name, 'RDDF', 1)
+        name, mode, direction = runtime.request or (runtime.active_route_name, 'RDDF', 1)
         return {'stamp': now, 'receipt_stamp': now,
                 'decision_id': runtime.decision_id or 1,
                 'route': name, 'source': mode, 'direction': direction,
@@ -71,6 +71,20 @@ class RuntimeTests(unittest.TestCase):
         result = runtime.step(1, data, self.candidate(runtime, 1))
         self.assertTrue(result['tracking']['healthy'], result)
         self.assertAlmostEqual(result['distance_m'], 3.0)
+
+    def test_localization_route_change_preserves_mission_state(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        engine = runtime.engine
+        runtime.engine.completed_missions['hill'] = 1.0
+        runtime.request = ('1_right', 'RDDF', 1)
+
+        self.assertTrue(runtime.activate_route('2', 3.0))
+
+        self.assertIs(runtime.engine, engine)
+        self.assertEqual(runtime.engine.completed_missions['hill'], 1.0)
+        self.assertEqual(runtime.active_route_name, '2')
+        self.assertAlmostEqual(runtime.progress_s, 3.0)
+        self.assertIsNone(runtime.request)
 
     def test_global_validation_flags_do_not_stop_a_configured_route(self):
         self.config['vehicle']['validated'] = False
@@ -118,7 +132,7 @@ class RuntimeTests(unittest.TestCase):
         result = self.run_step(MissionRuntime(self.routes, self.config), 1)
         self.assertFalse(result['valid'])
 
-    def test_hill_hold_and_coherent_successor_epoch(self):
+    def test_hill_completion_does_not_override_localization_route(self):
         runtime = MissionRuntime(self.routes, self.config)
         initial = self.run_step(runtime, 1)
         self.assertFalse(initial['safety']['stop'], initial)
@@ -128,11 +142,12 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn('hill', result['completed_missions'])
         self.run_step(runtime, 6, x=8)
         result = self.run_step(runtime, 7, x=10)
-        self.assertEqual((result['route'], result['decision_id'], result['section']), ('2', 2, 2))
-        self.assertEqual(runtime.request, ('2', 'RDDF', 1))
+        self.assertEqual((result['route'], result['section']), ('1_right', 1))
+        self.assertEqual(result['next_route'], '2')
+        self.assertEqual(runtime.request, ('1_right', 'RDDF', 1))
         self.assertEqual(result['tracking']['route'], result['route'])
-        self.assertTrue(result['stop_requested'])
-        self.assertFalse(result['valid'])
+        self.assertFalse(result['stop_requested'])
+        self.assertTrue(result['valid'])
 
     def test_raw_lidar_is_not_a_state_manager_input(self):
         runtime = MissionRuntime(self.routes, self.config)
@@ -254,10 +269,10 @@ class RuntimeTests(unittest.TestCase):
         self.config.update(start_route='13_left', finish_branch='left')
         self.config.setdefault('rules', {})['finish_runout_m'] = 3.0
         runtime = MissionRuntime(self.routes, self.config)
-        self.assertAlmostEqual(runtime.tracker.current.length, 13.0)
-        self.assertEqual(runtime.tracker.current.end, (13.0, 0.0, 0.0))
+        self.assertAlmostEqual(runtime.active_route.length, 13.0)
+        self.assertEqual(runtime.active_route.end, (13.0, 0.0, 0.0))
         self.assertEqual(runtime.rddf_points(1, {})[-1], (13.0, 0.0, 0.0))
-        runtime.tracker.set_initial_progress(9.0)
+        runtime.progress_s = 9.0
         before = runtime.step(1, self.data(1, x=9, runtime=runtime), self.candidate(runtime, 1))
         self.assertFalse(before['finished'])
         almost = runtime.step(1.5, self.data(1.5, x=12.7, runtime=runtime), self.candidate(runtime, 1.5))

@@ -70,6 +70,7 @@ class StateManagerNode:
         self.path_pub = rospy.Publisher('/path/rddf', PlannedPath, queue_size=1)
         self.marker_pub = rospy.Publisher('/mission/markers', MarkerArray, queue_size=1)
         self.diagnostics_pub = rospy.Publisher('/mission/diagnostics', String, queue_size=1)
+        self.successor_pub = rospy.Publisher('/mission/rddf_successor', String, queue_size=1)
         self.subscribers = [
             rospy.Subscriber('/route/map', RouteMap, self.on_route_map, queue_size=1),
             rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
@@ -232,14 +233,13 @@ class StateManagerNode:
         fraction = match['segment_fraction']
         initial_s = (route.s[segment_index] + fraction *
                      (route.s[segment_index + 1] - route.s[segment_index]))
-        runtime_config = copy.deepcopy(self.config)
-        runtime_config['start_route'] = route_name
-        runtime = MissionRuntime(self.routes, runtime_config)
-        runtime.tracker.set_initial_progress(initial_s)
-        # Every independently matched RDDF gets a new command epoch. Responses
-        # from a previously tested section can therefore never be reused.
-        runtime.decision_id = secrets.randbits(48) or 1
-        self.runtime = runtime
+        if self.runtime is None:
+            runtime_config = copy.deepcopy(self.config)
+            runtime_config['start_route'] = route_name
+            self.runtime = MissionRuntime(self.routes, runtime_config)
+            # The first independently matched RDDF gets a new command epoch.
+            self.runtime.decision_id = secrets.randbits(48) or 1
+        self.runtime.activate_route(route_name, initial_s)
         self.active_match_route = route_name
         self.last_decision = None
         rospy.loginfo('State Manager RDDF 활성화: %s (s=%.2f m)', route_name, initial_s)
@@ -378,14 +378,14 @@ class StateManagerNode:
 
     def fault_decision(self, reason):
         runtime = self.runtime
-        route = runtime.tracker.current if runtime else None
+        route = runtime.active_route if runtime else None
         return {'route': route.name if route else '', 'section': route.section if route else 0,
                 'mission': 'INITIALIZATION', 'phase': 'FAULT', 'reason': reason,
                 'path_mode': runtime.request[1] if runtime and runtime.request else 'RDDF',
                 'direction': runtime.request[2] if runtime and runtime.request else 1,
                 'decision_id': runtime.decision_id if runtime else 0, 'valid': False,
-                'progress': runtime.tracker.s / route.length if route else 0,
-                'distance_m': runtime.tracker.s if runtime else 0,
+                'progress': runtime.progress_s / route.length if route else 0,
+                'distance_m': runtime.progress_s if runtime else 0,
                 'speed_limit': 0.0, 'stop_requested': True, 'finished': False,
                 'safety': {'stop': True, 'sensor_valid': False, 'reason': reason, 'clearance_m': -1}}
 
@@ -430,6 +430,7 @@ class StateManagerNode:
         self.constraint_pub.publish(constraint)
         self.state_pub.publish(state)
         self.safety_pub.publish(safety)
+        self.successor_pub.publish(String(data=decision.get('next_route') or ''))
         diagnostics = {'stamp': now, 'route': state.route_name, 'phase': state.phase,
                        'valid': state.valid, 'reason': state.reason,
                        'run_started': decision.get('run_started', False),

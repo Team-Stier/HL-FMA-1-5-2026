@@ -34,8 +34,14 @@ class AdapterTests(unittest.TestCase):
     def setUp(self):
         self.now = 10.0
         def fake_runtime(routes, config):
-            runtime = NS(decision_id=0, start_route=config['start_route'], initial_s=None)
-            runtime.tracker = NS(set_initial_progress=lambda value: setattr(runtime, 'initial_s', value))
+            runtime = NS(decision_id=0, start_route=config['start_route'],
+                         active_route_name=config['start_route'], progress_s=0.0)
+            def activate_route(route_name, progress_s=0.0):
+                changed = route_name != runtime.active_route_name
+                runtime.active_route_name = route_name
+                runtime.progress_s = progress_s
+                return changed
+            runtime.activate_route = activate_route
             return runtime
         fake_ros = NS(Time=NS(now=lambda: Stamp(self.now)), Duration=lambda value: value,
                       logwarn_throttle=lambda *args: None, logerr_throttle=lambda *args: None,
@@ -150,9 +156,9 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(self.node.runtime)
         self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle', fraction=.5))
         self.assertEqual(self.node.runtime.start_route, '3_s-static-obstacle')
-        self.assertAlmostEqual(self.node.runtime.initial_s, 15.0)
+        self.assertAlmostEqual(self.node.runtime.progress_s, 15.0)
 
-    def test_new_matched_route_starts_independent_mission_epoch(self):
+    def test_new_matched_route_preserves_mission_runtime(self):
         self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}
         self.node.on_route_map(self.route_map())
         self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle'))
@@ -160,8 +166,8 @@ class AdapterTests(unittest.TestCase):
         self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle', fraction=.2))
         self.assertIs(self.node.runtime, first_runtime)
         self.node.on_current_rddf(self.rddf_match('8_dynamic-obstacle'))
-        self.assertIsNot(self.node.runtime, first_runtime)
-        self.assertEqual(self.node.runtime.start_route, '8_dynamic-obstacle')
+        self.assertIs(self.node.runtime, first_runtime)
+        self.assertEqual(self.node.runtime.active_route_name, '8_dynamic-obstacle')
 
     def test_invalid_validated_overlay_retains_map_but_blocks_runtime(self):
         self.node.config.update(map_origin={'latitude': 37.0, 'longitude': 127.0},

@@ -44,7 +44,7 @@ class Pipeline:
         self.now = 1.0
 
     def observation(self, x, speed=0.0):
-        route = self.runtime.source_routes[self.runtime.tracker.route_name]
+        route = self.runtime.source_routes[self.runtime.active_route_name]
         matched = project(route, x, 0.0)
         segment = matched['segment']
         length = route.s[segment + 1] - route.s[segment]
@@ -65,7 +65,7 @@ class Pipeline:
 
     def candidates(self):
         name, mode, direction = self.runtime.request or (
-            self.runtime.tracker.route_name, 'RDDF', 1)
+            self.runtime.active_route_name, 'RDDF', 1)
         yaw = math.pi if direction < 0 else 0.0
         poses = tuple(Pose('map', (x, y, 0.0),
                            (0.0, 0.0, math.sin(yaw / 2), math.cos(yaw / 2)))
@@ -81,8 +81,8 @@ class Pipeline:
             edit(data)
         choices = self.candidates() if candidates is None else candidates
         route, mode, direction = self.runtime.request or (
-            self.runtime.tracker.route_name,
-            'LOCAL' if self.runtime.tracker.current.section == 3 else 'RDDF', 1)
+            self.runtime.active_route_name,
+            'LOCAL' if self.runtime.active_route.section == 3 else 'RDDF', 1)
         request_state = State(self.now, self.now,
                               self.runtime.decision_id or 1,
                               route, mode, direction)
@@ -120,7 +120,9 @@ class DirectPipelineTests(unittest.TestCase):
 
     def test_missing_requested_local_path_never_falls_back_to_rddf(self):
         pipeline = Pipeline()
-        pipeline.runtime.tracker.route_name = '3_s-static-obstacle'
+        pipeline.runtime.active_route_name = '3_s-static-obstacle'
+        pipeline.runtime.active_route = pipeline.runtime.routes['3_s-static-obstacle']
+        pipeline.runtime.progress_s = 0.0
         pipeline.runtime.request = ('3_s-static-obstacle', 'LOCAL', 1)
         decision, selected, commandable = pipeline.step(x=20.0, candidates={})
         self.assertEqual(decision['path_mode'], 'LOCAL')

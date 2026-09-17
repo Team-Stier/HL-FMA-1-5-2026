@@ -1,7 +1,7 @@
-"""Orchestrate route tracking, missions and observed-space vetoes without ROS."""
+"""Consume Localization route matches and run missions without ROS."""
 import math
 
-from .geometry import Route, RouteTracker, braking_distance, project
+from .geometry import Route, braking_distance, project
 from .mission import MissionEngine
 
 
@@ -25,13 +25,21 @@ class MissionRuntime:
         self.engine = MissionEngine(config)
         self.source_routes = dict(routes)
         self.routes = self._with_finish_runout(routes, self.engine.rules['finish_runout_m'])
-        self.tracker = RouteTracker(self.routes, config.get('start_route', '1_right'), config.get('tracker'))
+        self.active_route_name = config.get('start_route', '1_right')
+        if self.active_route_name not in self.routes:
+            raise ValueError('unknown active route: ' + self.active_route_name)
+        self.active_route = self.routes[self.active_route_name]
+        self.progress_s = 0.0
+        tracker_config = config.get('tracker', {})
+        self.end_tolerance_m = float(tracker_config.get('end_tolerance_m', 0.8))
+        if not math.isfinite(self.end_tolerance_m) or self.end_tolerance_m <= 0:
+            raise ValueError('tracker.end_tolerance_m must be positive')
+        self.finish_left_branch_s = self._finish_left_branch()
         self.decision_id = 0
         self.request = None
         self.parking_request = None
         self.last_time = None
         self.clock_fault = False
-        self.transition_fault = ''
         self.vehicle_ok = validate_vehicle(config)
         if self.vehicle_ok:
             # Localization base_link is at the rear axle. The traffic stop
@@ -41,6 +49,23 @@ class MissionRuntime:
                                             config['vehicle']['reaction_s'], config.get('stop_buffer_m', .05))
             if minimum_stop > self.engine.rules['stop_tolerance_m']:
                 self.vehicle_ok = False
+
+    def activate_route(self, route_name, progress_s=0.0):
+        """Accept Localization's active RDDF without resetting mission state."""
+        route = self.routes.get(route_name)
+        if route is None:
+            raise ValueError('unknown active route: ' + route_name)
+        progress_s = float(progress_s)
+        if not math.isfinite(progress_s):
+            raise ValueError('route progress must be finite')
+        changed = route_name != self.active_route_name
+        self.active_route_name = route_name
+        self.active_route = route
+        self.progress_s = min(route.length, max(0.0, progress_s))
+        if changed:
+            self.request = None
+            self.parking_request = None
+        return changed
 
     @staticmethod
     def _with_finish_runout(routes, distance):
@@ -54,6 +79,17 @@ class MissionRuntime:
                         y + distance * math.sin(yaw), yaw)
             extended[name] = Route(name, list(route.points) + [endpoint], route.direction)
         return extended
+
+    def _finish_left_branch(self):
+        source, target = self.routes.get('12'), self.routes.get('13_left')
+        if source is None or target is None:
+            return None
+        matched = project(source, target.start[0], target.start[1])
+        tolerance = float(self.config.get('tracker', {}).get(
+            'transition_join_tolerance_m', 2.5))
+        if matched is None or matched['distance'] > tolerance:
+            return None
+        return matched['s']
 
     def _dynamic_obstacle(self, now, tracked, data):
         """Return an E-Stop request only for a cluster on a dynamic RDDF route."""
@@ -78,7 +114,7 @@ class MissionRuntime:
                 and math.isfinite(half_width) and half_width > 0):
             result['reason'] = 'DYNAMIC_OBSTACLE_CONFIG_INVALID'
             return result
-        route = self.tracker.current
+        route = self.active_route
         minimum_s = max(0.0, tracked['s'])
         maximum_s = min(route.length, tracked['s'] + lookahead)
         nearest = None
@@ -123,7 +159,7 @@ class MissionRuntime:
         if observation.get('frame') != 'map':
             return None, 'RDDF_MATCH_FRAME_INVALID'
 
-        expected = self.tracker.route_name
+        expected = self.active_route_name
         if not observation.get('matched'):
             return None, observation.get('reason') or 'RDDF_MATCH_INVALID'
         if observation.get('route') != expected:
@@ -144,16 +180,21 @@ class MissionRuntime:
         # Section 13 has a State-Manager-owned 3 m straight runout that is not
         # present in Localization's source CSV.  Past the source endpoint, use
         # only terminal along-track displacement for that synthetic segment.
-        if self.tracker.current.length > route.length and raw_s >= route.length - 1e-6:
+        if self.active_route.length > route.length and raw_s >= route.length - 1e-6:
             odom = data.get('odom', {})
             end_x, end_y, end_yaw = route.end
             along = ((odom.get('x', end_x) - end_x) * math.cos(end_yaw)
                      + (odom.get('y', end_y) - end_y) * math.sin(end_yaw))
             if math.isfinite(along) and along > 0:
-                raw_s = min(self.tracker.current.length, route.length + along)
-        odom = data.get('odom', {})
-        return self.tracker.update_from_match(
-            expected, raw_s, distance, odom['x'], odom['y'], odom['yaw'], now), 'OK'
+                raw_s = min(self.active_route.length, route.length + along)
+        self.progress_s = raw_s
+        return {
+            'route': expected, 'section': self.active_route.section,
+            's': raw_s, 'raw_s': raw_s, 'length': self.active_route.length,
+            'progress': raw_s/self.active_route.length,
+            'cross_track': distance, 'healthy': True, 'reason': 'ok',
+            'at_end': raw_s >= self.active_route.length-self.end_tolerance_m,
+        }, 'OK'
 
     def _path_selection(self, data, now):
         """Consume the external Selector's decision without revalidating geometry."""
@@ -185,7 +226,7 @@ class MissionRuntime:
         return result
 
     def traffic_constraint(self, now, signal):
-        route = self.tracker.current
+        route = self.active_route
         wall = self.engine.traffic_constraint(route.name, route.section, route.length, now, signal)
         if wall and wall['valid']:
             wall['target_s'] = wall['stop_line_s'] - self.engine.rules['front_bumper_offset_m'] - self.config.get('stop_buffer_m', .05)
@@ -201,9 +242,9 @@ class MissionRuntime:
         update cannot publish another unrestricted path. Missing calibration
         produces no traffic path. The normal mission gate still checks health.
         """
-        route = self.tracker.current
-        start = max(0.0, self.tracker.s - 1.0)
-        end = min(route.length, self.tracker.s + max(20.0, self.config.get('path_lookahead_m', 20.0)))
+        route = self.active_route
+        start = max(0.0, self.progress_s - 1.0)
+        end = min(route.length, self.progress_s + max(20.0, self.config.get('path_lookahead_m', 20.0)))
         wall = self.traffic_constraint(now, signal)
         if wall:
             if not wall['valid']:
@@ -231,12 +272,13 @@ class MissionRuntime:
             self.clock_fault = True
         self.last_time = now
         healthy, reason = self._health(data, now)
-        if self.clock_fault or self.transition_fault:
-            healthy, reason = False, self.transition_fault or 'CLOCK_REGRESSION_RESTART_REQUIRED'
+        if self.clock_fault:
+            healthy, reason = False, 'CLOCK_REGRESSION_RESTART_REQUIRED'
         odom = data.get('odom', {})
-        tracked = {'route': self.tracker.route_name, 'section': self.tracker.current.section,
-                   's': self.tracker.s, 'raw_s': self.tracker.s, 'length': self.tracker.current.length,
-                   'progress': self.tracker.s/self.tracker.current.length, 'at_end': False}
+        tracked = {'route': self.active_route_name, 'section': self.active_route.section,
+                   's': self.progress_s, 'raw_s': self.progress_s,
+                   'length': self.active_route.length,
+                   'progress': self.progress_s/self.active_route.length, 'at_end': False}
         if healthy:
             matched, match_reason = self._matched_progress(data, now)
             if matched is None:
@@ -260,7 +302,7 @@ class MissionRuntime:
                         decision_id=self.decision_id,
                         parking_maneuver=data.get('parking_maneuver', {}),
                         parking=data.get('parking', {}) if healthy else {},
-                        finish_branch_s=self.tracker.finish_left_branch_s)
+                        finish_branch_s=self.finish_left_branch_s)
         # Dynamic-obstacle E-Stop evaluation remains independent of mission
         # dwell accounting, so it cannot reset a route-specific hold timer.
         decision = self.engine.update(snapshot)
@@ -294,27 +336,8 @@ class MissionRuntime:
             decision['speed_limit'] = min(decision['speed_limit'], cap)
         if self.vehicle_ok:
             decision['speed_limit'] = min(decision['speed_limit'], self.config['vehicle']['max_speed_mps'])
-        # A route handoff also invalidates the previous planner response. The
-        # next cycle acquires the successor before any new movement is allowed.
-        successor = decision.get('next_route')
-        if successor and not safety['stop'] and healthy:
-            if self.tracker.transition(successor):
-                section = self.tracker.current.section
-                mode = 'LOCAL' if section == 3 else 'PARKING' if section in (5, 6, 10, 11) else 'RDDF'
-                self._set_request(successor, mode, 1)
-                self.parking_request = None
-                tracked = dict(route=successor, section=section, s=0.0, raw_s=0.0,
-                               length=self.tracker.current.length, progress=0.0, at_end=False)
-                decision.update(route=successor, section=section, path_mode=mode, direction=self.request[2],
-                                mission='TRANSITION', selected_branch=self.tracker.current.branch,
-                                parking_leg_index=-1, parking_leg_phase='', parking_leg_target_s=-1.0,
-                                stop_requested=True, emergency_stop_requested=False,
-                                speed_limit=0, remaining_stop_m=None,
-                                reason='ROUTE_HANDOFF', phase='HANDOFF', virtual_stop=None)
-                healthy = False
-            else:
-                self.transition_fault = 'ROUTE_TRANSITION_REJECTED:' + self.tracker.transition_reason
-                decision.update(stop_requested=True, speed_limit=0, reason=self.transition_fault)
+        # Localization alone owns active-RDDF handoff. ``next_route`` remains a
+        # mission hint for diagnostics; it never changes tracking state here.
         decision.update(decision_id=self.decision_id, valid=healthy and snapshot['calibrated']
                         and decision['phase'] not in ('UNAVAILABLE', 'FAULT'),
                         finished='finish' in decision.get('completed_missions', {}),

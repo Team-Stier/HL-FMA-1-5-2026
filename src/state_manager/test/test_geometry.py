@@ -7,24 +7,11 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from stier_state_manager.geometry import (  # noqa: E402
-    Route, RouteTracker, braking_clearance, corridor_status, scan_to_geometry,
+    Route, braking_clearance, corridor_status, scan_to_geometry,
     transform_scan_to_geometry,
 )
 
-
-def line(name, start=0.0, end=10.0, y=0.0, direction=1):
-    return Route(name, [(start, y, 0), (end, y, 0)], direction=direction)
-
-
 class RouteTests(unittest.TestCase):
-    def test_arrival_and_transition_agree_at_decimal_tolerance_boundary(self):
-        routes = {'1_right': line('1_right'), '2': line('2', 10, 20)}
-        tracker = RouteTracker(routes)
-        tracker.update(0, 0, 0, 1)
-        tracker.update(8, 0, 0, 2)
-        self.assertTrue(tracker.update(9.2, 0, 0, 3)['at_end'])
-        self.assertTrue(tracker.transition('2'), tracker.transition_reason)
-
     def test_lengths_interpolation_and_slice(self):
         route = Route("1_right", [(0, 0, 0), (3, 0, 0), (3, 4, math.pi / 2)])
         self.assertEqual(route.s, [0, 3, 7])
@@ -38,143 +25,6 @@ class RouteTests(unittest.TestCase):
             Route("1_right", [(0, 0, 0), (math.nan, 0, 0)])
         with self.assertRaises(ValueError):
             Route("1_right", [(0, 0, 0), (0, 0, 0)])
-
-    def test_initial_acquisition_cannot_pick_middle(self):
-        tracker = RouteTracker({"1_right": line("1_right", end=100)})
-        result = tracker.update(50, 0, 0, 0)
-        self.assertFalse(result["healthy"])
-        self.assertEqual(result["reason"], "outside_start_acquisition")
-        self.assertEqual(result["s"], 0)
-
-    def test_matched_progress_allows_independent_middle_acquisition(self):
-        tracker = RouteTracker({"7": line("7", end=100)}, "7")
-        tracker.set_initial_progress(50)
-        result = tracker.update(50, 0, 0, 1)
-        self.assertTrue(result["healthy"], result)
-        self.assertEqual(result["route"], "7")
-        self.assertAlmostEqual(result["s"], 50)
-
-    def test_invalid_matched_progress_is_rejected(self):
-        tracker = RouteTracker({"7": line("7", end=100)}, "7")
-        for value in (-1, 101, math.nan):
-            with self.subTest(value=value), self.assertRaises(ValueError):
-                tracker.set_initial_progress(value)
-
-    def test_progress_is_monotonic_but_raw_retains_rollback(self):
-        tracker = RouteTracker({"1_right": line("1_right")})
-        tracker.update(0, 0, 0, 0)
-        tracker.update(2, 0, 0, 1)
-        result = tracker.update(1.7, 0, 0, 1.1)
-        self.assertTrue(result["healthy"])
-        self.assertEqual(result["s"], 2)
-        self.assertAlmostEqual(result["raw_s"], 1.7)
-
-    def test_localization_match_progress_has_no_second_geometry_gate(self):
-        tracker = RouteTracker({"1_right": line("1_right")})
-        first = tracker.update_from_match("1_right", 2.0, 0.2, 2, 0, 0, 1.0)
-        rollback = tracker.update_from_match("1_right", 1.7, 0.2, 1.7, 0, 0, 1.1)
-        self.assertTrue(first["healthy"])
-        self.assertTrue(rollback["healthy"])
-        self.assertEqual(rollback["s"], 2.0)
-        self.assertEqual(rollback["raw_s"], 1.7)
-
-    def test_localization_match_cannot_change_sequence(self):
-        tracker = RouteTracker({"1_right": line("1_right"), "2": line("2")})
-        result = tracker.update_from_match("2", 1.0, 0.0, 1, 0, 0, 1.0)
-        self.assertFalse(result["healthy"])
-        self.assertEqual(result["reason"], "rddf_route_sequence_mismatch")
-
-    def test_position_jump_rejected(self):
-        tracker = RouteTracker({"1_right": line("1_right", end=100)})
-        tracker.update(0, 0, 0, 0)
-        result = tracker.update(30, 0, 0, 0.1)
-        self.assertFalse(result["healthy"])
-        self.assertEqual(result["reason"], "position_jump")
-        self.assertEqual(result["s"], 0)
-
-    def test_elapsed_outage_does_not_allow_large_jump(self):
-        tracker = RouteTracker({"1_right": line("1_right", end=100)})
-        tracker.update(0, 0, 0, 0)
-        self.assertFalse(tracker.update(30, 0, 0, 100)["healthy"])
-
-    def test_unrelated_crossing_never_changes_section(self):
-        routes = {"1_right": line("1_right"), "7": line("7")}
-        tracker = RouteTracker(routes)
-        tracker.update(0, 0, 0, 0)
-        self.assertEqual(tracker.update(4, 0, 0, 1)["route"], "1_right")
-        self.assertFalse(tracker.transition("7"))
-
-    def test_same_route_crossing_uses_progress_window(self):
-        route = Route("1_right", [(0, 0, 0), (3, 0, 0), (3, 20, math.pi / 2),
-                                  (1, 20, math.pi), (1, -1, -math.pi / 2)])
-        tracker = RouteTracker({"1_right": route})
-        tracker.update(0, 0, 0, 0)
-        result = tracker.update(1, 0, 0, .5)
-        self.assertTrue(result["healthy"])
-        self.assertAlmostEqual(result["s"], 1)
-
-    def test_reverse_vehicle_heading(self):
-        routes = {"5_T-left-in": line("5_T-left-in", direction=-1)}
-        tracker = RouteTracker(routes, "5_T-left-in")
-        self.assertFalse(tracker.update(0, 0, 0, 0)["healthy"])
-        self.assertTrue(tracker.update(0, 0, math.pi, 0)["healthy"])
-        self.assertTrue(tracker.update(2, 0, math.pi, 1)["healthy"])
-
-    def test_validated_parking_leg_can_override_default_body_direction(self):
-        routes = {"5_T-left-in": line("5_T-left-in", direction=1)}
-        tracker = RouteTracker(routes, "5_T-left-in")
-        self.assertTrue(tracker.update(0, 0, math.pi, 0, body_direction=-1)["healthy"])
-        self.assertFalse(tracker.update(0, 0, math.pi, 1, body_direction=0)["healthy"])
-
-    def test_small_endpoint_overshoot_can_transition(self):
-        routes = {"1_right": line("1_right", end=3), "2": line("2", start=3, end=6)}
-        tracker = RouteTracker(routes)
-        tracker.update(0, 0, 0, 0)
-        self.assertTrue(tracker.update(3.4, 0, 0, 1)["at_end"])
-        self.assertTrue(tracker.transition("2"))
-        self.assertEqual(tracker.route_name, "2")
-        self.assertTrue(tracker.update(3.4, 0, 0, 1.1)["healthy"])
-
-    def test_early_transition_is_rejected(self):
-        routes = {"1_right": line("1_right"), "2": line("2", start=10, end=20)}
-        tracker = RouteTracker(routes)
-        tracker.update(0, 0, 0, 0)
-        self.assertFalse(tracker.transition("2"))
-        self.assertEqual(tracker.transition_reason, "boundary_not_reached")
-
-    def test_parking_requires_matching_exit_branch(self):
-        routes = {"5_T-left-in": line("5_T-left-in", end=2),
-                  "6-T-left-out": line("6-T-left-out", start=2, end=4),
-                  "6_T-right-out": line("6_T-right-out", start=2, end=4)}
-        tracker = RouteTracker(routes, "5_T-left-in")
-        tracker.update(0, 0, 0, 0)
-        tracker.update(2, 0, 0, 1)
-        self.assertFalse(tracker.transition("6_T-right-out"))
-        self.assertTrue(tracker.transition("6-T-left-out"))
-
-    def test_left_lane_fork_is_inside_section_twelve(self):
-        routes = {"12": line("12", end=20), "13_left": line("13_left", start=13.258, end=30),
-                  "13_right": line("13_right", start=20, end=30)}
-        tracker = RouteTracker(routes, "12")
-        tracker.update(0, 0, 0, 0)
-        tracker.update(6, 0, 0, 1)
-        tracker.update(13.258, 0, 0, 2)
-        self.assertFalse(tracker.transition("13_right"))
-        self.assertTrue(tracker.transition("13_left"))
-
-    def test_left_lane_fork_cannot_be_taken_after_passing_it(self):
-        routes = {"12": line("12", end=20), "13_left": line("13_left", start=13.258, end=30)}
-        tracker = RouteTracker(routes, "12")
-        tracker.update(0, 0, 0, 0)
-        tracker.update(8, 0, 0, 1)
-        tracker.update(16, 0, 0, 2)
-        self.assertFalse(tracker.transition("13_left"))
-
-    def test_invalid_pose_and_time_regression(self):
-        tracker = RouteTracker({"1_right": line("1_right")})
-        tracker.update(0, 0, 0, 1)
-        self.assertFalse(tracker.update(math.nan, 0, 0, 2)["healthy"])
-        self.assertFalse(tracker.update(0, 0, 0, 0)["healthy"])
 
 
 class CorridorTests(unittest.TestCase):

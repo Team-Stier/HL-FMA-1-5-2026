@@ -68,7 +68,8 @@ class HostClockTest(unittest.TestCase):
 
     def test_offset_distance_sync_and_freshness_independently_reject(self):
         sample = parse_timesyncd(PROPERTIES, STATUS)
-        cases = [({'offset_sec': .051}, FLAGS, EPOCH+1, 'clock_offset_exceeds_limit'),
+        cases = [({'offset_sec': POLICY['max_abs_offset_sec']+.001}, FLAGS, EPOCH+1,
+                  'clock_offset_exceeds_limit'),
                  ({'root_distance_sec': .051}, FLAGS, EPOCH+1, 'clock_root_distance_exceeds_limit'),
                  ({}, {'NTP': 'yes', 'NTPSynchronized': 'no'}, EPOCH+1, 'kernel_clock_not_synchronized'),
                  ({}, FLAGS, EPOCH+3601, 'clock_sample_stale'),
