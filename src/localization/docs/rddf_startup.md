@@ -33,7 +33,8 @@ GPS가 없거나 경로가 겹쳐 자동 선택이 불가능하면 공통 RViz �
 - GPS 활성 상태의 부재·불량: 자동 피팅하지 않고 대기하며, 초기화 후 단절에는 bounded dead reckoning 제한을 적용한다.
 - 스냅 거리 초과·서로 다른 경로가 비슷하게 가까움: 임의 경로 선택 거부.
 - fresh 정지 속도 없음: WAITING_FOR_STATIONARY. IMU/TF 준비 대기: WAITING_FOR_IMU.
-- 서비스 미준비·실패, 확인 중 이동, EKF 위치/yaw 확인 timeout: FAULT, 최종 출력 차단. 전체 localization 재실행 후 다시 선택한다.
+- 서비스 미준비·fresh IMU 대기·EKF 위치/yaw 확인 지연: 준비와 확인을 계속 기다린다. 3초 초과는 지연 안내만 표시하며 FAULT로 고정하지 않는다. 초기화 완료 전 ready는 false다.
+- 서비스 호출 실패 또는 확인 중 이동: FAULT, 최종 출력 차단. 전체 localization 재실행 후 다시 선택한다.
 - ready heartbeat 중단: Manager와 Output Gate에서 독립 차단. 같은 pose/heartbeat를 반복해 DR 시간을 늘리지 않는다.
 - ROS 시각 역행: 초기화 epoch를 바꾸고 새 위치 선택부터 다시 진행한다.
 - 차량 제동은 Controller 책임이다. 이 패키지는 Ctrl_cmd를 발행하지 않는다.

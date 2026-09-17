@@ -92,8 +92,8 @@ class RddfInitializer:
             self.last_now = now
             if self.started is not None and not self.ready and self.state != 'FAULT':
                 if time.monotonic()-self.started > self.p['confirmation_timeout_sec']:
-                    self.state,self.reason = 'FAULT','초기화 확인 시간 초과: 출력 차단'
-                    self.epoch += 1
+                    if self.confirm_after is not None:
+                        self.reason = 'Local/Global 위치·yaw 확인 대기 (지연 중)'
             self.publish()
 
     def speed_callback(self,m):
@@ -199,7 +199,6 @@ class RddfInitializer:
         threading.Thread(target=self.initialize,args=(dict(candidate),epoch,transaction),daemon=True).start()
 
     def initialize(self,target,epoch,transaction):
-        worker_started = time.monotonic()
         try:
             heading_name=rospy.get_param('~heading_service','/calibrated_imu/set_initial_heading')
             local_name=rospy.get_param('~services/local_ekf_set_pose')
@@ -208,11 +207,14 @@ class RddfInitializer:
             for service in (heading_name,local_name,global_name):
                 while True:
                     with self.lock:
-                        if epoch!=self.epoch or self.state=='FAULT':raise ValueError('초기화 시간 초과')
+                        if epoch!=self.epoch or self.state=='FAULT':return
                     try:
                         rospy.wait_for_service(service,timeout=self.p['service_wait_sec']);break
                     except rospy.ROSException:
-                        if time.monotonic()-worker_started>=self.p['confirmation_timeout_sec']:raise
+                        if rospy.is_shutdown():return
+                        with self.lock:
+                            if epoch!=self.epoch:return
+                            self.reason='초기화 서비스 준비 대기: '+service
 
             with self.lock:
                 if epoch!=self.epoch or not self.stationary(rospy.Time.now().to_sec()):raise ValueError('초기화 전 차량 상태 변경')
@@ -225,7 +227,9 @@ class RddfInitializer:
                 if result.reason!='WAITING_FOR_FRESH_IMU':raise ValueError(result.reason)
                 with self.lock:self.state,self.reason='WAITING_FOR_IMU','fresh IMU와 장착 TF 대기'
                 time.sleep(.03)
-            with self.lock:self.state='INITIALIZING'
+            with self.lock:
+                if epoch!=self.epoch:return
+                self.state='INITIALIZING'
 
             for name,frame in ((local_name,self.frames['odom']),(global_name,self.frames['map'])):
                 with self.lock:
