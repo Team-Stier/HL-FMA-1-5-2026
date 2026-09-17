@@ -79,11 +79,11 @@ Object Detection·Path Planner·PP로 가는 위치 정보, RDDF 파일 로더�
 목표 속도, 정지 요청, 전진·후진 방향 같은 제어 조건이다.
 
 `rddf_route_provider`는 경로를 판단하는 노드가 아니다. RDDF CSV를 읽어 전체 경로
-목록인 `/route/map`으로 바꾸는 파일 로더다. 실제 route 선택과 RDDF 절단은
-State Manager가 담당한다. 활성 route는 설정 파일의 1구간부터 강제로 시작하지 않고,
-Localization의 `/molit/localization/rddf/current`가 확정한 원본 RDDF 이름으로 정한다.
-따라서 어느 구간에서 초기위치를 잡아도 이전 구간 완료 이력 없이 해당 RDDF의 미션만
-독립적으로 시작한다. 다른 RDDF가 확정되면 새 `decision_id`로 해당 미션을 다시 연다.
+목록인 `/route/map`으로 바꾸는 파일 로더다. Localization이
+`/molit/localization/rddf/current`로 현재 위치에 맞는 원본 RDDF·segment·fraction을
+계산한다. State Manager는 이를 매 주기 받아 활성 구간과 진행거리로 사용하며 Odometry를
+RDDF에 다시 투영하지 않는다. 최초 시작과 이후 구간 변경 모두 Localization이 확정한
+현재 RDDF를 따르고, State Manager는 그 기준으로 RDDF를 잘라 Selector에 보낸다.
 
 ## 경로 선택 규칙
 

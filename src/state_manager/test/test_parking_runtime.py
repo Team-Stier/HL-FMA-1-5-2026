@@ -8,7 +8,7 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from stier_state_manager.geometry import Route, RouteTracker, scan_to_geometry
+from stier_state_manager.geometry import Route, RouteTracker, project, scan_to_geometry
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -46,6 +46,18 @@ class ParkingRuntimeTests(unittest.TestCase):
             'localization_state': {'stamp': now, 'state': 'TRACKING'},
             'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays},
         }
+        route = self.runtime.source_routes[self.runtime.tracker.route_name]
+        matched = project(route, x, y)
+        segment = matched['segment']
+        length = route.s[segment + 1] - route.s[segment]
+        fraction = ((matched['s'] - route.s[segment]) / length
+                    if length > 1e-9 else 0.0)
+        candidate = {'route': route.name, 'segment_index': segment,
+                     'segment_fraction': fraction,
+                     'distance_m': matched['distance']}
+        result['rddf_match'] = {
+            'stamp': now, 'received': now, 'pose_stamp': now, 'frame': 'map',
+            'matched': True, **candidate, 'candidates': [candidate]}
         if maneuver is not None:
             result['parking_maneuver'] = maneuver
         return result

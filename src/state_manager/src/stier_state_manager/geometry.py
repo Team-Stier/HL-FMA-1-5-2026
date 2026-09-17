@@ -226,6 +226,39 @@ class RouteTracker:
         self._result = base
         return dict(base)
 
+    def update_from_match(self, route_name, raw_s, cross_track, x, y, yaw, now):
+        """Accept progress already projected by Localization.
+
+        State Manager must not project the same odometry onto the RDDF a second
+        time. Cross-track distance is retained for diagnostics only;
+        Localization owns match acceptance.
+        """
+        route = self.current
+        base = {"route": self.route_name, "section": route.section, "s": self.s,
+                "raw_s": self.s, "length": route.length,
+                "progress": self.s / route.length, "cross_track": math.inf,
+                "healthy": False, "reason": "invalid_rddf_match", "at_end": False}
+        if route_name != self.route_name:
+            base["reason"] = "rddf_route_sequence_mismatch"
+        elif not _finite(raw_s, cross_track, x, y, yaw, now) or cross_track < 0:
+            base["reason"] = "invalid_rddf_match"
+        elif raw_s < -1e-9 or raw_s > route.length + 1e-9:
+            base["reason"] = "rddf_progress_outside_route"
+        elif self._last_time is not None and now < self._last_time:
+            base["reason"] = "time_regressed"
+        else:
+            raw_s = min(route.length, max(0.0, raw_s))
+            self.s = max(self.s, raw_s)
+            self._acquired = True
+            self._last_pose = (x, y, yaw)
+            self._last_time = now
+            base.update(s=self.s, raw_s=raw_s,
+                        progress=self.s / route.length,
+                        cross_track=cross_track, healthy=True, reason="ok",
+                        at_end=raw_s >= route.length - self.config["end_tolerance_m"])
+        self._result = base
+        return dict(base)
+
     def transition(self, next_route):
         """Explicit graph/boundary-checked transition. Return False on refusal."""
         if next_route not in self.allowed_next():

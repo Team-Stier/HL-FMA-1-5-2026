@@ -169,11 +169,12 @@ class AdapterTests(unittest.TestCase):
 
     def rddf_match(self, route='1_right', segment=0, fraction=.0, matched=True):
         nearest = NS(source_route_name=route, segment_index=segment,
-                     segment_fraction=fraction)
+                     segment_fraction=fraction, distance_m=.1)
         return NS(header=self.header(), pose_stamp=Stamp(9.9), matched=matched,
                   reason='MATCHED' if matched else 'AMBIGUOUS_ROUTE',
                   source_route_name=route if matched else '',
-                  segment_index=segment if matched else -1, nearest=nearest)
+                  segment_index=segment if matched else -1, nearest=nearest,
+                  candidates=[nearest])
 
     def test_runtime_waits_for_match_and_uses_matched_route_and_progress(self):
         self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}

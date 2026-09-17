@@ -69,6 +69,21 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(result["s"], 2)
         self.assertAlmostEqual(result["raw_s"], 1.7)
 
+    def test_localization_match_progress_has_no_second_geometry_gate(self):
+        tracker = RouteTracker({"1_right": line("1_right")})
+        first = tracker.update_from_match("1_right", 2.0, 0.2, 2, 0, 0, 1.0)
+        rollback = tracker.update_from_match("1_right", 1.7, 0.2, 1.7, 0, 0, 1.1)
+        self.assertTrue(first["healthy"])
+        self.assertTrue(rollback["healthy"])
+        self.assertEqual(rollback["s"], 2.0)
+        self.assertEqual(rollback["raw_s"], 1.7)
+
+    def test_localization_match_cannot_change_sequence(self):
+        tracker = RouteTracker({"1_right": line("1_right"), "2": line("2")})
+        result = tracker.update_from_match("2", 1.0, 0.0, 1, 0, 0, 1.0)
+        self.assertFalse(result["healthy"])
+        self.assertEqual(result["reason"], "rddf_route_sequence_mismatch")
+
     def test_position_jump_rejected(self):
         tracker = RouteTracker({"1_right": line("1_right", end=100)})
         tracker.update(0, 0, 0, 0)

@@ -7,7 +7,7 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from stier_state_manager.geometry import Route, scan_to_geometry
+from stier_state_manager.geometry import Route, project, scan_to_geometry
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -27,15 +27,31 @@ class RuntimeTests(unittest.TestCase):
                        'landmarks': {'1_right': {'hill_start_s': 1, 'hill_stop_s': 4, 'hill_top_s': 8},
                                      '2': {'stop_line_s': 5}}}
 
-    def data(self, now, x=0.0, speed=0.0):
+    def match(self, runtime, now, x=0.0, y=0.0):
+        route = runtime.source_routes[runtime.tracker.route_name]
+        matched = project(route, x, y)
+        segment = matched['segment']
+        length = route.s[segment + 1] - route.s[segment]
+        fraction = ((matched['s'] - route.s[segment]) / length
+                    if length > 1e-9 else 0.0)
+        candidate = {'route': route.name, 'segment_index': segment,
+                     'segment_fraction': fraction,
+                     'distance_m': matched['distance']}
+        return {'stamp': now, 'received': now, 'pose_stamp': now,
+                'frame': 'map', 'matched': True, **candidate,
+                'candidates': [candidate]}
+
+    def data(self, now, x=0.0, speed=0.0, runtime=None):
         hits, rays = scan_to_geometry([math.inf]*361, -math.pi, math.pi/180, 0.01, 30,
                                       scanner_pose=(x, 0, 0))
+        runtime = runtime or MissionRuntime(self.routes, self.config)
         return {'odom': {'stamp': now, 'frame': 'map', 'child_frame': 'base_link',
                          'x': x, 'y': 0, 'yaw': 0, 'speed': speed, 'yaw_rate': 0,
                          'position_variance': .01, 'yaw_variance': .01},
                 'localization': {'stamp': now, 'valid': True},
                 'localization_state': {'stamp': now, 'state': 'TRACKING'},
-                'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays}}
+                'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays},
+                'rddf_match': self.match(runtime, now, x)}
 
     def candidate(self, runtime, now):
         name, mode, direction = runtime.request or (runtime.tracker.route_name, 'RDDF', 1)
@@ -46,7 +62,18 @@ class RuntimeTests(unittest.TestCase):
                 'path_fingerprint': 'test-path'}
 
     def run_step(self, runtime, now, x=0, speed=0):
-        return runtime.step(now, self.data(now, x, speed), self.candidate(runtime, now))
+        return runtime.step(now, self.data(now, x, speed, runtime), self.candidate(runtime, now))
+
+    def test_localization_match_is_progress_authority(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        data = self.data(1, x=50, runtime=runtime)
+        # Deliberately impossible pose/yaw for the current RDDF: Localization's
+        # accepted projection, not State Manager reprojection, owns progress.
+        data['odom'].update(x=50, y=50, yaw=math.pi)
+        data['rddf_match'] = self.match(runtime, 1, x=3)
+        result = runtime.step(1, data, self.candidate(runtime, 1))
+        self.assertTrue(result['tracking']['healthy'], result)
+        self.assertAlmostEqual(result['distance_m'], 3.0)
 
     def test_global_validation_flags_do_not_stop_a_configured_route(self):
         self.config['vehicle']['validated'] = False
@@ -272,11 +299,11 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.tracker.current.end, (13.0, 0.0, 0.0))
         self.assertEqual(runtime.rddf_points(1, {})[-1], (13.0, 0.0, 0.0))
         runtime.tracker.set_initial_progress(9.0)
-        before = runtime.step(1, self.data(1, x=9), self.candidate(runtime, 1))
+        before = runtime.step(1, self.data(1, x=9, runtime=runtime), self.candidate(runtime, 1))
         self.assertFalse(before['finished'])
-        almost = runtime.step(1.5, self.data(1.5, x=12.7), self.candidate(runtime, 1.5))
+        almost = runtime.step(1.5, self.data(1.5, x=12.7, runtime=runtime), self.candidate(runtime, 1.5))
         self.assertFalse(almost['finished'])
-        finished = runtime.step(1.6, self.data(1.6, x=12.8), self.candidate(runtime, 1.6))
+        finished = runtime.step(1.6, self.data(1.6, x=12.8, runtime=runtime), self.candidate(runtime, 1.6))
         self.assertTrue(finished['finished'])
         self.assertEqual(finished['reason'], 'COURSE_COMPLETE')
 

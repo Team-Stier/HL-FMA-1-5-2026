@@ -44,9 +44,10 @@ RDDF 파일은 `mando_localization`이 읽어 `/route/map`으로 전달한다.
 State Manager는 이 토픽을 사용하며 다른 패키지의 RDDF 파일을 직접 읽지 않는다.
 활성 미션은 `config/missions.json`의 고정 시작 경로가 아니라
 `/molit/localization/rddf/current`의 유효한 `source_route_name`으로 연다. 따라서
-어느 RDDF에서 초기화하든 1구간부터 순서대로 완료할 필요 없이 그 RDDF 안의 조건만
-판단한다. 매치가 다른 RDDF로 바뀌면 이전 후보 경로를 비우고 새 `decision_id`로 해당
-구간의 독립 미션을 시작한다. 최초 match가 없거나 모호하면 `WAIT_RDDF_MATCH`로 대기한다.
+어느 RDDF에서 초기화하든 그 RDDF 안의 조건부터 판단할 수 있다. 이후에도 이 토픽의
+segment와 fraction을 매 주기 진행거리로 사용한다. State Manager는 Odometry를 RDDF에
+다시 투영하지 않는다. 매치가 다른 RDDF로 바뀌면 기존처럼 새 `decision_id`로 해당
+구간의 독립 미션을 시작한다. 유효한 match가 없으면 정지 상태로 대기한다.
 Selector와 공유하는 순수 Python 검증 코어로 플래너 응답을 동일하게 확인한다.
 `decision_id`는 경로·모드·요청 방향이 바뀔 때 변경된다. 플래너는 이 값을 그대로
 응답해야 하며 이전 구간의 유효한 경로라도 새 요청에 재사용할 수 없다.
@@ -96,7 +97,7 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 | Safety / Selector 상태 | 현재 정지 이유, 경로 준비 여부 |
 
 미설정 상태에서는 매니저가 `CALIBRATION_REQUIRED` 등에 머무를 수 있다. 현재
-`Observed Sxx`의 원본 RDDF match가 활성 미션 구간을 정하며, 이전 구간의 완료 여부는
+`Observed Sxx`의 원본 RDDF match가 활성 미션과 진행거리의 기준이며, 이전 구간의 완료 여부는
 진입 조건이 아니다. 위치가 모호하거나 invalid/stale이면 `UNKNOWN`으로 표시하고
 청록색 강조를 지운다. 검사 노드는 제어·미션 토픽을 발행하지 않으며 marker만 발행한다.
 위치가 갱신되지 않으면 RViz 카메라를 수동으로 이동해 화면의 상태 문구를 확인한다.

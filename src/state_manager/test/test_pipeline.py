@@ -11,7 +11,7 @@ sys.path[:0] = [str(PACKAGES / name / 'src') for name in
                 ('state_manager', 'selector')]
 
 from selector.core import Candidate, Pose, SelectorCore, State, path_fingerprint
-from stier_state_manager.geometry import Route, scan_to_geometry
+from stier_state_manager.geometry import Route, project, scan_to_geometry
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -47,6 +47,15 @@ class Pipeline:
         hits, rays = scan_to_geometry([math.inf] * 361, -math.pi,
                                       math.pi / 180, .01, 60.0,
                                       scanner_pose=(x, 0.0, 0.0))
+        route = self.runtime.source_routes[self.runtime.tracker.route_name]
+        matched = project(route, x, 0.0)
+        segment = matched['segment']
+        length = route.s[segment + 1] - route.s[segment]
+        fraction = ((matched['s'] - route.s[segment]) / length
+                    if length > 1e-9 else 0.0)
+        candidate = {'route': route.name, 'segment_index': segment,
+                     'segment_fraction': fraction,
+                     'distance_m': matched['distance']}
         return {'odom': {'stamp': self.now, 'frame': 'map',
                          'child_frame': 'base_link', 'x': x, 'y': 0.0,
                          'yaw': 0.0, 'speed': speed, 'yaw_rate': 0.0,
@@ -54,7 +63,11 @@ class Pipeline:
                 'localization': {'stamp': self.now, 'valid': True},
                 'localization_state': {'stamp': self.now, 'state': 'TRACKING'},
                 'scan': {'stamp': self.now, 'valid': True,
-                         'hits': hits, 'rays': rays}}
+                         'hits': hits, 'rays': rays},
+                'rddf_match': {'stamp': self.now, 'received': self.now,
+                               'pose_stamp': self.now, 'frame': 'map',
+                               'matched': True, **candidate,
+                               'candidates': [candidate]}}
 
     def candidates(self):
         name, mode, direction = self.runtime.request or (

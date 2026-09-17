@@ -34,6 +34,7 @@ class MissionRuntime:
     def __init__(self, routes, config):
         self.config = config
         self.engine = MissionEngine(config)
+        self.source_routes = dict(routes)
         self.routes = self._with_finish_runout(routes, self.engine.rules['finish_runout_m'])
         self.tracker = RouteTracker(self.routes, config.get('start_route', '1_right'), config.get('tracker'))
         self.decision_id = 0
@@ -131,6 +132,49 @@ class MissionRuntime:
                 or abs(odom['yaw_rate']) > self.config['vehicle']['max_yaw_rate_rps']):
             return False, 'MOTION_OUTSIDE_SCAN_CALIBRATION'
         return True, 'OK'
+
+    def _matched_progress(self, data, now):
+        """Consume Localization's projection for the active RDDF."""
+        observation = data.get('rddf_match', {})
+        timeout = self.config.get('input_timeout_s', 0.5)
+        if (not fresh(observation.get('stamp'), now, timeout)
+                or not fresh(observation.get('received'), now, timeout)
+                or not fresh(observation.get('pose_stamp'), now, timeout)):
+            return None, 'RDDF_MATCH_STALE'
+        if observation.get('frame') != 'map':
+            return None, 'RDDF_MATCH_FRAME_INVALID'
+
+        expected = self.tracker.route_name
+        if not observation.get('matched'):
+            return None, observation.get('reason') or 'RDDF_MATCH_INVALID'
+        if observation.get('route') != expected:
+            return None, 'RDDF_ROUTE_MISMATCH'
+        route = self.source_routes.get(expected)
+        segment = observation.get('segment_index')
+        fraction = observation.get('segment_fraction')
+        distance = observation.get('distance_m')
+        if (route is None or type(segment) is not int
+                or not 0 <= segment < len(route.points) - 1
+                or not all(isinstance(value, (int, float)) and math.isfinite(value)
+                           for value in (fraction, distance))
+                or not 0.0 <= fraction <= 1.0 or distance < 0):
+            return None, 'RDDF_MATCH_INVALID'
+        raw_s = (route.s[segment] + fraction *
+                 (route.s[segment + 1] - route.s[segment]))
+
+        # Section 13 has a State-Manager-owned 3 m straight runout that is not
+        # present in Localization's source CSV.  Past the source endpoint, use
+        # only terminal along-track displacement for that synthetic segment.
+        if self.tracker.current.length > route.length and raw_s >= route.length - 1e-6:
+            odom = data.get('odom', {})
+            end_x, end_y, end_yaw = route.end
+            along = ((odom.get('x', end_x) - end_x) * math.cos(end_yaw)
+                     + (odom.get('y', end_y) - end_y) * math.sin(end_yaw))
+            if math.isfinite(along) and along > 0:
+                raw_s = min(self.tracker.current.length, route.length + along)
+        odom = data.get('odom', {})
+        return self.tracker.update_from_match(
+            expected, raw_s, distance, odom['x'], odom['y'], odom['yaw'], now), 'OK'
 
     def _path_selection(self, data, now):
         """Consume the external Selector's decision without revalidating geometry."""
@@ -258,10 +302,12 @@ class MissionRuntime:
                    's': self.tracker.s, 'raw_s': self.tracker.s, 'length': self.tracker.current.length,
                    'progress': self.tracker.s/self.tracker.current.length, 'at_end': False}
         if healthy:
-            parking = tracked['section'] in (5, 6, 10, 11)
-            tracked.update(self.tracker.update(odom['x'], odom['y'], odom['yaw'], now,
-                                               check_heading=not parking))
-            healthy, reason = tracked['healthy'], tracked['reason']
+            matched, match_reason = self._matched_progress(data, now)
+            if matched is None:
+                healthy, reason = False, match_reason
+            else:
+                tracked.update(matched)
+                healthy, reason = tracked['healthy'], tracked['reason']
         if self.request is None:
             mode = 'LOCAL' if tracked['section'] == 3 else 'PARKING' if tracked['section'] in (5, 6, 10, 11) else 'RDDF'
             self._set_request(tracked['route'], mode, 1)

@@ -197,13 +197,16 @@ class StateManagerNode:
                 'route': msg.source_route_name,
                 'segment_index': int(msg.segment_index),
                 'segment_fraction': float(msg.nearest.segment_fraction),
+                'distance_m': float(msg.nearest.distance_m),
             }
             if (not observation['matched'] or observation['frame'] != 'map'
                     or not observation['route'] or observation['segment_index'] < 0
                     or not all(math.isfinite(observation[key]) for key in
-                               ('stamp', 'received', 'pose_stamp', 'segment_fraction'))
+                               ('stamp', 'received', 'pose_stamp', 'segment_fraction',
+                                'distance_m'))
                     or observation['stamp'] <= 0 or observation['pose_stamp'] <= 0
                     or not 0.0 <= observation['segment_fraction'] <= 1.0
+                    or observation['distance_m'] < 0
                     or msg.nearest.source_route_name != msg.source_route_name
                     or msg.nearest.segment_index != msg.segment_index):
                 observation['matched'] = False
