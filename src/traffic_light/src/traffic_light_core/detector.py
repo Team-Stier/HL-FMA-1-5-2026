@@ -10,6 +10,12 @@ TRAFFIC_CLASSES = {
     'green': 'GREEN',
     'left_arrow': 'LEFT_ARROW',
 }
+LANE_CLASSES = {
+    'down_arrow': 'DOWN',
+    'x_sign': 'X',
+}
+
+
 class Detection(NamedTuple):
     class_name: str
     confidence: float
@@ -18,9 +24,16 @@ class Detection(NamedTuple):
     x_max: float
     y_max: float
 
+    @property
+    def center_x(self) -> float:
+        return (self.x_min + self.x_max) * 0.5
+
 class FrameDecision(NamedTuple):
     signal: str
     signal_confidence: float
+    lane_left: str
+    lane_right: str
+    lane_confidence: float
 
 
 def _best(items: Iterable[Detection]) -> Optional[Detection]:
@@ -30,12 +43,10 @@ def _best(items: Iterable[Detection]) -> Optional[Detection]:
 def decide_frame(detections: Sequence[Detection], image_width: int) -> FrameDecision:
     """Convert detections into the traffic message consumed by State Manager.
 
-    The highest-confidence traffic class wins. The model's speed/lane classes
-    are deliberately ignored because this vehicle does not use camera-based
-    lane control. Missing detections remain UNKNOWN; absence is never
-    interpreted as permission.
+    The highest-confidence traffic class wins. DOWN/X signs are assigned to
+    the left or right finish branch by bounding-box centre. Missing detections
+    remain UNKNOWN; absence is never interpreted as permission.
     """
-    del image_width
     traffic = _best(item for item in detections if item.class_name in TRAFFIC_CLASSES)
     if traffic is None:
         signal, signal_confidence = 'UNKNOWN', 0.0
@@ -43,7 +54,17 @@ def decide_frame(detections: Sequence[Detection], image_width: int) -> FrameDeci
         signal = TRAFFIC_CLASSES[traffic.class_name]
         signal_confidence = traffic.confidence
 
-    return FrameDecision(signal, signal_confidence)
+    lane_candidates = [item for item in detections if item.class_name in LANE_CLASSES]
+    split_x = max(0, image_width) * 0.5
+    left = _best(item for item in lane_candidates if item.center_x < split_x)
+    right = _best(item for item in lane_candidates if item.center_x >= split_x)
+    lane_left = LANE_CLASSES[left.class_name] if left else 'UNKNOWN'
+    lane_right = LANE_CLASSES[right.class_name] if right else 'UNKNOWN'
+    observed = [item.confidence for item in (left, right) if item]
+    lane_confidence = min(observed) if observed else 0.0
+
+    return FrameDecision(signal, signal_confidence,
+                         lane_left, lane_right, lane_confidence)
 
 
 class TrafficLightDetector:

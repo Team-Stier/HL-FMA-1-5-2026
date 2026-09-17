@@ -131,8 +131,8 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 | 8 | RDDF 추종 + DBSCAN 동적장애물 감시 | 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 구간 끝에서 9로 연결 |
 | 9 | 기준경로 추종 | 구간 끝에서 `parking_branches.parallel`에 설정된 평행주차 경로로 연결 |
 | 10/11 | 선택한 평행주차 RDDF 쌍 추종 | 설정된 누적거리에서 실제 정차 후 기어 변경; 10 끝에서 11, 11 끝에서 12 연결 |
-| 12 | 설정된 종료 분기 추종 | `finish_branch=left`는 중간 분기점, right는 끝에서 13 진입 |
-| 13 left/right | 설정된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
+| 12 | 카메라 종료 표지 판정 | 좌·우 중 `DOWN`인 쪽을 3회 연속 확인해 선택; `X`는 진입 불가 |
+| 13 left/right | 선택된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
 
 주차 좌우 분기는 `missions.json`의 `parking_branches.t`와
 `parking_branches.parallel`로 각각 지정한다. 기본값은 둘 다 `left`다. State Manager는
@@ -164,6 +164,12 @@ Left in은 전진 1→9, 후진 9→10이고, Right in은 전진 1→4, 후진 4
 진입을 허용하지 않는다. 일반 초록불과 좌회전 화살표는 구분해야 한다.
 `junction_id`는 전달되지만 현재 허가 판단은 `route_name`으로 구분하므로,
 비전이 다른 교차로의 신호를 현재 구간 이름으로 잘못 붙이지 않아야 한다.
+
+같은 카메라 노드는 12구간에서 `/perception/lane_signals`로 좌·우 `DOWN`/`X`를
+별도로 발행한다. `DOWN`을 3회 연속 확인한 쪽을 13번 종료 분기로 고정하며 `X`,
+`UNKNOWN`, 낮은 confidence, 다른 route 또는 stale 관측은 분기 허가로 쓰지 않는다.
+분기점까지 정상 판단이 안 되면 `finish_fallback_branch`로 진행한다. 양쪽이 동시에
+`DOWN`인 경우에도 이 설정을 우선순위로 사용한다.
 
 - 2·4구간: fresh `GREEN`에서 벽 해제, 기존 RDDF를 따라 직진한다.
 - 7구간: fresh `LEFT_ARROW`에서 벽 해제, 기존 좌회전 RDDF를 따라간다.
@@ -333,6 +339,7 @@ Localization의 `/valid` 판단을 따른다.
 |---|---|---|
 | `/route/map` | `RouteMap` | Localization 소유 RDDF 전체와 origin 제공 |
 | `/perception/traffic_signal` | `SignalObservation` | route_name=2/4/7, 신호값·confidence·실제 측정 시각 |
+| `/perception/lane_signals` | `LaneSignals` | route_name=12, 좌·우 DOWN/X와 confidence·실제 측정 시각 |
 | `/dbscan_clusters` | `visualization_msgs/MarkerArray` | Object Detection의 stamped `map` 군집. dynamic RDDF E-Stop과 3구간 Local Planner가 공유 |
 | `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지·전용 E-Stop 제약 |
 | `/mission/rddf_successor` | `std_msgs/String` | 주차·종료 분기에서 원하는 다음 RDDF 이름. Localization이 연결·진입 위치를 검증 |

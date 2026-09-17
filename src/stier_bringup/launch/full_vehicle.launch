@@ -20,7 +20,7 @@
   <!-- Mission, perception, planning and control. -->
   <arg name="start_object_detection" default="true"/>
   <arg name="start_local_planner" default="true"/>
-  <arg name="start_traffic_light" default="false"/>
+  <arg name="start_traffic_light" default="true"/>
   <arg name="traffic_light_device" default="auto"/>
   <arg name="start_control" default="true"/>
   <arg name="lateral_controller" default="pure_pursuit"/>

@@ -6,7 +6,7 @@ import os
 import rospy
 import rospkg
 from cv_bridge import CvBridge, CvBridgeError
-from planning_interfaces.msg import MissionState, SignalObservation
+from planning_interfaces.msg import LaneSignals, MissionState, SignalObservation
 from sensor_msgs.msg import Image
 
 from traffic_light_core import FrameDecision, TrafficLightDetector, decide_frame
@@ -49,6 +49,8 @@ class TrafficLightNode:
         image_topic = str(rospy.get_param('~image_topic', '/usb_cam/image_raw'))
         self.signal_pub = rospy.Publisher(
             '/perception/traffic_signal', SignalObservation, queue_size=1)
+        self.lane_pub = rospy.Publisher(
+            '/perception/lane_signals', LaneSignals, queue_size=1)
         self.mission_sub = rospy.Subscriber(
             '/mission/state', MissionState, self._mission_callback, queue_size=1)
         self.image_sub = rospy.Subscriber(
@@ -79,6 +81,14 @@ class TrafficLightNode:
         signal.confidence = decision.signal_confidence
         self.signal_pub.publish(signal)
 
+        lanes = LaneSignals()
+        lanes.header = header
+        lanes.route_name = route_name
+        lanes.left = decision.lane_left
+        lanes.right = decision.lane_right
+        lanes.confidence = decision.lane_confidence
+        self.lane_pub.publish(lanes)
+
     def _image_callback(self, msg):
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -86,11 +96,12 @@ class TrafficLightNode:
             decision = decide_frame(detections, frame.shape[1])
         except (CvBridgeError, RuntimeError, ValueError) as error:
             rospy.logerr_throttle(2.0, 'traffic-light inference failed: %s', error)
-            decision = FrameDecision('UNKNOWN', 0.0)
+            decision = FrameDecision('UNKNOWN', 0.0, 'UNKNOWN', 'UNKNOWN', 0.0)
         self._publish(msg.header, decision)
         rospy.loginfo_throttle(
-            1.0, 'traffic signal=%s %.2f route=%s',
+            1.0, 'traffic signal=%s %.2f finish=(%s,%s) %.2f route=%s',
             decision.signal, decision.signal_confidence,
+            decision.lane_left, decision.lane_right, decision.lane_confidence,
             self.route_name_override or self.active_route or 'UNKNOWN')
 
 

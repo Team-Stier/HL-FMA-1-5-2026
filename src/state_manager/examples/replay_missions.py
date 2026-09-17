@@ -24,7 +24,7 @@ class SyntheticReplay:
             raise ValueError('Parking and finish branches must be left or right')
         self.parking_branch, self.finish_branch = parking_branch, finish_branch
         self.engine = MissionEngine({'rules': {'front_bumper_offset_m': .5},
-                                     'finish_branch': finish_branch,
+                                     'finish_fallback_branch': finish_branch,
                                      'parking_branches': {
                                          't': parking_branch,
                                          'parallel': parking_branch,
@@ -59,6 +59,8 @@ class SyntheticReplay:
                                                  *self.request), candidates, self.now)
         spaces = {'stamp': self.now, 'left': 'BLOCKED', 'right': 'BLOCKED'}
         spaces[self.parking_branch] = 'CLEAR'
+        lanes = {'stamp': self.now, 'route': self.route, 'left': 'X', 'right': 'X'}
+        lanes[self.finish_branch] = 'DOWN'
         snapshot = {'now': self.now, 'decision_id': self.epoch,
                     'healthy': True, 'calibrated': True, 'route': self.route,
                     'section': section, 'length': length, 's': s, 'raw_s': s,
@@ -66,7 +68,7 @@ class SyntheticReplay:
                     'finish_branch_s': 13.258,
                     'landmarks': {self.route: marks}, 'path_ready': selection.ready,
                     'signal': {'stamp': self.now, 'route': self.route, 'value': signal},
-                    'parking': spaces if parking else {}}
+                    'lane': lanes, 'parking': spaces if parking else {}}
         decision = self.engine.update(snapshot)
         request = (self.route, decision['path_mode'], decision['direction'])
         if request != self.request:
@@ -168,6 +170,8 @@ class SyntheticReplay:
         self.step(s=20.0, parking=True)
         self.park('parallel')
         self.advance('12')
+        for _ in range(3):
+            self.step(s=12.0, speed=0.0)
         self.step(s=13.258, speed=0.0)
         if self.finish_branch == 'right':
             self.step(s=20.0)

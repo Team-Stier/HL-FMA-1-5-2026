@@ -13,9 +13,10 @@ ROS Noetic 패키지다. 학습 데이터셋, 학습 영상, Ultralytics 실행 
 - 클래스: `red`, `yellow`, `green`, `left_arrow`, `speed_20`, `down_arrow`, `x_sign`
 
 일반 신호 중 confidence가 가장 높은 검출을 `RED`, `YELLOW`, `GREEN`, `LEFT_ARROW`로
-변환한다. 현재 차량은 카메라 기반 차로 제어를 사용하지 않으므로 `speed_20`,
-`down_arrow`, `x_sign`은 검출 결과에서 무시한다. 검출이 없거나 추론이 실패하면 항상
-`UNKNOWN`을 발행한다.
+변환한다. `down_arrow`와 `x_sign`은 bounding box 중심의 영상 좌우 위치에 따라 종료
+분기 신호 `DOWN`과 `X`로 변환한다. `DOWN`은 해당 13번 분기 진입 허용, `X`는 진입
+불가다. `speed_20`은 사용하지 않는다. 검출이 없거나 추론이 실패하면 항상 `UNKNOWN`을
+발행한다.
 
 ## 입출력
 
@@ -24,6 +25,7 @@ ROS Noetic 패키지다. 학습 데이터셋, 학습 영상, Ultralytics 실행 
 | 입력 | `/usb_cam/image_raw` | `sensor_msgs/Image` |
 | 입력 | `/mission/state` | `planning_interfaces/MissionState` |
 | 출력 | `/perception/traffic_signal` | `planning_interfaces/SignalObservation` |
+| 출력 | `/perception/lane_signals` | `planning_interfaces/LaneSignals` |
 
 출력 header에는 카메라 원본 측정 시각과 frame을 그대로 보존한다. 일반 신호 출력의
 `route_name`은 최신 `/mission/state`에서 가져와 다른 구간의 과거 신호가 재사용되지 않게

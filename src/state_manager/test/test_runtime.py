@@ -266,7 +266,7 @@ class RuntimeTests(unittest.TestCase):
 
     def test_finish_route_is_extended_three_metres_and_stops_at_runout_end(self):
         self.routes['13_left'] = Route('13_left', [(x, 0, 0) for x in range(11)])
-        self.config.update(start_route='13_left', finish_branch='left')
+        self.config.update(start_route='13_left', finish_fallback_branch='left')
         self.config.setdefault('rules', {})['finish_runout_m'] = 3.0
         runtime = MissionRuntime(self.routes, self.config)
         self.assertAlmostEqual(runtime.active_route.length, 13.0)

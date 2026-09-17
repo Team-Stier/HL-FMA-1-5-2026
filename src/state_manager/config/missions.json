@@ -28,7 +28,7 @@
     "max_speed_mps": null
   },
   "start_branch": "right",
-  "finish_branch": "left",
+  "finish_fallback_branch": "left",
   "parking_branches": {
     "t": "left",
     "parallel": "left"
@@ -70,6 +70,7 @@
     "traffic_force_departure_s": 20.0,
     "t_parking_transition_hold_s": 2.0,
     "parking_stable_observations": 3,
+    "finish_sign_stable_observations": 3,
     "hill_hold_position_tolerance_m": 0.02
   },
   "speeds": {

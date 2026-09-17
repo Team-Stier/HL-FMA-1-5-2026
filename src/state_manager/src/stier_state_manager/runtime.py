@@ -303,6 +303,7 @@ class MissionRuntime:
                         calibrated=not self.config.get('calibration_mode', False),
                         landmarks=self.config.get('landmarks', {}),
                         signal=data.get('signal', {}), path_ready=selection['ready'],
+                        lane=data.get('lane', {}) if healthy else {},
                         decision_id=self.decision_id,
                         parking=data.get('parking', {}) if healthy else {},
                         finish_branch_s=self.finish_left_branch_s)

@@ -33,6 +33,8 @@ class MissionTests(unittest.TestCase):
             "landmarks": {route: marks}, "path_ready": True, "collision": False,
             "finish_branch_s": 13.258,
             "signal": {"stamp": now, "route": route, "value": "UNKNOWN"},
+            "lane": {"stamp": now, "route": route,
+                     "left": "UNKNOWN", "right": "UNKNOWN"},
             "parking": {"stamp": now, "left": "UNKNOWN", "right": "UNKNOWN"},
         }
         value.update(changes)
@@ -365,24 +367,41 @@ class MissionTests(unittest.TestCase):
         result = self.run_at(3, calibrated=False)
         self.assertTrue(result["stop_requested"])
 
-    def test_default_left_finish_branch_uses_internal_junction(self):
-        before = self.run_at(12, now=0.3, s=13.2)
+    def test_down_sign_selects_left_finish_branch_at_internal_junction(self):
+        for now in (0.1, 0.2, 0.3):
+            before = self.run_at(12, now=now, s=12.9, lane={
+                "stamp": now, "route": "12", "left": "DOWN", "right": "X"})
         self.assertEqual(before["selected_branch"], "left")
         self.assertIsNone(before["next_route"])
-        result = self.run_at(12, now=0.4, s=13.258)
+        result = self.run_at(12, now=0.4, s=13.258, lane={
+            "stamp": 0.4, "route": "12", "left": "DOWN", "right": "X"})
         self.assertEqual(result["next_route"], "13_left")
 
-    def test_configured_right_finish_branch_stays_on_twelve_until_end(self):
-        self.engine = MissionEngine({"finish_branch": "right"})
-        before = self.run_at(12, now=0.3, s=13.258)
+    def test_down_sign_selects_right_finish_branch_until_route_end(self):
+        for now in (0.1, 0.2, 0.3):
+            before = self.run_at(12, now=now, s=12.9, lane={
+                "stamp": now, "route": "12", "left": "X", "right": "DOWN"})
         self.assertEqual(before["selected_branch"], "right")
         self.assertIsNone(before["next_route"])
-        result = self.run_at(12, now=0.4, s=20, at_end=True)
+        result = self.run_at(12, now=0.4, s=20, at_end=True, lane={
+            "stamp": 0.4, "route": "12", "left": "X", "right": "DOWN"})
         self.assertEqual(result["next_route"], "13_right")
+
+    def test_unconfirmed_finish_sign_uses_configured_fallback_at_fork(self):
+        result = self.run_at(12, now=0.3, s=13.2)
+        self.assertFalse(result["stop_requested"])
+        self.assertEqual(result["selected_branch"], "left")
+        self.assertEqual(result["reason"], "FINISH_SIGN_FALLBACK")
+
+    def test_finish_sign_fallback_branch_is_configurable(self):
+        self.engine = MissionEngine({"finish_fallback_branch": "right"})
+        result = self.run_at(12, now=0.3, s=13.2)
+        self.assertEqual(result["selected_branch"], "right")
+        self.assertEqual(result["phase"], "FINISH_FALLBACK_SELECTED")
 
     def test_invalid_finish_branch_configuration_is_rejected(self):
         with self.assertRaises(ValueError):
-            MissionEngine({"finish_branch": "camera"})
+            MissionEngine({"finish_fallback_branch": "camera"})
 
     def test_finish_occurs_at_extended_route_endpoint(self):
         before = self.run_at(13, now=1, s=22.7, length=23.0)

@@ -76,6 +76,13 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(self.node.data['signal']['value'], 'GREEN')
         self.assertNotEqual(self.node.data['signal']['value'], 'LEFT_ARROW')
 
+    def test_finish_lane_signs_are_kept_separate_from_traffic_signal(self):
+        self.node.on_lane_signals(NS(header=self.header(), route_name='12',
+                                     left='DOWN', right='X', confidence=.9))
+        self.assertEqual(self.node.data['lane'], {
+            'stamp': 9.9, 'route': '12', 'left': 'DOWN', 'right': 'X'
+        })
+
     def cluster_marker(self, namespace='dbscan_clusters', action=0, points=None,
                        stamp=9.9, frame='map'):
         return NS(header=self.header(stamp, frame), ns=namespace, action=action, type=8,

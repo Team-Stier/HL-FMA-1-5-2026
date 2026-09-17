@@ -13,7 +13,7 @@ from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
-from planning_interfaces.msg import (MissionState, PathStatus, PlannedPath,
+from planning_interfaces.msg import (LaneSignals, MissionState, PathStatus, PlannedPath,
                                     RouteMap, SafetyStatus,
                                     SignalObservation, TrafficConstraint)
 from stier_state_manager.geometry import Route
@@ -84,6 +84,8 @@ class StateManagerNode:
                              self.on_current_rddf, queue_size=1),
             rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
+            rospy.Subscriber('/perception/lane_signals', LaneSignals,
+                             self.on_lane_signals, queue_size=1),
             rospy.Subscriber('/path/selector_status', PathStatus,
                              self.on_selector_status, queue_size=1),
         ]
@@ -334,6 +336,16 @@ class StateManagerNode:
             self.clock_now()
             self.data['signal'] = {'stamp': msg.header.stamp.to_sec(), 'route': msg.route_name,
                                    'junction_id': msg.junction_id, 'value': value}
+
+    def on_lane_signals(self, msg):
+        valid = self.confident(msg.confidence)
+        left = msg.left if valid and msg.left in ('DOWN', 'X') else 'UNKNOWN'
+        right = msg.right if valid and msg.right in ('DOWN', 'X') else 'UNKNOWN'
+        with self.lock:
+            self.clock_now()
+            self.data['lane'] = {'stamp': msg.header.stamp.to_sec(),
+                                 'route': msg.route_name,
+                                 'left': left, 'right': right}
 
     def on_selector_status(self, msg):
         with self.lock:

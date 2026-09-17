@@ -6,8 +6,8 @@ import threading
 import rospy
 from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry
-from planning_interfaces.msg import (RouteMap, MissionState, SafetyStatus, PathStatus,
-                                    PlannedPath, SignalObservation)
+from planning_interfaces.msg import (LaneSignals, RouteMap, MissionState, SafetyStatus,
+                                    PathStatus, PlannedPath, SignalObservation)
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker, MarkerArray
@@ -34,7 +34,8 @@ class InspectionNode:
                     ('/path/selector_status', PathStatus, 'selection'),
                     ('/object_detection/roi_points', PointCloud2, 'roi'),
                     ('/dbscan_clusters', MarkerArray, 'clusters'),
-                    ('/perception/traffic_signal', SignalObservation, 'signal')]
+                    ('/perception/traffic_signal', SignalObservation, 'signal'),
+                    ('/perception/lane_signals', LaneSignals, 'lanes')]
         bindings += [('/path/' + name, PlannedPath, name) for name in ('rddf', 'local', 'park')]
         self.subscribers = [rospy.Subscriber(topic, kind, self.receive, callback_args=key, queue_size=1)
                             for topic, kind, key in bindings]
@@ -80,6 +81,9 @@ class InspectionNode:
             elif key == 'signal':
                 sample['text'] = '%s | route=%s junction=%s confidence=%.2f' % (
                     msg.value, msg.route_name, msg.junction_id, msg.confidence)
+            elif key == 'lanes':
+                sample['text'] = 'left=%s right=%s | route=%s confidence=%.2f' % (
+                    msg.left, msg.right, msg.route_name, msg.confidence)
             elif key == 'roi':
                 sample['text'] = '%d points (not a free-space verdict)' % (msg.width * msg.height)
             elif key == 'clusters':

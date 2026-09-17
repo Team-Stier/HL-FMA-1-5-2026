@@ -19,6 +19,7 @@ RULE_DEFAULTS = {
     "sensor_timeout_s": 0.5,
     "max_update_gap_s": 0.5,
     "parking_stable_observations": 3,
+    "finish_sign_stable_observations": 3,
     "stop_tolerance_m": 0.2,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
@@ -154,16 +155,18 @@ class MissionEngine:
             if not 0 < self.rules[name] <= maximum:
                 raise ValueError("invalid intersection rule: " + name)
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
+                     "finish_sign_stable_observations",
                      "finish_runout_m", "hill_hold_position_tolerance_m",
                      "traffic_force_departure_s", "t_parking_transition_hold_s"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
-        for name in ("parking_stable_observations",):
+        for name in ("parking_stable_observations", "finish_sign_stable_observations"):
             if int(self.rules[name]) != self.rules[name]:
                 raise ValueError("observation counts must be integers")
-        self.finish_branch = self.config.get("finish_branch", "left")
-        if self.finish_branch not in ("left", "right"):
-            raise ValueError("finish_branch must be left or right")
+        self.finish_fallback_branch = self.config.get(
+            "finish_fallback_branch", self.config.get("finish_branch", "left"))
+        if self.finish_fallback_branch not in ("left", "right"):
+            raise ValueError("finish_fallback_branch must be left or right")
         configured_parking = self.config.get("parking_branches", {})
         if not isinstance(configured_parking, dict):
             raise ValueError("parking_branches must be an object")
@@ -782,24 +785,52 @@ class MissionEngine:
             self._next(out, ROUTES[7])
 
     def _finish_approach(self, snap, out):
-        """Follow the configured finish branch without camera lane control."""
-        side = self.finish_branch
-        self.branches["finish"] = side
+        """Select the section-13 branch from stable DOWN/X camera signs."""
+        lanes = snap.get("lane", {})
+        fresh = self._fresh(lanes, snap["now"], snap["route"])
+        stable = []
+        for side in ("left", "right"):
+            observation = ({"stamp": lanes.get("stamp"), "value": lanes.get(side)}
+                           if fresh else {})
+            if self._stable_candidate("finish", side, observation, snap["now"], "DOWN",
+                                      self.rules["finish_sign_stable_observations"]):
+                stable.append(side)
+        if "finish" not in self.branches and stable:
+            self.branches["finish"] = (self.finish_fallback_branch
+                                       if self.finish_fallback_branch in stable else stable[0])
+        side = self.branches.get("finish")
         out["selected_branch"] = side
-        out["phase"] = "FINISH_BRANCH_SELECTED"
+        out["phase"] = "FINISH_SIGN_SELECTED" if side else "READ_FINISH_SIGN"
+        branch_s = snap.get("finish_branch_s")
+        if not _number(branch_s):
+            self._stop(out, "FINISH_BRANCH_GEOMETRY_INVALID", "UNAVAILABLE")
+            return
+        if not side:
+            out["remaining_stop_m"] = max(0.0, branch_s - snap["s"])
+            if snap["s"] >= branch_s - self.rules["stop_tolerance_m"]:
+                side = self.finish_fallback_branch
+                self.branches["finish"] = side
+                out["selected_branch"] = side
+                out["phase"] = "FINISH_FALLBACK_SELECTED"
+                out["reason"] = "FINISH_SIGN_FALLBACK"
+                out["diagnostics"].append("FINISH_SIGN_FALLBACK:" + side)
+            else:
+                return
         if side == "left":
-            branch_s = snap.get("finish_branch_s")
-            if not _number(branch_s):
-                self._stop(out, "FINISH_BRANCH_GEOMETRY_INVALID", "UNAVAILABLE")
-            elif snap["s"] >= branch_s:
+            if snap["s"] >= branch_s:
                 self._next(out, "13_left")
         elif side == "right" and snap.get("at_end"):
             self._next(out, "13_right")
 
     def _finish(self, snap, out):
         side = _branch(snap["route"])
-        if not side or self.finish_branch != side:
-            self._stop(out, "FINISH_BRANCH_NOT_CONFIGURED", "UNAVAILABLE")
+        selected = self.branches.get("finish")
+        if selected is None and side:
+            # Direct section-13 testing remains possible without replaying 12.
+            self.branches["finish"] = side
+            selected = side
+        if not side or selected != side:
+            self._stop(out, "FINISH_BRANCH_NOT_SELECTED", "UNAVAILABLE")
             return
         self.branches["finish"] = side
         self.committed_branches.add("finish")

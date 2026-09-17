@@ -2,18 +2,18 @@
 
 이 문서는 2026-09-17 현재 소스와 `stier_bringup/full_vehicle.launch`의 실제 연결을 기준으로
 작성했다. 첫 번째 그림은 센서부터 차량까지 실제 전체 흐름을 생략 없이 표시한다.
-카메라 차로 제어처럼 제거한 기능은 그림에 넣지 않는다.
+사용하지 않는 카메라 차로 추종은 그림에 넣지 않는다.
 
 ## 현재 결론
 
-- 신호등 코드는 `traffic_light` 패키지로 들어왔고 카메라의 일반 신호
-  `RED/YELLOW/GREEN/LEFT_ARROW`만 `/perception/traffic_signal`로 발행한다.
+- `traffic_light`는 일반 신호 `RED/YELLOW/GREEN/LEFT_ARROW`와 12구간 종료 분기
+  표지 `DOWN/X`를 서로 다른 토픽으로 발행한다.
 - Object Detection의 DBSCAN 출력은 이제 `path_planner` 입력으로 연결된다.
 - `path_planner`는 ROS 노드가 되어 `/path/local`을 발행하고 Selector가 이를 선택한다.
 - 카메라 기반 차로 제어는 제거했다. `dynamic` 이름의 RDDF에서는 DBSCAN 군집이
   진행 경로 위에 있을 때 State Manager가 전용 E-Stop을 요청한다.
-- 12구간의 종료 분기는 카메라가 아니라
-  `missions.json`의 고정 `finish_branch`로 정한다.
+- 12구간은 카메라에서 3회 연속 `DOWN`인 쪽을 13 left/right로 선택하고,
+  판단 실패 시 `finish_fallback_branch` 설정을 사용한다.
 - T자·평행주차 모두 기록된 RDDF와 설정된 기어 전환거리만 사용한다.
 - Control 기본값은 `pure_pursuit`이며 `/path/final`부터 Arduino 명령까지 연결되어 있다.
 
@@ -45,7 +45,7 @@ flowchart TB
     ESTOP[Emergency Stop]:::sensor
     CAR[Arduino / T870<br/>차량 구동]:::active
 
-    TL -->|traffic signal| SM
+    TL -->|traffic signal · finish DOWN/X| SM
     LOC -->|Odometry · valid · current RDDF match| SM
     SM -.->|선택 분기 힌트<br/>활성화 검증은 Localization| LOC
     LOADER -->|/route/map| SM
@@ -146,7 +146,7 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 설정한 lookahead·경로 반폭 안에 있으면 E-Stop 요청(차량 치수 불필요) |
 | 9 | RDDF | `parking_branches.parallel`에 설정된 평행주차 분기로 접근 |
 | 10, 11 | RDDF | 경로별 설정 거리에서 정차 후 전진·후진 기어를 바꾸며 기록된 RDDF 추종 |
-| 12 | RDDF | `finish_branch` 고정 설정에 따라 13 left/right 연결 |
+| 12 | RDDF | 카메라 좌·우 DOWN/X로 13 left/right 선택, 실패 시 config fallback |
 | 13 | RDDF | 원본 RDDF 끝에서 마지막 방향으로 3 m 연장한 경로 끝에서 정지 |
 
 신호 정지선은 Frenet Planner 입력이 아니다. 2·4·7구간은 RDDF 모드이며 State Manager가
@@ -176,7 +176,7 @@ Localization의 Encoder/IMU/GPS 내부 드라이버는 꺼서 `sensor_bringup`�
 | Object Detection | 켜짐 | `/dbscan_clusters` 생산 |
 | Local Path Planner | 켜짐 | 실측 보정 전에는 출력 억제 |
 | Pure Pursuit Control | 켜짐 | `lateral_controller:=pure_pursuit` |
-| Traffic Light | 꺼짐 | 모델 의존성·카메라 준비 후 `start_traffic_light:=true` |
+| Traffic Light | 켜짐 | 일반 신호와 12구간 DOWN/X 종료 표지 생산 |
 
 신호등 실행 예:
 
