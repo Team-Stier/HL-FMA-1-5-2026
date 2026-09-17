@@ -1,4 +1,5 @@
 <launch>
+  <arg name="rddf_directory" default="$(find mando_localization)/rddf"/>
   <!-- Sensor drivers and localization run separately. -->
   <arg name="config_file" default="$(find state_manager)/config/missions.json"/>
   <arg name="calibration_file" default="$(env HOME)/.ros/stier/landmarks.json"/>
@@ -12,7 +13,7 @@
   <arg name="control_calibration_required" default="false"/>
   <arg name="start_rviz" default="false"/>
   <node respawn="true" respawn_delay="3.0" pkg="mando_localization" type="rddf_route_provider.py" name="rddf_route_provider" output="screen">
-    <param name="rddf_directory" value="$(find mando_localization)/rddf"/>
+    <param name="rddf_directory" value="$(arg rddf_directory)"/>
   </node>
   <node respawn="true" respawn_delay="3.0" pkg="state_manager" type="state_manager_node" name="state_manager" output="screen">
     <param name="config_file" value="$(arg config_file)"/>
@@ -21,6 +22,7 @@
   </node>
   <include if="$(arg start_object_detection)"
            file="$(find object_detection)/launch/rddf_roi_detection.launch">
+    <arg name="rddf_directory" value="$(arg rddf_directory)"/>
     <arg name="start_viewer" value="false"/>
   </include>
   <include if="$(arg start_local_planner)"

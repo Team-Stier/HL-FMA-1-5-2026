@@ -61,6 +61,24 @@ class RuntimeTests(unittest.TestCase):
     def run_step(self, runtime, now, x=0, speed=0):
         return runtime.step(now, self.data(now, x, speed, runtime), self.candidate(runtime, now))
 
+    def test_rddf_preview_crosses_seam_but_respects_next_stop_line(self):
+        runtime = MissionRuntime(self.routes, self.config)
+        runtime.progress_s = 9.0
+        points = runtime.rddf_points(10.0, None)
+        self.assertGreater(points[-1][0], 10.0)
+        self.assertLessEqual(points[-1][0], 14.45 + 1e-6)
+
+    def test_rddf_preview_does_not_append_parking(self):
+        routes = dict(self.routes)
+        routes['4'] = Route('4', [(0, 0, 0), (10, 0, 0)])
+        routes['5_T-left-in'] = Route('5_T-left-in', [(10, 0, 0), (20, 0, 0)], -1)
+        config = dict(self.config, start_route='4')
+        config['landmarks'] = dict(self.config['landmarks'], **{'4': {'stop_line_s': 5}})
+        runtime = MissionRuntime(routes, config)
+        runtime.engine.states['4'] = {'authorized': True}
+        runtime.progress_s = 9.0
+        self.assertLessEqual(runtime.rddf_points(10.0, None)[-1][0], 10.0)
+
     def test_localization_match_is_progress_authority(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1, x=50, runtime=runtime)

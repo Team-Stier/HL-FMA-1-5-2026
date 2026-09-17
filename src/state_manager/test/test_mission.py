@@ -71,6 +71,29 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(released["completed_missions"]["hill"], 3.0)
         self.assertEqual(self.run_at(now=4.0, s=20.0, at_end=True)["next_route"], "2")
 
+    def test_hill_stop_accepts_lateral_offset_within_longitudinal_tolerance(self):
+        for s in (4.9, 5.0, 5.1):
+            with self.subTest(s=s):
+                self.engine = MissionEngine()
+                for i in range(13):
+                    snap = self.snap(now=i*.25, s=s, raw_s=s,
+                                     x=s, y=3.0, speed=-.01)
+                    snap['landmarks']['1_left'].update(
+                        hill_zone_start_s=4., hill_zone_end_s=6.)
+                    result = self.engine.update(snap)
+                self.assertIn('hill', result['completed_missions'])
+                self.assertFalse(result['stop_requested'])
+
+    def test_hill_zone_does_not_expand_longitudinal_stop_tolerance(self):
+        for s in (4.2, 5.8):
+            self.engine = MissionEngine()
+            snap = self.snap(s=s, raw_s=s, speed=0.0)
+            snap['landmarks']['1_left'].update(
+                hill_zone_start_s=4., hill_zone_end_s=6.)
+            result = self.engine.update(snap)
+            self.assertNotIn('hill', result['completed_missions'])
+            self.assertEqual(result['reason'] == 'HILL_STOP_ZONE_MISSED', s > 5.2)
+
     def test_hill_movement_resets_hold(self):
         self.run_at(now=0, s=5.0, speed=0.0)
         self.run_at(now=2, s=5.0, speed=0.2)

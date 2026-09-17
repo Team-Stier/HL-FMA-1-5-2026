@@ -1,7 +1,7 @@
 {
   "map_origin": {
-    "latitude": 37.288731,
-    "longitude": 127.1072336
+    "latitude": 37.5511496,
+    "longitude": 126.9250846
   },
   "input_timeout_s": 0.5,
   "min_confidence": 0.8,
@@ -37,26 +37,41 @@
     "10_parallel-left-in": {
       "initial_direction": 1,
       "changes": [
-        {"s": 9.337439695228316, "direction": -1}
+        {
+          "s": 9.337439695228316,
+          "direction": -1
+        }
       ]
     },
     "10_parallel-right-in": {
       "initial_direction": 1,
       "changes": [
-        {"s": 6.614062696750327, "direction": -1},
-        {"s": 16.56201644939806, "direction": 1}
+        {
+          "s": 6.614062696750327,
+          "direction": -1
+        },
+        {
+          "s": 16.56201644939806,
+          "direction": 1
+        }
       ]
     },
     "11-parallel-left-out": {
       "initial_direction": -1,
       "changes": [
-        {"s": 0.7236489020465036, "direction": 1}
+        {
+          "s": 0.7236489020465036,
+          "direction": 1
+        }
       ]
     },
     "11_parallel-right-out": {
       "initial_direction": -1,
       "changes": [
-        {"s": 2.237988918723955, "direction": 1}
+        {
+          "s": 2.237988918723955,
+          "direction": 1
+        }
       ]
     }
   },
@@ -136,7 +151,7 @@
   },
   "landmark_hints": {},
   "landmark_provenance": {
-    "source": "src/localization/rddf/yongin_mission_landmarks.json",
+    "source": "src/localization/test_data/hongik_rddf/yongin_mission_landmarks.json",
     "confirmed_2026_09_16": [
       "1_left.hill_zone_start_s",
       "1_left.hill_zone_end_s",

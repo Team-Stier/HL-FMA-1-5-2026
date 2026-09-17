@@ -1,4 +1,9 @@
 <launch>
+  <arg name="hongik_test" default="false"/>
+  <arg name="mission_config" default="$(eval find('state_manager') + ('/config/missions_hongik.json' if arg('hongik_test') else '/config/missions.json'))"/>
+  <arg name="rddf_directory" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf' if arg('hongik_test') else '/rddf'))"/>
+  <arg name="rddf_initialization_config" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf/initialization.yaml' if arg('hongik_test') else '/config/rddf_initialization.yaml'))"/>
+  <arg name="localization_viewer_config" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf/viewer.yaml' if arg('hongik_test') else '/config/localization_viewer.yaml'))"/>
   <!-- Physical devices owned by sensor_bringup. -->
   <arg name="enable_lidar" default="true"/>
   <arg name="enable_camera" default="true"/>
@@ -44,6 +49,8 @@
   </include>
 
   <include file="$(find mando_localization)/launch/bringup.launch">
+    <arg name="rddf_initialization_config" value="$(arg rddf_initialization_config)"/>
+    <arg name="rviz_config" value="$(arg localization_viewer_config)"/>
     <!-- sensor_bringup already owns all physical serial devices. Keeping
          these false prevents two rosserial/Xsens/u-blox processes from
          opening the same device. -->
@@ -57,6 +64,8 @@
   </include>
 
   <include file="$(find state_manager)/launch/mission.launch">
+    <arg name="config_file" value="$(arg mission_config)"/>
+    <arg name="rddf_directory" value="$(arg rddf_directory)"/>
     <arg name="start_object_detection" value="$(arg start_object_detection)"/>
     <arg name="start_local_planner" value="$(arg start_local_planner)"/>
     <arg name="start_traffic_light" value="$(arg start_traffic_light)"/>

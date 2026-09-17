@@ -224,6 +224,16 @@ class TrackingTest(unittest.TestCase):
         self.assertEqual(handoff.reason, 'ROUTE_TRANSITION')
         self.assertEqual(handoff.source_route_name, '2')
 
+    def test_active_route_is_retained_when_far_from_centerline(self):
+        self.configure_routes({'1_right': [(0, 0), (10, 0)]})
+        self.feed(x=2, y=0, yaw=0)
+        self.assertTrue(self.message().matched)
+        self.feed(x=2, y=20, yaw=0)
+        result = self.message()
+        self.assertTrue(result.matched)
+        self.assertEqual(result.source_route_name, '1_right')
+        self.assertEqual(result.reason, 'MATCHED_OFF_ROUTE')
+
     def test_initial_crossing_uses_vehicle_heading(self):
         self.configure_routes({
             '1_right': [(0, 0), (10, 0)],

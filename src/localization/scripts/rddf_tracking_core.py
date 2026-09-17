@@ -267,7 +267,10 @@ class RddfTracker:
             self.requested_successor = None
             return self._accepted(successor, 'ROUTE_TRANSITION')
         if active.get('distance', math.inf) > self.maximum:
-            return _grouped(self.route_map, active)
+            # Once acquired, retain the selected route across lateral deviation.
+            # Do not reacquire a different nearby route at an intersection.
+            self.active_progress = max(self.active_progress or 0.0, raw_progress)
+            return self._accepted(active, 'MATCHED_OFF_ROUTE')
         if not active.get('accepted'):
             chosen = self._heading_choice(active.get('candidates', []), yaw)
             if chosen is None:
