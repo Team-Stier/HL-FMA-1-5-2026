@@ -104,14 +104,14 @@ class CalibrationTests(unittest.TestCase):
         self.assertTrue(any('ramp boundaries' in e for e in errors))
 
     def test_parking_requires_measured_yaw_and_endpoint_handoff(self):
-        del self.config['landmarks']['5_T-left-in']['parking_yaw_rad']
+        del self.config['landmarks']['10_parallel-left-in']['parking_yaw_rad']
         self.config['landmarks']['10_parallel-right-in']['parking_confirm_s'] = 18.9
         errors = validate_landmarks(self.config, self.routes)
         self.assertTrue(any('parking_yaw_rad' in e for e in errors))
         self.assertTrue(any('entry endpoint' in e for e in errors))
 
     def test_parking_yaw_degrees_not_accepted_as_radians(self):
-        self.config['landmarks']['5_T-left-in']['parking_yaw_rad'] = 90
+        self.config['landmarks']['10_parallel-left-in']['parking_yaw_rad'] = 90
         self.assertTrue(validate_landmarks(self.config, self.routes))
 
     def test_finish_branch_is_derived_from_rddf_geometry(self):

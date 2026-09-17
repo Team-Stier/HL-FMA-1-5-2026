@@ -181,7 +181,13 @@ def validate_landmarks(config, routes, explicit_validation=False):
         allowed = set(REQUIRED_LANDMARKS.get(route.section, ()))
         if route.section == 1:
             allowed.update(HILL_ZONE_KEYS)
-        if route.section in (5, 10):
+        if route.section == 5:
+            # Legacy values remain accepted but T parking now stops at the
+            # recorded RDDF endpoint and needs no measured parking landmark.
+            allowed.update(('parking_confirm_s', 'parking_yaw_rad'))
+        if route.section == 6:
+            allowed.add('parking_exit_s')
+        if route.section == 10:
             allowed.add('parking_yaw_rad')
         for key in values:
             if key not in allowed:
@@ -194,7 +200,7 @@ def validate_landmarks(config, routes, explicit_validation=False):
                 errors.append(name + ': ' + key + ' is outside the route')
         complete = all(number(values.get(key)) and 0 <= values[key] <= route.length
                        for key in required)
-        if route.section in (5, 10):
+        if route.section == 10:
             yaw = values.get('parking_yaw_rad')
             if not number(yaw) or not -math.pi <= yaw <= math.pi:
                 errors.append(name + ': measured parking_yaw_rad in [-pi, pi] is required')

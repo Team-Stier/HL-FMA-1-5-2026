@@ -287,8 +287,8 @@ class MissionRuntime:
                 tracked.update(matched)
                 healthy, reason = tracked['healthy'], tracked['reason']
         if self.request is None:
-            mode = 'LOCAL' if tracked['section'] == 3 else 'PARKING' if tracked['section'] in (5, 6, 10, 11) else 'RDDF'
-            self._set_request(tracked['route'], mode, 1)
+            mode = 'LOCAL' if tracked['section'] == 3 else 'PARKING' if tracked['section'] in (10, 11) else 'RDDF'
+            self._set_request(tracked['route'], mode, -1 if tracked['section'] == 5 else 1)
         selection = self._path_selection(data, now)
         snapshot = dict(tracked, now=now, healthy=healthy, reason=reason,
                         speed=odom.get('speed', 0), yaw=odom.get('yaw', 0),

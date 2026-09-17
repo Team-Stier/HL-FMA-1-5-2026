@@ -15,6 +15,7 @@ RULE_DEFAULTS = {
     "hill_hold_s": 3.0,
     "hill_hold_position_tolerance_m": 0.02,
     "parking_hold_s": 0.5,
+    "t_parking_transition_hold_s": 2.0,
     "sensor_timeout_s": 0.5,
     "max_update_gap_s": 0.5,
     "parking_stable_observations": 3,
@@ -56,7 +57,6 @@ REQUIRED_LANDMARKS = {
     1: ("hill_start_s", "hill_stop_s", "hill_top_s"),
     2: ("stop_line_s",),
     4: ("stop_line_s",),
-    5: ("parking_confirm_s",), 6: ("parking_exit_s",),
     7: ("stop_line_s",),
     10: ("parking_confirm_s",), 11: ("parking_exit_s",),
 }
@@ -137,7 +137,7 @@ class MissionEngine:
                 raise ValueError("invalid intersection rule: " + name)
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
                      "finish_runout_m", "hill_hold_position_tolerance_m",
-                     "traffic_force_departure_s"):
+                     "traffic_force_departure_s", "t_parking_transition_hold_s"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
         for name in ("parking_stable_observations",):
@@ -261,14 +261,15 @@ class MissionEngine:
             speed_name = "static"
         elif section in (5, 6, 10, 11):
             speed_name = "parking"
-        mode = "LOCAL" if section == 3 else "PARKING" if section in (5, 6, 10, 11) else "RDDF"
+        mode = "LOCAL" if section == 3 else "PARKING" if section in (10, 11) else "RDDF"
+        direction = -1 if section == 5 else self.parking_leg(route).get("direction", 1)
         return {
             "route": route, "section": section, "mission": mission,
             "phase": "APPROACH", "selected_branch": _branch(route),
             "branch": _branch(route), "path_mode": mode,
             "stop_requested": False, "emergency_stop_requested": False,
             "speed_limit": float(self.speeds[speed_name]),
-            "direction": self.parking_leg(route).get("direction", 1),
+            "direction": direction,
             "reason": "", "next_route": None, "remaining_stop_m": None,
             "counters": {}, "diagnostics": [], "completed_missions": {},
             "parking_candidates": {}, "virtual_stop": None,
@@ -392,7 +393,9 @@ class MissionEngine:
                 self._complete("static", now)
                 out["phase"] = "COMPLETE"
                 self._next(out, ROUTES[4])
-        elif section in (5, 6, 10, 11):
+        elif section in (5, 6):
+            self._t_parking(snapshot, state, out, standing)
+        elif section in (10, 11):
             self._parking(snapshot, landmarks, state, out, standing)
         elif section == 8:
             out["phase"] = "MONITORING_DYNAMIC"
@@ -729,13 +732,13 @@ class MissionEngine:
         return None
 
     def _parking(self, snap, marks, state, out, standing):
-        kind = "t" if snap["section"] in (5, 6) else "parallel"
+        kind = "parallel"
         side = _branch(snap["route"])
         if not side or self.branches.get(kind) != side:
             self._stop(out, "PARKING_BRANCH_NOT_AUTHORIZED", "UNAVAILABLE")
             return
         self.committed_branches.add(kind)
-        entry = snap["section"] in (5, 10)
+        entry = snap["section"] == 10
         if not entry and "parking:" + kind + ":entry" not in self.completed_missions:
             self._stop(out, "PARKING_ENTRY_NOT_COMPLETED", "UNAVAILABLE")
             return
@@ -796,7 +799,49 @@ class MissionEngine:
                 self._complete(key, snap["now"])
             if snap.get("at_end") and key in self.completed_missions:
                 out["phase"] = "COMPLETE"
-                self._next(out, ROUTES[7 if kind == "t" else 12])
+                self._next(out, ROUTES[12])
+
+    def _t_parking(self, snap, state, out, standing):
+        """Follow the recorded T RDDF: reverse in, two-second hold, forward out."""
+        side = _branch(snap["route"])
+        if not side or self.branches.get("t") != side:
+            self._stop(out, "PARKING_BRANCH_NOT_AUTHORIZED", "UNAVAILABLE")
+            return
+        self.committed_branches.add("t")
+        out["selected_branch"] = side
+        out["parking_leg_index"] = -1
+        out["parking_leg_target_s"] = -1.0
+        raw_s = snap.get("raw_s", snap["s"])
+        if not _number(raw_s):
+            self._stop(out, "PARKING_RAW_PROGRESS_INVALID", "UNAVAILABLE")
+            return
+        if snap["section"] == 5:
+            out.update(direction=-1, path_mode="RDDF", phase="REVERSE_ENTRY",
+                       parking_leg_phase="REVERSE_ENTRY",
+                       remaining_stop_m=max(0.0, snap["length"] - raw_s))
+            if snap.get("at_end"):
+                self._complete("parking:t:entry", snap["now"])
+                self._stop(out, "T_PARKING_ENTRY_COMPLETE", "WAIT_GEAR_CHANGE")
+                self._next(out, PARKING_ROUTES["t"][side][1])
+            return
+
+        out.update(direction=1, path_mode="RDDF", phase="FORWARD_EXIT",
+                   parking_leg_phase="FORWARD_EXIT", remaining_stop_m=None)
+        hold_key = "parking:t:transition_hold"
+        near_start = raw_s <= self.rules["stop_tolerance_m"]
+        if hold_key not in self.completed_missions and near_start:
+            if self._dwell(state, snap["now"], standing,
+                           self.rules["t_parking_transition_hold_s"]):
+                self._complete(hold_key, snap["now"])
+            else:
+                self._stop(out, "T_PARKING_TRANSITION_HOLD", "WAIT_GEAR_CHANGE")
+                return
+        elif not near_start:
+            self._complete(hold_key, snap["now"])
+        if snap.get("at_end"):
+            self._complete("parking:t:exit", snap["now"])
+            out["phase"] = "COMPLETE"
+            self._next(out, ROUTES[7])
 
     def _finish_approach(self, snap, out):
         """Follow the configured finish branch without camera lane control."""

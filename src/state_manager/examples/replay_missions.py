@@ -98,8 +98,8 @@ class SyntheticReplay:
         if self.last.get('next_route') != expected:
             raise AssertionError('Expected transition to {}, received {}'.format(expected, self.events[-1]))
         self.route = expected
-        mode = 'LOCAL' if self.section == 3 else 'PARKING' if self.section in (5, 6, 10, 11) else 'RDDF'
-        self.request = (expected, mode, 1)
+        mode = 'LOCAL' if self.section == 3 else 'PARKING' if self.section in (10, 11) else 'RDDF'
+        self.request = (expected, mode, -1 if self.section == 5 else 1)
         self.epoch += 1
 
     def traffic(self, parking=False, left=False):
@@ -122,8 +122,16 @@ class SyntheticReplay:
         entry, exit_route = PARKING_ROUTES[kind][self.parking_branch]
         self.advance(entry)
         if kind == 't':
-            reverse = self.leg('REVERSE_ENTRY', 0, 0, 18, True)
-            self.step(speed=0.0, leg=reverse)
+            reversing = self.step(s=12.0, speed=-.5)
+            if not reversing['control_allowed']:
+                raise AssertionError('T-parking reverse RDDF should be commandable')
+            self.step(s=18.0, speed=0.0)
+            self.advance(exit_route)
+            for _ in range(9):
+                self.step(speed=0.0)
+            self.step(s=10.0)
+            self.step(s=20.0)
+            return
         else:
             reverse = self.leg('REVERSE_ENTRY', 0, 0, 18, True)
             self.step(speed=0.0, leg=reverse)

@@ -14,7 +14,7 @@
   진행 경로 위에 있을 때 State Manager가 전용 E-Stop을 요청한다.
 - 12구간의 종료 분기는 카메라가 아니라
   `missions.json`의 고정 `finish_branch`로 정한다.
-- Parking Planner는 이번 범위에서 구현하거나 연결하지 않았다.
+- 평행주차용 Parking Planner는 이번 범위에서 구현하거나 연결하지 않았다.
 - Control 기본값은 `pure_pursuit`이며 `/path/final`부터 Arduino 명령까지 연결되어 있다.
 
 ## 전체 아키텍처
@@ -39,7 +39,7 @@ flowchart TB
         direction LR
         SM[State Manager<br/>Mission FSM · mode/branch 요청<br/>RDDF 구간 절단]:::active
         LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
-        PARK[Parking Planner<br/>아직 미구현]:::later
+        PARK[Parallel Parking Planner<br/>아직 미구현]:::later
     end
 
     SEL[3. Selector<br/>요청 모드에 맞는 경로 하나 선택]:::active
@@ -95,7 +95,8 @@ RDDF에 진입할 때만 활성 경로를 바꾼다. State Manager는 RDDF 순�
 
 - 일반 구간: `State Manager → /path/rddf → Selector → /path/final → PP`
 - 정적 장애물 구간: `Path Planner → /path/local → Selector → /path/final → PP`
-- 주차 구간: 향후 `Parking Planner → /path/park → Selector → /path/final → PP`
+- T자 주차 5·6구간: `State Manager → /path/rddf → Selector → /path/final → PP`
+- 평행주차 10·11구간: 향후 `Parking Planner → /path/park → Selector → /path/final → PP`
 
 Selector는 경로를 새로 만들거나 RDDF를 자르지 않는다. State Manager가 요청한
 `path_mode`, `decision_id`, `route_name`, `direction`, timestamp가 정확히 맞는 후보만
@@ -144,7 +145,7 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 1 | RDDF | 경사로 정지구역 3초 정차 |
 | 2, 4 | RDDF | GREEN과 정지선으로 직진 허가 결정 |
 | 3 | LOCAL | DBSCAN 장애물을 사용한 Frenet 정적 회피 경로 필수 |
-| 5, 6 | PARKING | 설정된 T자 `in`은 전체 후진, `out`은 전체 전진; Planner는 아직 없음 |
+| 5, 6 | RDDF | 설정된 T자 `in`은 전체 후진, 5→6 전환 때 2초 정차 후 `out`은 전체 전진 |
 | 7 | RDDF | LEFT_ARROW와 정지선으로 좌회전 허가 결정 |
 | 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 설정한 lookahead·경로 반폭 안에 있으면 E-Stop 요청(차량 치수 불필요) |
 | 9 | RDDF | `parking_branches.parallel`에 설정된 평행주차 분기로 접근 |
@@ -175,7 +176,7 @@ Localization의 Encoder/IMU/GPS 내부 드라이버는 꺼서 `sensor_bringup`�
 | Local Path Planner | 켜짐 | 실측 보정 전에는 출력 억제 |
 | Pure Pursuit Control | 켜짐 | `lateral_controller:=pure_pursuit` |
 | Traffic Light | 꺼짐 | 모델 의존성·카메라 준비 후 `start_traffic_light:=true` |
-| Parking Planner | 없음 | 추후 작업 |
+| Parallel Parking Planner | 없음 | 추후 작업 |
 
 신호등 실행 예:
 
@@ -188,7 +189,7 @@ roslaunch state_manager mission.launch start_traffic_light:=true traffic_light_d
 
 | 패키지/기능 | 상태 | 이유 |
 |---|---|---|
-| `parking_path_planning` | 빈 패키지 | `/path/park`, `/parking/maneuver` 생산 코드 없음 |
+| `parking_path_planning` | 빈 패키지 | 평행주차용 `/path/park`, `/parking/maneuver` 생산 코드 없음 |
 | `perception_interfaces/ObjectInfo` | 미사용 계약 | Planner는 stamped DBSCAN MarkerArray를 직접 변환 |
 | `perception_interfaces/TLLabel` | 미사용 계약 | 신호등은 `planning_interfaces/SignalObservation` 사용 |
 | Stanley | 대체 구현 | 현재 Control 기본 선택은 PP |
@@ -203,4 +204,4 @@ roslaunch state_manager mission.launch start_traffic_light:=true traffic_light_d
 2. rosbag 또는 정지 차량에서 빈 관측·단일 장애물·전폭 차단 시나리오를 검증한다.
 3. 계산 시간이 `planning_deadline_ms` 안에 들어오는지 실차 PC에서 확인한다.
 4. Traffic Light 의존성을 설치하고 카메라 노출·GPU/CPU 지연·confidence를 측정한다.
-5. Parking Planner는 전진/후진 leg 계약을 확정한 뒤 별도 브랜치에서 구현한다.
+5. 평행주차 Planner는 전진/후진 leg 계약을 확정한 뒤 별도 브랜치에서 구현한다.
