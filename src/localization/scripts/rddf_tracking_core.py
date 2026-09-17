@@ -108,7 +108,12 @@ class RddfTracker:
         self.valid = (bool(valid), received)
 
     def update_successor_request(self, source):
-        self.requested_successor = source.strip() if isinstance(source, str) else None
+        requested = source.strip() if isinstance(source, str) else None
+        if (requested and self.active_source and requested != self.active_source
+                and self._section(requested) == 1 and self._section(self.active_source) == 1):
+            self.active_source = None
+            self.active_progress = None
+        self.requested_successor = requested
 
     @staticmethod
     def _section(name):
@@ -162,6 +167,13 @@ class RddfTracker:
     def _initial_match(self, x, y, yaw):
         result = current_rddf_match(self.route_map, (x, y), True,
                                     self.maximum, self.margin)
+        requested = next((candidate for candidate in result.get('candidates', [])
+                          if candidate['source_route'] == self.requested_successor), None)
+        if requested is not None:
+            self.active_source = requested['source_route']
+            self.active_progress = self._progress(requested)
+            self.requested_successor = None
+            return self._accepted(requested, 'MATCHED_BY_REQUEST')
         if result.get('accepted'):
             candidates = result.get('candidates', [])
             sources = {item['source_route'] for item in candidates}

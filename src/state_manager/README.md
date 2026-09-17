@@ -6,6 +6,8 @@
 PDF 자체는 저장소에 포함하지 않는다. 시험장 현장 설정은 `config/missions.json`과
 별도의 landmark 파일로 관리한다.
 
+출발 1번 RDDF는 `start_branch`의 `left`/`right`로 고정하며 기본값은 `right`다.
+
 **이 코드는 미션 결정과 경로 요청의 구현이다.** 경로 추종 Control과
 S자 회피용 Object Detection/Local Planner가 연결됐고 신호등 패키지도 선택 실행할 수
 있다. 주차 경로 플래너는 아직 통합되지 않았다. 실제 차폭·제동 성능·일부 landmark는

@@ -60,7 +60,8 @@ class AdapterTests(unittest.TestCase):
         self.node.lock = threading.RLock()
         self.node.data = {}
         self.node.last_clock, self.node.clock_fault = None, ''
-        self.node.config = {'input_timeout_s': .5}
+        self.node.config = {'input_timeout_s': .5, 'start_branch': 'right'}
+        self.node.start_route = '1_right'
         self.node.routes, self.node.runtime, self.node.map_fingerprint = {}, None, None
         self.node.active_match_route, self.node.rddf_match = '', None
         self.node.last_decision = None
@@ -157,6 +158,14 @@ class AdapterTests(unittest.TestCase):
         self.node.on_current_rddf(self.rddf_match('3_s-static-obstacle', fraction=.5))
         self.assertEqual(self.node.runtime.start_route, '3_s-static-obstacle')
         self.assertAlmostEqual(self.node.runtime.progress_s, 15.0)
+
+    def test_configured_start_branch_rejects_other_section_one_route(self):
+        self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}
+        self.node.on_route_map(self.route_map())
+        self.node.on_current_rddf(self.rddf_match('1_left'))
+        self.assertIsNone(self.node.runtime)
+        self.node.on_current_rddf(self.rddf_match('1_right'))
+        self.assertEqual(self.node.runtime.start_route, '1_right')
 
     def test_new_matched_route_preserves_mission_runtime(self):
         self.node.config['map_origin'] = {'latitude': 37.0, 'longitude': 127.0}

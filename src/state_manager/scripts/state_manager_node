@@ -64,6 +64,10 @@ class StateManagerNode:
             rospy.logwarn('Calibration overlay missing: %s; using base mission configuration', calibration_file)
         if rospy.get_param('~calibration_mode', False):
             self.config['calibration_mode'] = True
+        start_branch = self.config.get('start_branch', 'right')
+        if start_branch not in ('left', 'right'):
+            raise ValueError('start_branch must be left or right')
+        self.start_route = '1_' + start_branch
         self.state_pub = rospy.Publisher('/mission/state', MissionState, queue_size=1)
         self.safety_pub = rospy.Publisher('/mission/safety', SafetyStatus, queue_size=1)
         self.constraint_pub = rospy.Publisher('/mission/traffic_constraint', TrafficConstraint, queue_size=1)
@@ -226,6 +230,8 @@ class StateManagerNode:
         route = self.routes.get(route_name)
         segment_index = match['segment_index']
         if route is None or not 0 <= segment_index < len(route.points) - 1:
+            return
+        if self.runtime is None and route.section == 1 and route_name != self.start_route:
             return
         if self.runtime is not None and route_name == self.active_match_route:
             return
@@ -425,7 +431,9 @@ class StateManagerNode:
         self.constraint_pub.publish(constraint)
         self.state_pub.publish(state)
         self.safety_pub.publish(safety)
-        self.successor_pub.publish(String(data=decision.get('next_route') or ''))
+        requested_route = (self.start_route if self.runtime is None
+                           else decision.get('next_route') or '')
+        self.successor_pub.publish(String(data=requested_route))
         diagnostics = {'stamp': now, 'route': state.route_name, 'phase': state.phase,
                        'valid': state.valid, 'reason': state.reason,
                        'run_started': decision.get('run_started', False),

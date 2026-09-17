@@ -235,6 +235,31 @@ class TrackingTest(unittest.TestCase):
         self.assertEqual(matched.reason, 'MATCHED_BY_HEADING')
         self.assertEqual(matched.source_route_name, '7')
 
+    def test_requested_section_one_branch_overrides_initial_match(self):
+        self.configure_routes({
+            '1_left': [(0, 0), (10, 0)],
+            '1_right': [(0, 0), (10, 0)],
+        })
+        self.tracker.update_successor_request('1_right')
+        self.feed(x=2, y=0, yaw=0)
+        matched = self.message()
+        self.assertTrue(matched.matched)
+        self.assertEqual(matched.reason, 'MATCHED_BY_REQUEST')
+        self.assertEqual(matched.source_route_name, '1_right')
+
+    def test_late_section_one_request_replaces_initial_heading_choice(self):
+        self.configure_routes({
+            '1_left': [(0, 0), (10, 0)],
+            '1_right': [(10, 0), (0, 0)],
+        })
+        self.feed(x=2, y=0, yaw=0)
+        self.assertEqual(self.message().source_route_name, '1_left')
+        self.tracker.update_successor_request('1_right')
+        self.feed(x=2, y=0, yaw=0)
+        matched = self.message()
+        self.assertEqual(matched.reason, 'MATCHED_BY_REQUEST')
+        self.assertEqual(matched.source_route_name, '1_right')
+
     def test_initial_acquisition_still_allows_arbitrary_section(self):
         self.configure_routes({
             '1_right': [(0, 0), (10, 0)],
