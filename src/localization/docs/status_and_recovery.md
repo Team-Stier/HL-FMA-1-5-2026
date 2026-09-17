@@ -108,7 +108,7 @@ GPS gate 자체 신호는 `/mando_localization/internal/gps/gate_relocalizing`�
 
 ## GPS·Global 일관성 검사
 
-healthy GPS pose와 최신 Global Odometry의 XY 거리가 `max_global_consistency_distance_m` 기본 10 m를 넘으면 보정이 Global 결과와 일치하지 않는 것으로 봅니다.
+healthy GPS pose와 최신 Global Odometry의 XY 거리가 `max_global_consistency_distance_m`의 현재 설정값 30 m를 넘으면 보정이 Global 결과와 일치하지 않는 것으로 봅니다.
 
 이 조건들은 모두 `RELOCALIZING`과 출력 차단으로 이어집니다. GPS gate의 prediction anchor 적용에는 명시적인 transaction ack가 있지만, `robot_localization`이 각 GPS 측정을 내부 innovation gate에서 수용했다는 별도 acknowledgement는 없습니다. 일반 융합 입력은 pose와 Global 결과의 거리 일관성으로 간접 감시합니다.
 
@@ -127,9 +127,9 @@ GPS를 활성화한 세션에서 GPS가 끊긴 경우에는 아래 예산을 적
 quaternion, twist 검사와 Supervisor `valid` 조건은 계속 적용합니다.
 
 ```text
-seconds_since_absolute <= 2.0 s
+seconds_since_absolute <= 200.0 s
 AND
-dead_reckoning_distance <= 10.0 m
+dead_reckoning_distance <= 1000.0 m
 ```
 
 두 값이 모두 한계 이하여야 `DEAD_RECKONING`, `valid=true`입니다. 어느 하나라도 한계를 초과하면 `FAULT`, `valid=false`입니다. 정확히 경계값과 같을 때는 아직 허용하고 `>`에서 차단합니다.

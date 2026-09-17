@@ -88,6 +88,29 @@ class ViewerTest(unittest.TestCase):
         self.assertEqual(result['reason'], 'AMBIGUOUS_ROUTE')
         self.assertEqual(result['routes'], ['overlap', 'test'])
 
+    def test_accepted_overlap_still_requires_manual_source_route_choice(self):
+        from rddf_initialization_core import RddfRouteMap
+        (self.root/'overlap.csv').write_text(
+            (self.root/'route.csv').read_text().replace(',test,', ',overlap,'))
+        match = RddfRouteMap(self.root).match(5., 5., 5.)
+        self.assertTrue(match['accepted'])
+        self.assertEqual(match['reason'], 'MATCHED')
+        self.assertEqual({candidate['route'] for candidate in match['candidates']},
+                         {'overlap', 'test'})
+        self.assertTrue(v.manual_candidate_menu_required(match))
+
+    def test_manual_candidate_menu_preserves_ambiguous_direction_choice(self):
+        self.assertTrue(v.manual_candidate_menu_required({
+            'accepted': False,
+            'reason': 'AMBIGUOUS_ROUTE',
+            'candidates': [{'route': 'test'}, {'route': 'test'}],
+        }))
+        self.assertFalse(v.manual_candidate_menu_required({
+            'accepted': True,
+            'reason': 'MATCHED',
+            'candidates': [{'route': 'test'}, {'route': 'test'}],
+        }))
+
     @staticmethod
     def odom(x,y,yaw):
         msg=Odometry();msg.pose.pose.position.x=x;msg.pose.pose.position.y=y

@@ -59,11 +59,11 @@ GPS gate는 직전 승인 GPS와 그 측정 시각의 Local Odometry를 anchor�
 clock_ready와 이력 정합 조건은 [센서 시각 문서](sensor_timing.md)를 참고합니다.
 
 ```text
-Euclidean innovation <= 10.0 m
-Mahalanobis distance <= 5.0
+Euclidean innovation <= 30.0 m
+Mahalanobis distance <= 20.0
 ```
 
-여기서 `10.0 m`는 현재 GPS와 Local의 거리가 항상 10 m라는 뜻이 아니라
+여기서 `30.0 m`는 현재 GPS와 Local의 거리가 항상 30 m라는 뜻이 아니라
 `quality.max_position_innovation_m`의 거부 경계입니다. 실제 innovation은 GPS
 후보마다 달라집니다. 짧은 구간에서는 Local Odometry가 연속 움직임을 잘
 표현하므로 점프·오측정을 거르는 기준으로 사용하지만, 단절이 길어져 drift가

@@ -96,7 +96,7 @@ class MissionTests(unittest.TestCase):
 
     def test_hill_movement_resets_hold(self):
         self.run_at(now=0, s=5.0, speed=0.0)
-        self.run_at(now=2, s=5.0, speed=0.2)
+        self.run_at(now=2, s=5.0, speed=0.6)
         self.run_at(now=3, s=5.0, speed=0.0)
         self.poll(start=3.25, end=5.75, s=5.0, speed=0.0)
         self.assertTrue(self.run_at(now=5.9, s=5.0, speed=0.0)["stop_requested"])
@@ -263,14 +263,14 @@ class MissionTests(unittest.TestCase):
         self.assertEqual((forward["path_mode"], forward["direction"]), ("RDDF", 1))
         self.assertAlmostEqual(forward["parking_leg_target_s"], 9.337439695228316)
         moving = self.run_at(10, route="10_parallel-left-in", now=1.1,
-                             s=9.2, speed=.2)
+                             s=9.2, speed=.6)
         self.assertEqual((moving["reason"], moving["direction"]),
                          ("PARALLEL_GEAR_CHANGE", 1))
-        switched = self.run_at(10, route="10_parallel-left-in", now=1.2,
-                               s=9.2, speed=0)
+        switched = self.poll(10, start=1.2, end=2.2,
+                             route="10_parallel-left-in", s=9.2, speed=0)
         self.assertEqual((switched["reason"], switched["direction"]),
                          ("PARALLEL_GEAR_CHANGE", -1))
-        reversing = self.run_at(10, route="10_parallel-left-in", now=1.3,
+        reversing = self.run_at(10, route="10_parallel-left-in", now=2.3,
                                 s=10, speed=-.5)
         self.assertFalse(reversing["stop_requested"])
         self.assertEqual(reversing["direction"], -1)
@@ -279,13 +279,13 @@ class MissionTests(unittest.TestCase):
         self.select_parking("parallel", "right")
         route = "10_parallel-right-in"
         self.assertEqual(self.run_at(10, route=route, now=1, s=2)["direction"], 1)
-        first = self.run_at(10, route=route, now=1.1, s=6.5, speed=0)
+        first = self.poll(10, start=1.1, end=2.1, route=route, s=6.5, speed=0)
         self.assertEqual((first["direction"], first["parking_leg_index"]), (-1, 1))
-        self.assertEqual(self.run_at(10, route=route, now=1.2, s=10,
+        self.assertEqual(self.run_at(10, route=route, now=2.2, s=10,
                                      speed=-.5)["direction"], -1)
-        second = self.run_at(10, route=route, now=1.3, s=16.4, speed=0)
+        second = self.poll(10, start=2.3, end=3.3, route=route, s=16.4, speed=0)
         self.assertEqual((second["direction"], second["parking_leg_index"]), (1, 2))
-        self.assertFalse(self.run_at(10, route=route, now=1.4, s=17,
+        self.assertFalse(self.run_at(10, route=route, now=3.4, s=17,
                                      speed=.5)["stop_requested"])
 
     def test_parallel_out_routes_reverse_then_forward(self):
@@ -297,13 +297,13 @@ class MissionTests(unittest.TestCase):
                 self.select_parking("parallel", side)
                 reverse = self.run_at(11, route=route, now=1, s=0, speed=-.2)
                 self.assertEqual((reverse["path_mode"], reverse["direction"]), ("RDDF", -1))
-                switched = self.run_at(11, route=route, now=1.1,
-                                       s=change - .1, speed=0)
+                switched = self.poll(11, start=1.1, end=2.1, route=route,
+                                     s=change - .1, speed=0)
                 self.assertEqual(switched["direction"], 1)
-                forward = self.run_at(11, route=route, now=1.2, s=change + .5)
+                forward = self.run_at(11, route=route, now=2.2, s=change + .5)
                 self.assertFalse(forward["stop_requested"])
                 self.assertEqual(forward["direction"], 1)
-                complete = self.run_at(11, route=route, now=1.3, s=20, at_end=True)
+                complete = self.run_at(11, route=route, now=2.3, s=20, at_end=True)
                 self.assertEqual(complete["next_route"], "12")
 
     def test_parallel_profile_can_start_mid_route_for_section_testing(self):
@@ -319,19 +319,91 @@ class MissionTests(unittest.TestCase):
         reversing = self.run_at(5, now=1, route="5_T-left-in", s=5, speed=-0.5)
         self.assertFalse(reversing["stop_requested"])
         self.assertEqual((reversing["path_mode"], reversing["direction"]), ("RDDF", -1))
-        entry_end = self.run_at(5, now=1.1, route="5_T-left-in", s=20,
-                                at_end=True, speed=0)
+        entry_end = self.poll(5, start=1.1, end=2.1, route="5_T-left-in", s=20,
+                              at_end=True, speed=0)
         self.assertTrue(entry_end["stop_requested"])
         self.assertEqual(entry_end["next_route"], "6-T-left-out")
 
-        holding = self.run_at(6, now=1.2, route="6-T-left-out", s=0, speed=0)
-        self.assertTrue(holding["stop_requested"])
-        self.assertEqual(holding["reason"], "T_PARKING_TRANSITION_HOLD")
-        released = self.poll(6, start=1.45, end=3.2, route="6-T-left-out", s=0, speed=0)
-        self.assertFalse(released["stop_requested"], released)
-        self.assertEqual((released["path_mode"], released["direction"]), ("RDDF", 1))
-        exited = self.run_at(6, now=3.3, route="6-T-left-out", s=20, at_end=True)
+        forward = self.run_at(6, now=2.2, route="6-T-left-out", s=0, speed=0)
+        self.assertFalse(forward["stop_requested"], forward)
+        self.assertEqual((forward["path_mode"], forward["direction"]), ("RDDF", 1))
+        exited = self.run_at(6, now=2.3, route="6-T-left-out", s=20, at_end=True)
         self.assertEqual(exited["next_route"], "7")
+
+    def test_t_reverse_handoff_brakes_until_continuous_standstill(self):
+        self.engine = MissionEngine({
+            "parking_branches": {"t": "left", "parallel": "left"},
+            "rules": {"standstill_speed_mps": 0.5,
+                      "parking_hold_s": 0.5},
+        })
+        self.run_at(4, now=1.0, s=10.0,
+                    signal={"stamp": 1.0, "route": "4", "value": "GREEN"})
+
+        rolling = self.run_at(4, now=1.1, s=20.0, at_end=True, speed=0.6)
+        self.assertTrue(rolling["stop_requested"])
+        self.assertEqual((rolling["phase"], rolling["reason"], rolling["direction"]),
+                         ("WAIT_GEAR_CHANGE", "T_PARKING_REVERSE_HOLD", 1))
+        self.assertIsNone(rolling["next_route"])
+
+        for now in (1.2, 1.4, 1.6):
+            held = self.run_at(4, now=now, s=20.0, at_end=True, speed=0.5)
+        self.assertTrue(held["stop_requested"])
+        self.assertEqual(held["next_route"], None)
+        ready = self.run_at(4, now=1.7, s=20.0, at_end=True, speed=0.5)
+        self.assertTrue(ready["stop_requested"])
+        self.assertEqual(ready["next_route"], "5_T-left-in")
+
+        reverse = self.run_at(5, now=1.8, route="5_T-left-in", s=0.0, speed=0.0)
+        self.assertFalse(reverse["stop_requested"])
+        self.assertEqual((reverse["path_mode"], reverse["direction"], reverse["phase"]),
+                         ("RDDF", -1, "REVERSE_ENTRY"))
+
+    def test_t_reverse_handoff_stays_latched_when_endpoint_projection_jitters(self):
+        self.engine = MissionEngine({
+            "parking_branches": {"t": "left", "parallel": "left"},
+            "rules": {"parking_hold_s": 0.5},
+        })
+        first = self.run_at(4, now=1.0, s=20.0, at_end=True, speed=0.6,
+                            signal={"stamp": 1.0, "route": "4", "value": "GREEN"})
+        self.assertEqual(first["reason"], "T_PARKING_REVERSE_HOLD")
+
+        # The next projection is no longer at_end, but the stop and dwell must
+        # remain active instead of returning to CROSSING motion.
+        jittered = self.run_at(4, now=1.1, s=19.0, at_end=False, speed=0.0)
+        self.assertTrue(jittered["stop_requested"])
+        self.assertEqual(jittered["reason"], "T_PARKING_REVERSE_HOLD")
+        self.assertIsNone(jittered["next_route"])
+        ready = self.run_at(4, now=1.6, s=19.0, at_end=False, speed=0.0)
+        self.assertTrue(ready["stop_requested"])
+        self.assertEqual(ready["next_route"], "5_T-left-in")
+
+    def test_t_entry_does_not_request_forward_exit_while_still_rolling(self):
+        self.select_parking("t")
+        rolling = self.run_at(5, now=1.0, route="5_T-left-in", s=20,
+                              at_end=True, speed=-0.6)
+        self.assertTrue(rolling["stop_requested"])
+        self.assertIsNone(rolling["next_route"])
+        self.assertNotIn("parking:t:entry", rolling["completed_missions"])
+
+        stopped = self.poll(5, start=1.1, end=2.1, route="5_T-left-in", s=20,
+                            at_end=True, speed=0.0)
+        self.assertTrue(stopped["stop_requested"])
+        self.assertEqual(stopped["next_route"], "6-T-left-out")
+        self.assertIn("parking:t:entry", stopped["completed_missions"])
+
+    def test_t_entry_endpoint_stop_stays_latched_across_projection_jitter(self):
+        self.select_parking("t")
+        first = self.run_at(5, now=1.0, route="5_T-left-in", s=20,
+                            at_end=True, speed=-0.6)
+        self.assertTrue(first["stop_requested"])
+        jittered = self.run_at(5, now=1.1, route="5_T-left-in", s=19,
+                               at_end=False, speed=-0.6)
+        self.assertTrue(jittered["stop_requested"])
+        self.assertIsNone(jittered["next_route"])
+        stopped = self.poll(5, start=1.2, end=2.2, route="5_T-left-in", s=19,
+                            at_end=False, speed=0.0)
+        self.assertTrue(stopped["stop_requested"])
+        self.assertEqual(stopped["next_route"], "6-T-left-out")
 
     def test_parallel_ignores_removed_parking_maneuver_input(self):
         self.select_parking("parallel", "left")
@@ -365,9 +437,11 @@ class MissionTests(unittest.TestCase):
     def test_t_and_parallel_parking_branches_are_independently_configurable(self):
         self.engine = MissionEngine({
             "parking_branches": {"t": "right", "parallel": "left"},
+            "rules": {"parking_hold_s": 0.1},
         })
-        t_result = self.run_at(4, s=20, at_end=True,
-                               signal={"stamp": 0, "route": "4", "value": "GREEN"})
+        self.run_at(4, s=20, at_end=True, speed=0.0,
+                    signal={"stamp": 0, "route": "4", "value": "GREEN"})
+        t_result = self.run_at(4, now=0.1, s=20, at_end=True, speed=0.0)
         self.assertEqual(t_result["selected_branch"], "right")
         self.assertEqual(t_result["next_route"], "5_T-right-in")
         parallel_result = self.run_at(9, now=0.1, s=20, at_end=True)
@@ -378,10 +452,11 @@ class MissionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MissionEngine({"parking_branches": {"t": "camera", "parallel": "left"}})
 
-    def test_t_exit_direct_start_holds_before_forward_motion(self):
+    def test_t_exit_direct_start_uses_forward_rddf(self):
         self.select_parking("t", "left")
         result = self.run_at(6, now=0.3, s=0, speed=0)
-        self.assertEqual(result["reason"], "T_PARKING_TRANSITION_HOLD")
+        self.assertFalse(result["stop_requested"])
+        self.assertEqual((result["path_mode"], result["direction"]), ("RDDF", 1))
 
     def test_section_eight_keeps_rddf_mode_for_dynamic_monitoring(self):
         before = self.run_at(8, s=10)
@@ -587,7 +662,7 @@ class MissionTests(unittest.TestCase):
                 self.assertIn('hill', result['completed_missions'])
 
     def test_hill_accepts_signed_speed_within_standstill_range(self):
-        for speed in (-.05, -.001, 0., .001, .05):
+        for speed in (-.5, -.1, 0., .1, .5):
             with self.subTest(speed=speed):
                 self.engine = MissionEngine()
                 result = self.poll(s=5, raw_s=5, speed=speed)
@@ -595,7 +670,7 @@ class MissionTests(unittest.TestCase):
                 self.assertFalse(result['stop_requested'])
 
     def test_hill_rejects_speed_outside_standstill_range(self):
-        for speed in (-.051, .051):
+        for speed in (-.501, .501):
             with self.subTest(speed=speed):
                 self.engine = MissionEngine()
                 result = self.poll(s=5, raw_s=5, speed=speed)

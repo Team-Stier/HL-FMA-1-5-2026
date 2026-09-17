@@ -11,11 +11,11 @@ import math
 
 
 RULE_DEFAULTS = {
-    "standstill_speed_mps": 0.05,
+    # One shared standstill definition is used by every mission.
+    "standstill_speed_mps": 0.5,
     "hill_hold_s": 3.0,
     "hill_hold_position_tolerance_m": 0.02,
-    "parking_hold_s": 0.5,
-    "t_parking_transition_hold_s": 2.0,
+    "parking_hold_s": 1.0,
     "sensor_timeout_s": 0.5,
     "max_update_gap_s": 0.5,
     "parking_stable_observations": 3,
@@ -157,7 +157,7 @@ class MissionEngine:
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
                      "finish_sign_stable_observations",
                      "finish_runout_m", "hill_hold_position_tolerance_m",
-                     "traffic_force_departure_s", "t_parking_transition_hold_s"):
+                     "traffic_force_departure_s", "parking_hold_s"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
         for name in ("parking_stable_observations", "finish_sign_stable_observations"):
@@ -431,8 +431,14 @@ class MissionEngine:
             self._traffic(snapshot, landmarks, state, out)
             if section == 4:
                 self._parking_preview(snapshot, out, "t")
-                if snapshot.get("at_end") and state.get("authorized") and not out["stop_requested"]:
-                    self._parking_handoff(snapshot, out, "t")
+                if snapshot.get("at_end") and state.get("authorized"):
+                    # Once the end of the forward approach has been observed,
+                    # retain the handoff even if projection jitters off the
+                    # endpoint while the vehicle is braking.
+                    state["t_reverse_handoff_pending"] = True
+                if (state.get("t_reverse_handoff_pending")
+                        and not out["stop_requested"]):
+                    self._t_reverse_handoff(snapshot, state, out, standing)
         elif section == 3:
             out["phase"] = "AVOIDING"
             if snapshot.get("at_end"):
@@ -452,7 +458,7 @@ class MissionEngine:
         elif section == 9:
             self._parking_preview(snapshot, out, "parallel")
             if snapshot.get("at_end"):
-                self._parking_handoff(snapshot, out, "parallel")
+                self._next(out, PARKING_ROUTES["parallel"][self.branches["parallel"]][0])
         elif section == 12:
             self._finish_approach(snapshot, out)
         elif section == 13:
@@ -675,13 +681,12 @@ class MissionEngine:
         if snap["section"] == 9:
             out["phase"] = "SPACE_SELECTED"
 
-    def _parking_handoff(self, snap, out, kind):
-        side = self.branches.get(kind)
-        if not side:
-            self._stop(out, "PARKING_SPACE_UNCONFIRMED", "WAIT_SPACE")
-            return
-        out["selected_branch"] = side
-        self._next(out, PARKING_ROUTES[kind][side][0])
+    def _t_reverse_handoff(self, snap, state, out, standing):
+        held = self._dwell(state, snap["now"], standing,
+                           self.rules["parking_hold_s"])
+        self._stop(out, "T_PARKING_REVERSE_HOLD", "WAIT_GEAR_CHANGE")
+        if held:
+            self._next(out, PARKING_ROUTES["t"][self.branches["t"]][0])
 
     def _parallel_parking(self, snap, state, out, standing):
         """Follow the recorded parallel-parking RDDF and change gear at its configured points."""
@@ -720,7 +725,10 @@ class MissionEngine:
         if index + 1 < len(legs):
             out["remaining_stop_m"] = max(0.0, end_s - raw_s)
             if raw_s >= end_s - self.rules["stop_tolerance_m"]:
-                if standing:
+                held = self._dwell(state, snap["now"], standing,
+                                   self.rules["parking_hold_s"])
+                self._stop(out, "PARALLEL_GEAR_CHANGE", "WAIT_GEAR_CHANGE")
+                if held:
                     state["parallel_leg_index"] = index + 1
                     next_start, next_direction = legs[index + 1]
                     next_end = (legs[index + 2][0]
@@ -731,16 +739,21 @@ class MissionEngine:
                                parking_leg_phase=next_phase,
                                parking_leg_target_s=next_end,
                                rddf_start_s=next_start, rddf_end_s=next_end)
-                self._stop(out, "PARALLEL_GEAR_CHANGE", "WAIT_GEAR_CHANGE")
+                    state["dwell_since"] = None
+            else:
+                state["dwell_since"] = None
             return
 
         if snap["section"] == 10:
             out["remaining_stop_m"] = max(0.0, snap["length"] - raw_s)
             if raw_s >= snap["length"] - self.rules["stop_tolerance_m"]:
                 self._stop(out, "PARALLEL_ENTRY_COMPLETE", "PARKED")
-                if standing:
+                if self._dwell(state, snap["now"], standing,
+                               self.rules["parking_hold_s"]):
                     self._complete("parking:parallel:entry", snap["now"])
                     self._next(out, PARKING_ROUTES["parallel"][side][1])
+            else:
+                state["dwell_since"] = None
             return
 
         out["remaining_stop_m"] = None
@@ -750,7 +763,7 @@ class MissionEngine:
             self._next(out, ROUTES[12])
 
     def _t_parking(self, snap, state, out, standing):
-        """Follow the recorded T RDDF: reverse in, two-second hold, forward out."""
+        """Follow the recorded T RDDF: reverse in, configured hold, forward out."""
         side = _branch(snap["route"])
         if not side or self.branches.get("t") != side:
             self._stop(out, "PARKING_BRANCH_NOT_AUTHORIZED", "UNAVAILABLE")
@@ -768,24 +781,17 @@ class MissionEngine:
                        parking_leg_phase="REVERSE_ENTRY",
                        remaining_stop_m=max(0.0, snap["length"] - raw_s))
             if snap.get("at_end"):
-                self._complete("parking:t:entry", snap["now"])
+                state["t_exit_handoff_pending"] = True
+            if state.get("t_exit_handoff_pending"):
                 self._stop(out, "T_PARKING_ENTRY_COMPLETE", "WAIT_GEAR_CHANGE")
-                self._next(out, PARKING_ROUTES["t"][side][1])
+                if self._dwell(state, snap["now"], standing,
+                               self.rules["parking_hold_s"]):
+                    self._complete("parking:t:entry", snap["now"])
+                    self._next(out, PARKING_ROUTES["t"][side][1])
             return
 
         out.update(direction=1, path_mode="RDDF", phase="FORWARD_EXIT",
                    parking_leg_phase="FORWARD_EXIT", remaining_stop_m=None)
-        hold_key = "parking:t:transition_hold"
-        near_start = raw_s <= self.rules["stop_tolerance_m"]
-        if hold_key not in self.completed_missions and near_start:
-            if self._dwell(state, snap["now"], standing,
-                           self.rules["t_parking_transition_hold_s"]):
-                self._complete(hold_key, snap["now"])
-            else:
-                self._stop(out, "T_PARKING_TRANSITION_HOLD", "WAIT_GEAR_CHANGE")
-                return
-        elif not near_start:
-            self._complete(hold_key, snap["now"])
         if snap.get("at_end"):
             self._complete("parking:t:exit", snap["now"])
             out["phase"] = "COMPLETE"

@@ -113,14 +113,20 @@ class SyntheticReplay:
 
     def park(self, kind):
         entry, exit_route = PARKING_ROUTES[kind][self.parking_branch]
+        if kind == 't':
+            # Section 4 keeps braking for the configured one second before it
+            # authorizes Localization to acquire the reverse-entry RDDF.
+            for _ in range(5):
+                self.step(s=20.0, speed=0.0, parking=True)
         self.advance(entry)
         if kind == 't':
             reversing = self.step(s=12.0, speed=-.5)
             if not reversing['control_allowed']:
                 raise AssertionError('T-parking reverse RDDF should be commandable')
-            self.step(s=18.0, speed=0.0)
+            for _ in range(5):
+                self.step(s=18.0, speed=0.0)
             self.advance(exit_route)
-            for _ in range(9):
+            for _ in range(5):
                 self.step(speed=0.0)
             self.step(s=10.0)
             self.step(s=20.0)
@@ -130,13 +136,16 @@ class SyntheticReplay:
         else:
             entry_changes = (6.614062696750327, 16.56201644939806)
         for position in entry_changes:
-            self.step(s=position - .1, speed=0.0)
+            for _ in range(5):
+                self.step(s=position - .1, speed=0.0)
             self.step(s=position + .1)
-        self.step(s=18.0, speed=0.0)
+        for _ in range(5):
+            self.step(s=18.0, speed=0.0)
         self.advance(exit_route)
         exit_change = (.7236489020465036 if self.parking_branch == 'left'
                        else 2.237988918723955)
-        self.step(s=exit_change - .1, speed=0.0)
+        for _ in range(5):
+            self.step(s=exit_change - .1, speed=0.0)
         self.step(s=exit_change + .1)
         self.step(s=20.0)
 
