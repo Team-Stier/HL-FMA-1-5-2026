@@ -187,8 +187,6 @@ def validate_landmarks(config, routes, explicit_validation=False):
             allowed.update(('parking_confirm_s', 'parking_yaw_rad'))
         if route.section == 6:
             allowed.add('parking_exit_s')
-        if route.section == 10:
-            allowed.add('parking_yaw_rad')
         for key in values:
             if key not in allowed:
                 errors.append(name + ': unknown landmark ' + str(key))
@@ -200,14 +198,6 @@ def validate_landmarks(config, routes, explicit_validation=False):
                 errors.append(name + ': ' + key + ' is outside the route')
         complete = all(number(values.get(key)) and 0 <= values[key] <= route.length
                        for key in required)
-        if route.section == 10:
-            yaw = values.get('parking_yaw_rad')
-            if not number(yaw) or not -math.pi <= yaw <= math.pi:
-                errors.append(name + ': measured parking_yaw_rad in [-pi, pi] is required')
-            if number(values.get('parking_confirm_s')) and abs(
-                    route.length - values['parking_confirm_s']) > tolerance:
-                errors.append(name + ': rear-axle parking_confirm_s must be within {:.3f} m '
-                              'of the entry endpoint for route handoff'.format(tolerance))
         if not complete:
             continue
         if route.section == 1:

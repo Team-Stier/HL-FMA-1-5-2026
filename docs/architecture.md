@@ -14,7 +14,7 @@
   진행 경로 위에 있을 때 State Manager가 전용 E-Stop을 요청한다.
 - 12구간의 종료 분기는 카메라가 아니라
   `missions.json`의 고정 `finish_branch`로 정한다.
-- 평행주차용 Parking Planner는 이번 범위에서 구현하거나 연결하지 않았다.
+- T자·평행주차 모두 기록된 RDDF와 설정된 기어 전환거리만 사용한다.
 - Control 기본값은 `pure_pursuit`이며 `/path/final`부터 Arduino 명령까지 연결되어 있다.
 
 ## 전체 아키텍처
@@ -25,7 +25,6 @@ flowchart TB
     classDef active fill:#dafbe1,stroke:#1a7f37,color:#1f2328
     classDef gated fill:#fff8c5,stroke:#9a6700,color:#1f2328
     classDef control fill:#fbefff,stroke:#8250df,color:#1f2328
-    classDef later fill:#ffebe9,stroke:#cf222e,color:#1f2328
 
     subgraph INPUT[1. 센서 · 경로 입력과 1차 처리]
         direction LR
@@ -39,7 +38,6 @@ flowchart TB
         direction LR
         SM[State Manager<br/>Mission FSM · mode/branch 요청<br/>RDDF 구간 절단]:::active
         LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
-        PARK[Parallel Parking Planner<br/>아직 미구현]:::later
     end
 
     SEL[3. Selector<br/>요청 모드에 맞는 경로 하나 선택]:::active
@@ -58,7 +56,6 @@ flowchart TB
 
     SM -->|/path/rddf + 선택 요청| SEL
     LP -->|/path/local| SEL
-    PARK -.->|/path/park| SEL
     SEL -.->|/path/selector_status<br/>유일한 경로 승인 결과| SM
 
     SEL -->|/path/final · 유일한 경로 입력| PP
@@ -95,8 +92,7 @@ RDDF에 진입할 때만 활성 경로를 바꾼다. State Manager는 RDDF 순�
 
 - 일반 구간: `State Manager → /path/rddf → Selector → /path/final → PP`
 - 정적 장애물 구간: `Path Planner → /path/local → Selector → /path/final → PP`
-- T자 주차 5·6구간: `State Manager → /path/rddf → Selector → /path/final → PP`
-- 평행주차 10·11구간: 향후 `Parking Planner → /path/park → Selector → /path/final → PP`
+- T자·평행주차 5·6·10·11구간: `State Manager → /path/rddf → Selector → /path/final → PP`
 
 Selector는 경로를 새로 만들거나 RDDF를 자르지 않는다. State Manager가 요청한
 `path_mode`, `decision_id`, `route_name`, `direction`, timestamp가 정확히 맞는 후보만
@@ -149,7 +145,7 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 7 | RDDF | LEFT_ARROW와 정지선으로 좌회전 허가 결정 |
 | 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 설정한 lookahead·경로 반폭 안에 있으면 E-Stop 요청(차량 치수 불필요) |
 | 9 | RDDF | `parking_branches.parallel`에 설정된 평행주차 분기로 접근 |
-| 10, 11 | PARKING | 설정된 평행주차; Planner는 아직 없음 |
+| 10, 11 | RDDF | 경로별 설정 거리에서 정차 후 전진·후진 기어를 바꾸며 기록된 RDDF 추종 |
 | 12 | RDDF | `finish_branch` 고정 설정에 따라 13 left/right 연결 |
 | 13 | RDDF | 원본 RDDF 끝에서 마지막 방향으로 3 m 연장한 경로 끝에서 정지 |
 
@@ -159,6 +155,11 @@ Control이 속도 상한과 정지 요청을 함께 적용한다.
 
 신호 허가 후에는 별도 출구 landmark 없이 활성 RDDF 끝에서 구간 완료로 판단한다.
 12→13 left 분기 위치도 JSON landmark가 아니라 두 RDDF의 연결 형상에서 자동 계산한다.
+
+평행주차 전환점은 `missions.json`의 `parallel_parking_profiles`에 실제 RDDF 누적거리로
+기록한다. 아래 그림은 `yongin_route_project.json`의 실제 원본 좌표와 점 번호를 사용한다.
+
+![평행주차 실제 RDDF와 기어 구간](parallel_parking_rddf_gears.png)
 
 ## Launch 상태
 
@@ -176,7 +177,6 @@ Localization의 Encoder/IMU/GPS 내부 드라이버는 꺼서 `sensor_bringup`�
 | Local Path Planner | 켜짐 | 실측 보정 전에는 출력 억제 |
 | Pure Pursuit Control | 켜짐 | `lateral_controller:=pure_pursuit` |
 | Traffic Light | 꺼짐 | 모델 의존성·카메라 준비 후 `start_traffic_light:=true` |
-| Parallel Parking Planner | 없음 | 추후 작업 |
 
 신호등 실행 예:
 
@@ -189,7 +189,6 @@ roslaunch state_manager mission.launch start_traffic_light:=true traffic_light_d
 
 | 패키지/기능 | 상태 | 이유 |
 |---|---|---|
-| `parking_path_planning` | 빈 패키지 | 평행주차용 `/path/park`, `/parking/maneuver` 생산 코드 없음 |
 | `perception_interfaces/ObjectInfo` | 미사용 계약 | Planner는 stamped DBSCAN MarkerArray를 직접 변환 |
 | `perception_interfaces/TLLabel` | 미사용 계약 | 신호등은 `planning_interfaces/SignalObservation` 사용 |
 | Stanley | 대체 구현 | 현재 Control 기본 선택은 PP |
@@ -204,4 +203,3 @@ roslaunch state_manager mission.launch start_traffic_light:=true traffic_light_d
 2. rosbag 또는 정지 차량에서 빈 관측·단일 장애물·전폭 차단 시나리오를 검증한다.
 3. 계산 시간이 `planning_deadline_ms` 안에 들어오는지 실차 PC에서 확인한다.
 4. Traffic Light 의존성을 설치하고 카메라 노출·GPU/CPU 지연·confidence를 측정한다.
-5. 평행주차 Planner는 전진/후진 leg 계약을 확정한 뒤 별도 브랜치에서 구현한다.

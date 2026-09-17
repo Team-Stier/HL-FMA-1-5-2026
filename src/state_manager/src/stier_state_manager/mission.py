@@ -53,12 +53,30 @@ PARKING_ROUTES = {
         "right": ("10_parallel-right-in", "11_parallel-right-out"),
     },
 }
+PARALLEL_PROFILE_DEFAULTS = {
+    "10_parallel-left-in": {
+        "initial_direction": 1,
+        "changes": [{"s": 9.337439695228316, "direction": -1}],
+    },
+    "10_parallel-right-in": {
+        "initial_direction": 1,
+        "changes": [{"s": 6.614062696750327, "direction": -1},
+                    {"s": 16.56201644939806, "direction": 1}],
+    },
+    "11-parallel-left-out": {
+        "initial_direction": -1,
+        "changes": [{"s": 0.7236489020465036, "direction": 1}],
+    },
+    "11_parallel-right-out": {
+        "initial_direction": -1,
+        "changes": [{"s": 2.237988918723955, "direction": 1}],
+    },
+}
 REQUIRED_LANDMARKS = {
     1: ("hill_start_s", "hill_stop_s", "hill_top_s"),
     2: ("stop_line_s",),
     4: ("stop_line_s",),
     7: ("stop_line_s",),
-    10: ("parking_confirm_s",), 11: ("parking_exit_s",),
 }
 
 
@@ -155,6 +173,29 @@ class MissionEngine:
         }
         if any(side not in ("left", "right") for side in self.parking_branches.values()):
             raise ValueError("parking branches must be left or right")
+        profiles = self.config.get("parallel_parking_profiles", PARALLEL_PROFILE_DEFAULTS)
+        if not isinstance(profiles, dict):
+            raise ValueError("parallel_parking_profiles must be an object")
+        self.parallel_profiles = {}
+        for route, profile in profiles.items():
+            if not isinstance(profile, dict):
+                raise ValueError("parallel parking profile must be an object: " + route)
+            direction = profile.get("initial_direction")
+            changes = profile.get("changes", [])
+            if type(direction) is not int or direction not in (-1, 1) or not isinstance(changes, list):
+                raise ValueError("invalid parallel parking profile: " + route)
+            parsed, previous_s, previous_direction = [], 0.0, direction
+            for change in changes:
+                if not isinstance(change, dict):
+                    raise ValueError("invalid parallel parking change: " + route)
+                position, next_direction = change.get("s"), change.get("direction")
+                if (not _number(position) or position <= previous_s
+                        or type(next_direction) is not int or next_direction not in (-1, 1)
+                        or next_direction == previous_direction):
+                    raise ValueError("invalid parallel parking change: " + route)
+                parsed.append((float(position), next_direction))
+                previous_s, previous_direction = position, next_direction
+            self.parallel_profiles[route] = (direction, tuple(parsed))
         self.speeds = dict(SPEED_DEFAULTS)
         self.speeds.update(self.config.get("speeds", {}))
         if any(not _number(value) or value <= 0 for value in self.speeds.values()):
@@ -261,8 +302,8 @@ class MissionEngine:
             speed_name = "static"
         elif section in (5, 6, 10, 11):
             speed_name = "parking"
-        mode = "LOCAL" if section == 3 else "PARKING" if section in (10, 11) else "RDDF"
-        direction = -1 if section == 5 else self.parking_leg(route).get("direction", 1)
+        mode = "LOCAL" if section == 3 else "RDDF"
+        direction = -1 if section in (5, 11) else 1
         return {
             "route": route, "section": section, "mission": mission,
             "phase": "APPROACH", "selected_branch": _branch(route),
@@ -274,9 +315,9 @@ class MissionEngine:
             "counters": {}, "diagnostics": [], "completed_missions": {},
             "parking_candidates": {}, "virtual_stop": None,
             "hill_target_s": None, "hill_hold_elapsed_s": 0.0,
-            "parking_leg_index": self.parking_leg(route).get("leg_index", -1),
-            "parking_leg_phase": self.parking_leg(route).get("phase", ""),
-            "parking_leg_target_s": self.parking_leg(route).get("target_s"),
+            "parking_leg_index": -1,
+            "parking_leg_phase": "",
+            "parking_leg_target_s": None,
         }
 
     def _finish_output(self, out):
@@ -396,7 +437,7 @@ class MissionEngine:
         elif section in (5, 6):
             self._t_parking(snapshot, state, out, standing)
         elif section in (10, 11):
-            self._parking(snapshot, landmarks, state, out, standing)
+            self._parallel_parking(snapshot, state, out, standing)
         elif section == 8:
             out["phase"] = "MONITORING_DYNAMIC"
             if snapshot.get("at_end"):
@@ -632,174 +673,71 @@ class MissionEngine:
         out["selected_branch"] = side
         self._next(out, PARKING_ROUTES[kind][side][0])
 
-    def parking_leg(self, route):
-        """Return the accepted immutable leg, or an empty mapping before planning.
-
-        A leg's direction is a planner request, not a substitute for checking
-        the measured vehicle heading against the selected path in the runtime.
-        """
-        return dict(self.states.get(route, {}).get("parking_leg", {}))
-
-    def _parking_leg(self, snap, marks, state, out, standing, entry, kind):
-        """Accept a stamped leg only at its measured, stopped start pose.
-
-        RDDFs have no gear-switch annotations. A planner must advertise those
-        bounds explicitly. T entry is one reverse leg. Parallel parking keeps
-        its existing forward-setup/reverse or direct-reverse leg contract.
-        All entry legs advance along the ordered RDDF, even when the body is
-        travelling backwards. Final entry still requires the measured checkline.
-        """
-        observation = snap.get("parking_maneuver", {})
-        active = state.get("parking_leg")
-        if (not self._fresh(observation, snap["now"], snap["route"])
-                or type(snap.get("decision_id")) is not int
-                or type(observation.get("decision_id")) is not int
-                or observation.get("decision_id") != snap["decision_id"]):
-            state["dwell_since"] = None
-            self._stop(out, "PARKING_MANEUVER_STALE_OR_MISMATCHED", "WAIT_PARKING_PLAN")
-            return None
-        index = observation.get("leg_index")
-        phase, direction = observation.get("phase"), observation.get("direction")
-        start, target = observation.get("start_s"), observation.get("target_s")
-        final = observation.get("final_leg")
-        expected_directions = {"FORWARD_APPROACH": 1, "REVERSE_ENTRY": -1, "FORWARD_EXIT": 1}
-        if (type(index) is not int or index < 0 or type(direction) is not int
-                or phase not in expected_directions or direction != expected_directions.get(phase)
-                or not _number(start) or not _number(target) or start < 0
-                or target <= start + 0.01 or target > snap["length"]
-                or type(final) is not bool):
-            state["dwell_since"] = None
-            self._stop(out, "PARKING_MANEUVER_INVALID", "WAIT_PARKING_PLAN")
-            return None
-        tolerance = self.rules["stop_tolerance_m"]
-        checkpoint = marks["parking_confirm_s" if entry else "parking_exit_s"]
-        if entry:
-            reverse_to_checkpoint = (phase == "REVERSE_ENTRY" and final
-                                     and abs(target - checkpoint) <= 1e-6)
-            valid_phase = (reverse_to_checkpoint if kind == "t" else
-                           ((phase == "FORWARD_APPROACH" and not final
-                             and target < checkpoint - tolerance)
-                            or reverse_to_checkpoint))
-        else:
-            valid_phase = (phase == "FORWARD_EXIT" and final
-                           and abs(target - checkpoint) <= 1e-6)
-        if not valid_phase:
-            state["dwell_since"] = None
-            self._stop(out, "PARKING_MANEUVER_CHECKPOINT_INVALID", "WAIT_PARKING_PLAN")
-            return None
-        leg = {name: observation[name] for name in
-               ("leg_index", "phase", "direction", "start_s", "target_s", "final_leg")}
-        if active and index == active["leg_index"]:
-            if leg != active:
-                state["dwell_since"] = None
-                self._stop(out, "PARKING_ACTIVE_LEG_CHANGED", "WAIT_PARKING_PLAN")
-                return None
-            return active
-        raw_s = snap.get("raw_s", snap["s"])
-        if not _number(raw_s):
-            self._stop(out, "PARKING_RAW_PROGRESS_INVALID", "UNAVAILABLE")
-            return None
-        if active:
-            ordered = (index == active["leg_index"] + 1
-                       and active["phase"] == "FORWARD_APPROACH" and phase == "REVERSE_ENTRY"
-                       and abs(start - active["target_s"]) <= 1e-6)
-            if not ordered:
-                self._stop(out, "PARKING_LEG_SEQUENCE_INVALID", "WAIT_PARKING_PLAN")
-                return None
-            near_start = abs(raw_s - active["target_s"]) <= tolerance
-        else:
-            allowed_first = ((entry and kind == "t" and phase == "REVERSE_ENTRY")
-                             or (entry and kind == "parallel"
-                                 and phase in ("FORWARD_APPROACH", "REVERSE_ENTRY"))
-                             or (not entry and phase == "FORWARD_EXIT"))
-            if index != 0 or not allowed_first or abs(start) > 1e-6:
-                self._stop(out, "PARKING_INITIAL_LEG_INVALID", "WAIT_PARKING_PLAN")
-                return None
-            near_start = abs(raw_s - start) <= tolerance
-        if not standing:
-            self._stop(out, "WAIT_STANDSTILL_FOR_PARKING_LEG", "WAIT_GEAR_CHANGE")
-            return None
-        if not near_start:
-            self._stop(out, "PARKING_LEG_START_POSE_MISMATCH", "WAIT_PARKING_PLAN")
-            return None
-        state["parking_leg"] = leg
-        state["dwell_since"] = None
-        out.update(direction=direction, parking_leg_index=index,
-                   parking_leg_phase=phase, parking_leg_target_s=target)
-        # A new leg must receive a new decision epoch and matching path before
-        # movement, including when the first leg uses the default +1 direction.
-        self._stop(out, "PARKING_LEG_ACCEPTED", "WAIT_PATH")
-        return None
-
-    def _parking(self, snap, marks, state, out, standing):
-        kind = "parallel"
+    def _parallel_parking(self, snap, state, out, standing):
+        """Follow the recorded parallel-parking RDDF and change gear at its configured points."""
         side = _branch(snap["route"])
-        if not side or self.branches.get(kind) != side:
+        if not side or self.branches.get("parallel") != side:
             self._stop(out, "PARKING_BRANCH_NOT_AUTHORIZED", "UNAVAILABLE")
             return
-        self.committed_branches.add(kind)
-        entry = snap["section"] == 10
-        if not entry and "parking:" + kind + ":entry" not in self.completed_missions:
-            self._stop(out, "PARKING_ENTRY_NOT_COMPLETED", "UNAVAILABLE")
-            return
+        self.committed_branches.add("parallel")
         out["selected_branch"] = side
-        if state.get("parking_fault"):
-            self._stop(out, state["parking_fault"], "FAULT")
+        profile = self.parallel_profiles.get(snap["route"])
+        if profile is None:
+            self._stop(out, "PARALLEL_RDDF_PROFILE_MISSING", "UNAVAILABLE")
             return
-        leg = self._parking_leg(snap, marks, state, out, standing, entry, kind)
-        if leg is None:
+        initial_direction, changes = profile
+        if changes and changes[-1][0] >= snap["length"]:
+            self._stop(out, "PARALLEL_RDDF_PROFILE_INVALID", "UNAVAILABLE")
             return
         raw_s = snap.get("raw_s", snap["s"])
         if not _number(raw_s):
-            state["dwell_since"] = None
             self._stop(out, "PARKING_RAW_PROGRESS_INVALID", "UNAVAILABLE")
             return
-        out.update(direction=leg["direction"], parking_leg_index=leg["leg_index"],
-                   parking_leg_phase=leg["phase"], parking_leg_target_s=leg["target_s"])
-        key = "parking:" + kind + ":" + ("entry" if entry else "exit")
-        out["phase"] = leg["phase"]
-        if leg["phase"] == "FORWARD_APPROACH":
-            out["remaining_stop_m"] = max(0.0, leg["target_s"] - raw_s)
-            if raw_s > leg["target_s"] + self.rules["stop_tolerance_m"]:
-                state["parking_fault"] = "PARKING_LEG_TARGET_MISSED"
-                self._stop(out, state["parking_fault"], "FAULT")
-            elif raw_s >= leg["target_s"] - self.rules["stop_tolerance_m"]:
-                self._stop(out, "WAIT_REVERSE_PARKING_LEG", "WAIT_GEAR_CHANGE")
+        legs = [(0.0, initial_direction)] + list(changes)
+        if "parallel_leg_index" not in state:
+            state["parallel_leg_index"] = max(
+                index for index, (start, _) in enumerate(legs)
+                if raw_s > start + self.rules["stop_tolerance_m"] or index == 0)
+        index = min(state["parallel_leg_index"], len(legs) - 1)
+        start_s, direction = legs[index]
+        end_s = legs[index + 1][0] if index + 1 < len(legs) else snap["length"]
+        phase = "FORWARD" if direction > 0 else "REVERSE"
+        out.update(path_mode="RDDF", direction=direction, phase=phase,
+                   parking_leg_index=index, parking_leg_phase=phase,
+                   parking_leg_target_s=end_s, rddf_start_s=start_s,
+                   rddf_end_s=end_s)
+
+        if index + 1 < len(legs):
+            out["remaining_stop_m"] = max(0.0, end_s - raw_s)
+            if raw_s >= end_s - self.rules["stop_tolerance_m"]:
+                if standing:
+                    state["parallel_leg_index"] = index + 1
+                    next_start, next_direction = legs[index + 1]
+                    next_end = (legs[index + 2][0]
+                                if index + 2 < len(legs) else snap["length"])
+                    next_phase = "FORWARD" if next_direction > 0 else "REVERSE"
+                    out.update(direction=next_direction,
+                               parking_leg_index=index + 1,
+                               parking_leg_phase=next_phase,
+                               parking_leg_target_s=next_end,
+                               rddf_start_s=next_start, rddf_end_s=next_end)
+                self._stop(out, "PARALLEL_GEAR_CHANGE", "WAIT_GEAR_CHANGE")
             return
-        position = marks["parking_confirm_s" if entry else "parking_exit_s"]
-        if entry:
-            out["remaining_stop_m"] = max(0.0, position - raw_s)
-            target_yaw = marks.get("parking_yaw_rad")
-            yaw_ok = target_yaw is None or (_number(target_yaw) and abs(
-                math.atan2(math.sin(snap["yaw"] - target_yaw), math.cos(snap["yaw"] - target_yaw))
-            ) <= self.rules["parking_yaw_tolerance_rad"])
-            at_confirmation = abs(raw_s - position) <= self.rules["stop_tolerance_m"]
-            if raw_s > position + self.rules["stop_tolerance_m"] and key not in self.completed_missions:
-                self._once("parking_confirmation_missed", kind)
-                state["parking_fault"] = "PARKING_CONFIRMATION_MISSED"
-                self._stop(out, state["parking_fault"], "FAULT")
-                return
-            if key not in self.completed_missions:
-                if self._dwell(state, snap["now"], standing and at_confirmation and yaw_ok,
-                               self.rules["parking_hold_s"]):
-                    self._complete(key, snap["now"])
-                elif at_confirmation:
-                    self._stop(out, "PARKING_CONFIRMATION_HOLD" if yaw_ok else "PARKING_POSE_MISMATCH",
-                               "CONFIRM_PARKED")
-                    return
-            if key in self.completed_missions:
-                out["phase"] = "PARKED"
-                if not standing:
-                    self._stop(out, "WAIT_STANDSTILL_FOR_EXIT", "PARKED")
-                    return
-                self._next(out, PARKING_ROUTES[kind][side][1])
-        else:
-            out["remaining_stop_m"] = None
-            if raw_s >= position:
-                self._complete(key, snap["now"])
-            if snap.get("at_end") and key in self.completed_missions:
-                out["phase"] = "COMPLETE"
-                self._next(out, ROUTES[12])
+
+        if snap["section"] == 10:
+            out["remaining_stop_m"] = max(0.0, snap["length"] - raw_s)
+            if raw_s >= snap["length"] - self.rules["stop_tolerance_m"]:
+                self._stop(out, "PARALLEL_ENTRY_COMPLETE", "PARKED")
+                if standing:
+                    self._complete("parking:parallel:entry", snap["now"])
+                    self._next(out, PARKING_ROUTES["parallel"][side][1])
+            return
+
+        out["remaining_stop_m"] = None
+        if snap.get("at_end"):
+            self._complete("parking:parallel:exit", snap["now"])
+            out["phase"] = "COMPLETE"
+            self._next(out, ROUTES[12])
 
     def _t_parking(self, snap, state, out, standing):
         """Follow the recorded T RDDF: reverse in, two-second hold, forward out."""

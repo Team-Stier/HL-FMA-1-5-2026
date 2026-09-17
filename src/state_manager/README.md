@@ -27,7 +27,7 @@ flowchart LR
   L -->|Odometry| P
   R -->|RouteMap| P
   S -->|MissionState| P
-  S -->|MissionState<br/>RDDF / LOCAL / PARKING 요청| X[Selector]
+  S -->|MissionState<br/>RDDF / LOCAL 요청| X[Selector]
   S -->|PlannedPath RDDF| X
   P -->|PlannedPath + decision_id| X
   X -->|nav_msgs/Path| PP[Pure Pursuit Control]
@@ -67,8 +67,7 @@ Control과 Arduino에 연결됐지만 실차 방향 시험은 아직 필요하�
 경로 구성은 **신호 구간 2·4·7에서 RDDF 추종, 주차 구간에서 좌우 RDDF 선택,
 정적 장애물 회피 구간에서 로컬 경로 생성**이다. 다른 구간의 로컬 경로 적용은 추후 정한다.
 아래 실행 로직은 현재 구현 기준이며, 3구간은 `LOCAL`을 필수로 요구한다. T자 주차
-5·6구간은 RDDF를 직접 사용하고, 평행주차 10·11구간만 `PARKING` 경로/단계 메시지를
-요구한다. 평행주차 경로 생성과 추가 로컬 경로 전환은 추후 연결 작업이다.
+5·6구간과 평행주차 10·11구간은 모두 기록된 RDDF를 직접 사용한다.
 
 센서와 Localization을 실차 또는 rosbag으로 먼저 실행한 뒤, 다음 명령으로 한 RViz에서
 매니저·RDDF ROI 인식 결과를 점검한다. `run.sh` 대신 점검 launch를 사용한다.
@@ -129,14 +128,14 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 | 7 | 정지선 가상 벽에서 `LEFT_ARROW` 대기, 허용 시 RDDF 좌회전 | 일반 녹색은 좌회전 허가가 아니며 정차 20초 후에만 강제 출발 |
 | 8 | RDDF 추종 + DBSCAN 동적장애물 감시 | 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 구간 끝에서 9로 연결 |
 | 9 | 기준경로 추종 | 구간 끝에서 `parking_branches.parallel`에 설정된 평행주차 경로로 연결 |
-| 10/11 | 선택한 평행주차 진입/출차 쌍 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
+| 10/11 | 선택한 평행주차 RDDF 쌍 추종 | 설정된 누적거리에서 실제 정차 후 기어 변경; 10 끝에서 11, 11 끝에서 12 연결 |
 | 12 | 설정된 종료 분기 추종 | `finish_branch=left`는 중간 분기점, right는 끝에서 13 진입 |
 | 13 left/right | 설정된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
 
 주차 좌우 분기는 `missions.json`의 `parking_branches.t`와
 `parking_branches.parallel`로 각각 지정한다. 기본값은 둘 다 `left`다. State Manager는
-원본 LiDAR로 주차 공간 후보를 계산하지 않는다. T자 주차는 설정된 분기의 RDDF만으로
-동작하며, 평행주차는 설정된 분기의 maneuver 입력이 없으면 시작하지 않는다.
+원본 LiDAR로 주차 공간 후보를 계산하지 않는다. T자·평행주차 모두 설정된 분기의
+RDDF만으로 동작한다.
 
 RDDF의 주차 `reverse` 표시는 **시작 차체 방향** 메타데이터다. T 주차는
 `5_T-*-in` 전체를 `RDDF/REVERSE_ENTRY(-1)`로 주행하고 5번 RDDF 끝에서 정지한다.
@@ -144,19 +143,15 @@ Localization이 6번을 활성화하면 실제 정차를 `t_parking_transition_h
 동안 확인한 뒤 `6_T-*-out`을 `RDDF/FORWARD_EXIT(+1)`로 주행한다. T 주차에는
 `/parking/maneuver`와 `/path/park`를 요구하지 않는다.
 
-평행주차 10 진입에서는 `/parking/maneuver`로 받은 단계별 계획을 승인한다. 현재처럼
-전진 준비 후 후진 또는 후진부터 시작하는 계획을 지원하며 이번 변경 대상이 아니다.
-11은 `FORWARD_EXIT(+1)`다. 시작점과 이전 단계의 목표점에서 차량의 실제 정지를
-확인해야 새 단계를 받아들인다. 마지막 후진 목표점은 측정한 주차 확인선과 같아야 하며,
-완료 플래그로 이 검사를 대신할 수 없다. 단계가 바뀌면 방향이 같아도 decision_id를
-갱신하고 새 계획 경로를 기다린다.
+평행주차 기어 구간은 `parallel_parking_profiles`의 실제 RDDF 누적거리로 정한다.
+Left in은 전진 1→9, 후진 9→10이고, Right in은 전진 1→4, 후진 4→16,
+전진 16→17이다. Left/Right out은 모두 후진 1→2, 전진 2→13이다. 전환점에
+도달하면 State Manager가 경로를 그 지점까지만 잘라 정지시키고, 실제 정차 후
+`direction`과 `decision_id`를 바꿔 다음 RDDF 구간을 발행한다. `/parking/maneuver`와
+`/path/park`는 사용하지 않는다. Control은 `MissionState.direction=-1`에서 후진 명령을
+만들며 Arduino는 실측 0속도를 확인한 뒤 기어를 바꾼다.
 
-RDDF 접선과 차체 방향이 다른 주차 접근에서는 RDDF의 시작 방향 플래그 대신 실제
-플래너 경로의 차체 자세를 검사한다. 이 때문에 10-right의 전진 접근을 처음부터
-후진으로 해석하던 문제가 해소된다. 실제 곡률·기어 피드백·주행 가능한 궤적 생성은
-Parking Planner와 차량 제어의 책임이다. `DriveCmd`는 속도 절댓값과 `Gear`를 분리하며
-Control은 `MissionState.direction=-1`에서 후진 명령을 만든다. Arduino는 실측 0속도를
-연속 확인한 뒤에만 전진/후진 방향을 바꾼다.
+실제 좌표 그림은 [평행주차 RDDF 기어 구간](../../docs/parallel_parking_rddf_gears.png)에서 확인한다.
 
 ## 신호 정지선 가상 벽과 RDDF 추종
 
@@ -337,11 +332,10 @@ Localization의 `/valid` 판단을 따른다.
 | `/route/map` | `RouteMap` | Localization 소유 RDDF 전체와 origin 제공 |
 | `/perception/traffic_signal` | `SignalObservation` | route_name=2/4/7, 신호값·confidence·실제 측정 시각 |
 | `/dbscan_clusters` | `visualization_msgs/MarkerArray` | Object Detection의 stamped `map` 군집. dynamic RDDF E-Stop과 3구간 Local Planner가 공유 |
-| `/parking/maneuver` | `ParkingManeuver` | 평행주차의 현재 요청 ID를 반영한 단계·방향·RDDF 시작/목표 거리 |
 | `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지·전용 E-Stop 제약 |
 | `/mission/rddf_successor` | `std_msgs/String` | 주차·종료 분기에서 원하는 다음 RDDF 이름. Localization이 연결·진입 위치를 검증 |
 | `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치를 진단·검증용으로 제공 |
-| `/path/rddf`, `/path/local`, `/path/park` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
+| `/path/rddf`, `/path/local` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
 | `/path/selector_status` | `PathStatus` | 외부 Selector의 유일한 경로 승인 결과. State Manager는 후보 경로를 재검사하지 않음 |
 | `/path/final` | `nav_msgs/Path` | Control용 최종 경로. invalid이면 비움 |
 | `/mission/safety` | `SafetyStatus` | 위치·경로·미션 상태의 정지 판단 |
@@ -350,16 +344,8 @@ Localization의 `/valid` 판단을 따른다.
 | `/erp42_serial/drive` | `erp42_msgs/DriveCmd` | Control의 최종 Arduino 명령; 속도·조향·brake·Gear·EStop |
 | `/vehicle/emergency_stop` | `std_msgs/Bool` | 정상 정지·기어 전환과 분리된 Control 비상정지 입력 |
 
-평행주차 플래너는 새 미션의 `decision_id`, `route_name`을 받아 `ParkingManeuver`를
-계속 발행한다. 필드는 `leg_index`(0부터), `phase`, `direction`, `start_s`, `target_s`,
-`final_leg`이며 `header.frame_id=map`과 실제 계획 시각을 넣는다. 첫 단계 시작은
-해당 RDDF의 s=0이며 목표는 시작보다 커야 한다. 역방향 주행도 RDDF 점의 나열
-순서에 따른 누적거리는 증가한다. 승인 후 MissionState의 `parking_leg_*`를 확인하고,
-갱신된 decision_id로 동일한 단계와 `/path/park`를 다시 발행해야 한다. 승인된 단계의
-시작/목표/방향을 몰래 바꾸거나 움직이는 동안 다음 단계로 전환하면 정지한다.
-
 LOCAL은 연결된 `path_planner`의 로컬 경로다. 정적 장애물 구간에서는 RDDF로 자동
-fallback하지 않는다. 평행주차 10·11의 PARKING 역시 전용 플래너 응답이 없으면 진행하지 않는다.
+fallback하지 않는다. 주차 구간은 별도 Planner 없이 RDDF 모드로 동작한다.
 미래 시각·낡은 관측·다른 구간의 신호·낮은 confidence는 허가로 쓰지 않는다.
 ROS를 정지했다 다시 시작한 경우 새 경기 실행을 위해 State Manager도 재시작한다.
 

@@ -13,8 +13,8 @@ from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
-from planning_interfaces.msg import (MissionState, ParkingManeuver, PathStatus,
-                                    PlannedPath, RouteMap, SafetyStatus,
+from planning_interfaces.msg import (MissionState, PathStatus, PlannedPath,
+                                    RouteMap, SafetyStatus,
                                     SignalObservation, TrafficConstraint)
 from stier_state_manager.geometry import Route
 from stier_state_manager.calibration import validate_landmarks
@@ -80,7 +80,6 @@ class StateManagerNode:
                              self.on_current_rddf, queue_size=1),
             rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
-            rospy.Subscriber('/parking/maneuver', ParkingManeuver, self.on_parking_maneuver, queue_size=1),
             rospy.Subscriber('/path/selector_status', PathStatus,
                              self.on_selector_status, queue_size=1),
         ]
@@ -330,17 +329,6 @@ class StateManagerNode:
             self.data['signal'] = {'stamp': msg.header.stamp.to_sec(), 'route': msg.route_name,
                                    'junction_id': msg.junction_id, 'value': value}
 
-    def on_parking_maneuver(self, msg):
-        with self.lock:
-            self.clock_now()
-            self.data['parking_maneuver'] = {
-                'stamp': msg.header.stamp.to_sec(), 'decision_id': msg.decision_id,
-                'route': msg.route_name, 'leg_index': msg.leg_index,
-                'phase': msg.phase if msg.header.frame_id == 'map' else 'UNKNOWN',
-                'direction': msg.direction, 'start_s': msg.start_s,
-                'target_s': msg.target_s, 'final_leg': msg.final_leg,
-            }
-
     def on_selector_status(self, msg):
         with self.lock:
             self.data['selector_status'] = {
@@ -368,8 +356,13 @@ class StateManagerNode:
         wrapper.decision_id, wrapper.route_name, wrapper.direction = runtime.decision_id, name, direction
         wrapper.path = Path()
         wrapper.path.header = wrapper.header
-        for x, y, yaw in points:
-            body_yaw = yaw + (math.pi if direction < 0 else 0.0)
+        for index, (x, y, _yaw) in enumerate(points):
+            adjacent = points[index + 1] if index + 1 < len(points) else points[index - 1]
+            if index + 1 < len(points):
+                motion_yaw = math.atan2(adjacent[1] - y, adjacent[0] - x)
+            else:
+                motion_yaw = math.atan2(y - adjacent[1], x - adjacent[0])
+            body_yaw = motion_yaw + (math.pi if direction < 0 else 0.0)
             pose = PoseStamped()
             pose.header = wrapper.header
             pose.pose.position.x, pose.pose.position.y = x, y

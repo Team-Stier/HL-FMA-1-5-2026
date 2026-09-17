@@ -187,7 +187,6 @@ src/
 ├── object_detection/
 ├── state_manager/              # 구간·미션·LiDAR 관측 검사·RViz
 ├── path_planner/               # Frenet 기반 ROS 비의존 경로 계획 코어
-├── parking_path_planning/
 ├── selector/
 └── control/
 ```
@@ -216,12 +215,10 @@ flowchart LR
     RDDF["Localization 소유 RDDF"] --> PROVIDER["RDDF Route Provider"]
     PROVIDER -->|"/route/map"| SM["State Manager<br/>구간 추적 · Mission FSM · 관측 공간 검사"]
     SM -->|"/mission/state"| LOCAL
-    SM -->|"/mission/state<br/>path_mode=RDDF/LOCAL/PARKING 요청"| SELECTOR["Selector<br/>요청 ID · 경로 · 방향 · 시각 검증"]
+    SM -->|"/mission/state<br/>path_mode=RDDF/LOCAL 요청"| SELECTOR["Selector<br/>요청 ID · 경로 · 방향 · 시각 검증"]
     SM -->|"/path/rddf"| SELECTOR
     LOCAL -->|"/path/local"| SELECTOR
-    PARKING["Parking Planner<br/>미구현"] -.->|"/path/park"| SELECTOR
     SELECTOR -.->|"/path/selector_status<br/>경로 승인 결과"| SM
-    PARKING -.->|"/parking/maneuver"| SM
     SELECTOR -->|"/path/final"| CONTROL["Control<br/>Pure Pursuit 기본"]
     LOC -->|"/molit/localization/odometry"| CONTROL
     SM -->|"/mission/state<br/>속도 · 정지 · 방향 · E-Stop"| CONTROL
@@ -242,14 +239,14 @@ State Manager는 승인된 위치가 어느 RDDF 구간에 있으며 어떤 미�
 | Route Tracker | 활성 RDDF 투영, 진행률·방향 확인, 허용된 다음 구간으로 전이 |
 | Mission Engine | 구간별 미션 단계, 신호 대기, 정차 시간, 주차·종료 분기와 규정 진단 |
 | RDDF Route Provider | Localization 패키지가 소유한 RDDF를 공유 메시지로 제공; 활성 기본 경로는 State Manager가 발행 |
-| Local / Parking Planner | Local Planner는 정적 회피 궤적 생성까지 연결; Parking Planner는 미구현 |
+| Local Path Planner | 3구간 정적 회피 궤적 생성; 주차는 별도 Planner 없이 RDDF 사용 |
 | Selector | 요청과 일치하는 경로만 최종 경로로 전달하고 준비 상태 발행 |
 | Control | 기본 PP(선택 Stanley); 경로·Odometry·MissionState를 받아 Arduino 최종 명령 발행 |
 
 State Manager는 `/path/final`을 직접 발행하지 않는다. Selector는 현재
 `decision_id`, 구간, 모드, 방향에 맞는 경로만 선택한다. 구간이나 요청이 바뀌면 이전
-Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 또는 `PARKING` 경로가 없으면 정지하며,
-기본 RDDF로 자동 대체하지 않는다.
+Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 경로가 없으면 정지하며 기본 RDDF로
+자동 대체하지 않는다.
 
 ### 구간별 미션
 
@@ -263,20 +260,14 @@ Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 또는 `PARKING` 경�
 | 7 | 가상 벽 앞에서 대기, 좌회전 화살표 신호에 RDDF 좌회전 |
 | 8 | RDDF 이름의 `dynamic` 조건에서 DBSCAN 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 사라지면 RDDF 추종 재개 |
 | 9 | RDDF 추종과 함께 다음 평행주차 좌우 후보를 미리 평가 |
-| 10-L/R → 11-L/R | 비어 있는 평행주차 후보 선택, 주차 확인 정차 후 같은 쪽 탈출 경로 사용 |
+| 10-L/R → 11-L/R | 선택한 평행주차 RDDF를 구간별 전진·후진으로 추종하고 전환점에서 정차 후 기어 변경 |
 | 12 | `finish_branch` 고정 설정을 따라 왼쪽은 구간 내부 분기점에서, 오른쪽은 끝점에서 13번으로 연결 |
 | 13-L/R | 선택된 RDDF 끝에서 마지막 방향으로 3 m 연장한 경로까지 추종한 뒤 정지 |
 
-주차 후보는 좌우 RDDF 진입·탈출에 필요한 차량 공간을 LiDAR 관측과 비교한다.
-확인된 빈 공간 `CLEAR`가 서로 다른 관측 시각으로 연속 확인되어야 선택할 수 있다.
-`UNKNOWN`은 통행 가능을 의미하지 않는다. 접근 중 후보가 막히면 안정적으로 확인된
-다른 후보로 바꿀 수 있고, 실제 주차 구간에 진입하면 진입·탈출 분기를 고정한다.
-
-주차는 `/parking/maneuver`의 단계별 계획을 승인해 전진 접근·후진 주차·전진 출차를
-구분한다. 차량이 단계 경계에서 멈추고 새 요청 ID의 경로를 받기 전에는 방향을 바꾸지
-않는다. RDDF의 초기 방향 메타데이터가 전체 기어 계획을 대신하지 않는다.
-실제 주차 궤적을 생성하는 Parking Planner는 별도 연결이 필요하다. 후진 명령 인터페이스와
-Arduino 0속도 기어 전환 인터록은 추가됐지만 실차 방향 검증은 필요하다.
+주차 좌우 분기는 `missions.json`에서 선택한다. T자·평행주차 모두 기록된 RDDF를 사용하고,
+평행주차의 전환 누적거리는 `parallel_parking_profiles`에 기록한다. 차량이 전환점에서
+실제로 멈춘 뒤 새 방향과 요청 ID의 RDDF를 받는다. 후진 명령 인터페이스와 Arduino
+0속도 기어 전환 인터록은 연결됐지만 실차 방향 검증은 필요하다.
 
 ### 규정과 전이 처리
 
@@ -317,7 +308,7 @@ LiDAR는 모든 구간에서 계속 사용한다. 관측된 장애물이나 확�
 실차 출력을 활성화하지 않는다. 기본 실행은 차량 명령 미리보기다.
 
 카메라 기반 차로 제어는 사용하지 않는다. Traffic Light, Object Detection, Local Planner,
-Selector와 Control은 연결됐고 실제 Parking Planner는 외부 연동 지점으로 남아 있다.
+Selector와 Control은 연결됐고 주차는 RDDF 모드로 동작한다.
 [상세 실행·보정·테스트 안내](src/state_manager/README.md)에서 남은 연동 항목을 확인한다.
 
 ### 주요 인터페이스
@@ -333,7 +324,6 @@ Selector와 Control은 연결됐고 실제 Parking Planner는 외부 연동 지�
 | `/mission/safety` | `planning_interfaces/SafetyStatus` | 관측 공간 검사 및 정지 요구 |
 | `/path/rddf` | `planning_interfaces/PlannedPath` | 현재 요청에 맞춘 기본 RDDF 경로 |
 | `/path/local` | `planning_interfaces/PlannedPath` | Local Planner의 회피 경로 |
-| `/path/park` | `planning_interfaces/PlannedPath` | Parking Planner의 주차 경로 |
 | `/path/selector_status` | `planning_interfaces/PathStatus` | 동일 요청의 경로 유효성·준비 상태 |
 | `/path/final` | `nav_msgs/Path` | 검증된 최종 추종 경로 |
 | `/erp42_serial/drive` | `erp42_msgs/DriveCmd` | Control이 생성한 속도·조향·brake·Gear·EStop 차량 명령 |

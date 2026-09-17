@@ -39,7 +39,7 @@ class SyntheticReplay:
         return int(self.route.split('_')[0].split('-')[0])
 
     def step(self, s=0.0, speed=.5, signal='UNKNOWN', parking=False,
-             leg=None, path_available=True):
+             path_available=True):
         self.now = round(self.now + .25, 8)
         section = self.section
         length = 18.0 if section in (5, 10) else 23.0 if section == 13 else 20.0
@@ -67,12 +67,9 @@ class SyntheticReplay:
                     'landmarks': {self.route: marks}, 'path_ready': selection.ready,
                     'signal': {'stamp': self.now, 'route': self.route, 'value': signal},
                     'parking': spaces if parking else {}}
-        if leg is not None:
-            snapshot['parking_maneuver'] = dict(leg, stamp=self.now,
-                decision_id=self.epoch, route=self.route)
         decision = self.engine.update(snapshot)
         request = (self.route, decision['path_mode'], decision['direction'])
-        if request != self.request or decision['reason'] == 'PARKING_LEG_ACCEPTED':
+        if request != self.request:
             self.request, self.epoch = request, self.epoch + 1
             decision.update(stop_requested=True, speed_limit=0.0, next_route=None)
             selection = self.selector.evaluate(State(self.now, self.now, self.epoch,
@@ -98,8 +95,8 @@ class SyntheticReplay:
         if self.last.get('next_route') != expected:
             raise AssertionError('Expected transition to {}, received {}'.format(expected, self.events[-1]))
         self.route = expected
-        mode = 'LOCAL' if self.section == 3 else 'PARKING' if self.section in (10, 11) else 'RDDF'
-        self.request = (expected, mode, -1 if self.section == 5 else 1)
+        mode = 'LOCAL' if self.section == 3 else 'RDDF'
+        self.request = (expected, mode, -1 if self.section in (5, 11) else 1)
         self.epoch += 1
 
     def traffic(self, parking=False, left=False):
@@ -111,12 +108,6 @@ class SyntheticReplay:
         self.step(s=9.5, signal='LEFT_ARROW' if left else 'GREEN', parking=parking)
         self.step(s=16.0, signal='RED', parking=parking)
         self.step(s=20.0, signal='RED', parking=parking)
-
-    @staticmethod
-    def leg(phase, index, start, target, final):
-        return {'phase': phase, 'leg_index': index, 'start_s': float(start),
-                'target_s': float(target), 'final_leg': final,
-                'direction': -1 if phase == 'REVERSE_ENTRY' else 1}
 
     def park(self, kind):
         entry, exit_route = PARKING_ROUTES[kind][self.parking_branch]
@@ -132,19 +123,20 @@ class SyntheticReplay:
             self.step(s=10.0)
             self.step(s=20.0)
             return
+        if self.parking_branch == 'left':
+            entry_changes = (9.337439695228316,)
         else:
-            reverse = self.leg('REVERSE_ENTRY', 0, 0, 18, True)
-            self.step(speed=0.0, leg=reverse)
-        reversing = self.step(s=12.0, speed=-.5, leg=reverse)
-        if not reversing['control_allowed']:
-            raise AssertionError('Reverse leg should be commandable after the gear interface update')
-        for _ in range(4):
-            self.step(s=18.0, speed=0.0, leg=reverse)
+            entry_changes = (6.614062696750327, 16.56201644939806)
+        for position in entry_changes:
+            self.step(s=position - .1, speed=0.0)
+            self.step(s=position + .1)
+        self.step(s=18.0, speed=0.0)
         self.advance(exit_route)
-        exit_leg = self.leg('FORWARD_EXIT', 0, 0, 19, True)
-        self.step(speed=0.0, leg=exit_leg)
-        self.step(s=10.0, leg=exit_leg)
-        self.step(s=20.0, leg=exit_leg)
+        exit_change = (.7236489020465036 if self.parking_branch == 'left'
+                       else 2.237988918723955)
+        self.step(s=exit_change - .1, speed=0.0)
+        self.step(s=exit_change + .1)
+        self.step(s=20.0)
 
     def run(self):
         self.step()

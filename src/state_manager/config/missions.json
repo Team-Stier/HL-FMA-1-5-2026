@@ -32,6 +32,33 @@
     "t": "left",
     "parallel": "left"
   },
+  "parallel_parking_profiles": {
+    "10_parallel-left-in": {
+      "initial_direction": 1,
+      "changes": [
+        {"s": 9.337439695228316, "direction": -1}
+      ]
+    },
+    "10_parallel-right-in": {
+      "initial_direction": 1,
+      "changes": [
+        {"s": 6.614062696750327, "direction": -1},
+        {"s": 16.56201644939806, "direction": 1}
+      ]
+    },
+    "11-parallel-left-out": {
+      "initial_direction": -1,
+      "changes": [
+        {"s": 0.7236489020465036, "direction": 1}
+      ]
+    },
+    "11_parallel-right-out": {
+      "initial_direction": -1,
+      "changes": [
+        {"s": 2.237988918723955, "direction": 1}
+      ]
+    }
+  },
   "rules": {
     "hill_hold_s": 3.0,
     "standstill_speed_mps": 0.05,
@@ -61,20 +88,6 @@
     "end_tolerance_m": 0.8
   },
   "landmarks": {
-    "10_parallel-left-in": {
-      "parking_confirm_s": null,
-      "parking_yaw_rad": null
-    },
-    "10_parallel-right-in": {
-      "parking_confirm_s": null,
-      "parking_yaw_rad": null
-    },
-    "11-parallel-left-out": {
-      "parking_exit_s": null
-    },
-    "11_parallel-right-out": {
-      "parking_exit_s": null
-    },
     "12": {},
     "13_left": {},
     "13_right": {},

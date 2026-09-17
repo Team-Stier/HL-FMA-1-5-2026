@@ -37,7 +37,7 @@ class MissionRuntime:
         self.finish_left_branch_s = self._finish_left_branch()
         self.decision_id = 0
         self.request = None
-        self.parking_request = None
+        self.rddf_bounds = None
         self.last_time = None
         self.clock_fault = False
         self.vehicle_ok = validate_vehicle(config)
@@ -64,7 +64,7 @@ class MissionRuntime:
         self.progress_s = min(route.length, max(0.0, progress_s))
         if changed:
             self.request = None
-            self.parking_request = None
+            self.rddf_bounds = None
         return changed
 
     @staticmethod
@@ -245,6 +245,9 @@ class MissionRuntime:
         route = self.active_route
         start = max(0.0, self.progress_s - 1.0)
         end = min(route.length, self.progress_s + max(20.0, self.config.get('path_lookahead_m', 20.0)))
+        if self.rddf_bounds and self.rddf_bounds[0] == route.name:
+            start = max(start, self.rddf_bounds[1])
+            end = min(end, self.rddf_bounds[2])
         wall = self.traffic_constraint(now, signal)
         if wall:
             if not wall['valid']:
@@ -287,8 +290,9 @@ class MissionRuntime:
                 tracked.update(matched)
                 healthy, reason = tracked['healthy'], tracked['reason']
         if self.request is None:
-            mode = 'LOCAL' if tracked['section'] == 3 else 'PARKING' if tracked['section'] in (10, 11) else 'RDDF'
-            self._set_request(tracked['route'], mode, -1 if tracked['section'] == 5 else 1)
+            mode = 'LOCAL' if tracked['section'] == 3 else 'RDDF'
+            direction = -1 if tracked['section'] in (5, 11) else 1
+            self._set_request(tracked['route'], mode, direction)
         selection = self._path_selection(data, now)
         snapshot = dict(tracked, now=now, healthy=healthy, reason=reason,
                         speed=odom.get('speed', 0), yaw=odom.get('yaw', 0),
@@ -300,7 +304,6 @@ class MissionRuntime:
                         landmarks=self.config.get('landmarks', {}),
                         signal=data.get('signal', {}), path_ready=selection['ready'],
                         decision_id=self.decision_id,
-                        parking_maneuver=data.get('parking_maneuver', {}),
                         parking=data.get('parking', {}) if healthy else {},
                         finish_branch_s=self.finish_left_branch_s)
         # Dynamic-obstacle E-Stop evaluation remains independent of mission
@@ -313,12 +316,17 @@ class MissionRuntime:
             'required': bool(dynamic_token) and dynamic_token in str(tracked['route']).lower(),
             'valid': False, 'active': False, 'reason': reason, 'clearance_m': -1.0}
         decision['dynamic_obstacle'] = dynamic_obstacle
+        if (decision.get('path_mode') == 'RDDF'
+                and all(isinstance(decision.get(key), (int, float))
+                        and math.isfinite(decision[key])
+                        for key in ('rddf_start_s', 'rddf_end_s'))):
+            self.rddf_bounds = (tracked['route'], decision['rddf_start_s'],
+                                decision['rddf_end_s'])
+        else:
+            self.rddf_bounds = None
         request = (tracked['route'], decision['path_mode'], decision['direction'])
-        parking_request = ((tracked['route'], decision['parking_leg_index'], decision['parking_leg_phase'],
-                            decision['parking_leg_target_s']) if decision.get('parking_leg_index', -1) >= 0 else None)
-        if request != self.request or parking_request != self.parking_request:
+        if request != self.request:
             self._set_request(*request)
-            self.parking_request = parking_request
             selection = self._path_selection(data, now)
             decision.update(stop_requested=True, speed_limit=0.0, next_route=None, reason='WAIT_NEW_PATH', phase='WAIT_PATH')
         safety = {'stop': True, 'sensor_valid': healthy, 'reason': reason, 'clearance_m': -1.0,

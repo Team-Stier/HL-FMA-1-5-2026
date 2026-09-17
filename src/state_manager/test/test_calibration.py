@@ -35,7 +35,7 @@ def measured(routes):
             marks.update(hill_start_s=2., hill_stop_s=5., hill_top_s=9.)
         if item.section in (2, 4, 7):
             marks.update(stop_line_s=5.)
-        if item.section in (5, 10):
+        if item.section == 5:
             marks.update(parking_confirm_s=item.length, parking_yaw_rad=math.pi)
         if marks:
             config['landmarks'][name] = marks
@@ -103,16 +103,11 @@ class CalibrationTests(unittest.TestCase):
         errors = validate_landmarks(self.config, self.routes)
         self.assertTrue(any('ramp boundaries' in e for e in errors))
 
-    def test_parking_requires_measured_yaw_and_endpoint_handoff(self):
-        del self.config['landmarks']['10_parallel-left-in']['parking_yaw_rad']
-        self.config['landmarks']['10_parallel-right-in']['parking_confirm_s'] = 18.9
-        errors = validate_landmarks(self.config, self.routes)
-        self.assertTrue(any('parking_yaw_rad' in e for e in errors))
-        self.assertTrue(any('entry endpoint' in e for e in errors))
-
-    def test_parking_yaw_degrees_not_accepted_as_radians(self):
-        self.config['landmarks']['10_parallel-left-in']['parking_yaw_rad'] = 90
-        self.assertTrue(validate_landmarks(self.config, self.routes))
+    def test_parallel_parking_uses_rddf_without_landmarks(self):
+        for name in ('10_parallel-left-in', '10_parallel-right-in',
+                     '11-parallel-left-out', '11_parallel-right-out'):
+            self.config['landmarks'].pop(name, None)
+        self.assertEqual(validate_landmarks(self.config, self.routes), [])
 
     def test_finish_branch_is_derived_from_rddf_geometry(self):
         self.routes['13_left'] = Route('13_left', [(100., 100., 0.), (101., 100., 0.)])
