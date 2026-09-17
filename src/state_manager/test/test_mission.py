@@ -536,10 +536,21 @@ class MissionTests(unittest.TestCase):
                 result = self.poll(start=3.25, end=6, **values)
                 self.assertIn('hill', result['completed_missions'])
 
-    def test_negative_speed_never_completes_hill_hold_even_below_deadband(self):
-        result = self.poll(s=5, raw_s=5, speed=-.001)
-        self.assertNotIn('hill', result['completed_missions'])
-        self.assertEqual(result['hill_hold_elapsed_s'], 0)
+    def test_hill_accepts_signed_speed_within_standstill_range(self):
+        for speed in (-.05, -.001, 0., .001, .05):
+            with self.subTest(speed=speed):
+                self.engine = MissionEngine()
+                result = self.poll(s=5, raw_s=5, speed=speed)
+                self.assertIn('hill', result['completed_missions'])
+                self.assertFalse(result['stop_requested'])
+
+    def test_hill_rejects_speed_outside_standstill_range(self):
+        for speed in (-.051, .051):
+            with self.subTest(speed=speed):
+                self.engine = MissionEngine()
+                result = self.poll(s=5, raw_s=5, speed=speed)
+                self.assertNotIn('hill', result['completed_missions'])
+                self.assertEqual(result['hill_hold_elapsed_s'], 0)
 
     def test_exact_half_metre_hill_rollback_is_a_fault(self):
         self.run_at(now=0, s=5, raw_s=5, speed=0)

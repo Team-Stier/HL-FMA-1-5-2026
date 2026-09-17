@@ -494,9 +494,9 @@ class MissionEngine:
                 self._once("hill_stop_missed", out["route"])
                 self._stop(out, "HILL_STOP_ZONE_MISSED", "FAULT")
                 return
-            # Signed reverse speed is never accepted as a stationary hold.
+            # Accept speed noise in both directions within the standstill range.
             # Position also catches slow drift hidden by the speed deadband.
-            stationary = standing and snap["speed"] >= 0 and zone_ok and near_stop
+            stationary = standing and zone_ok and near_stop
             position = (raw_s, snap.get("x"), snap.get("y"))
             anchor = state.get("hill_hold_anchor")
             drift = abs(raw_s - anchor[0]) if anchor else 0.0
