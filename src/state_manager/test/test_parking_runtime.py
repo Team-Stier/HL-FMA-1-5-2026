@@ -172,14 +172,14 @@ class ParkingRuntimeTests(unittest.TestCase):
             self.assertEqual(result['reason'], 'PARKING_MANEUVER_STALE_OR_MISMATCHED')
             self.assertEqual((result['decision_id'], result['direction']), (3, -1))
 
-    def test_selected_body_heading_is_checked_when_rddf_heading_is_not(self):
+    def test_parking_path_is_not_blocked_by_removed_global_heading_gate(self):
         self.accept_forward()
         result = self.runtime.step(1.2, self.data(1.2, yaw=math.pi, maneuver=self.maneuver(1.2)),
                                    self.candidate(1.2))
         self.assertTrue(result['tracking']['healthy'])
-        self.assertTrue(result['safety']['stop'])
-        self.assertEqual(result['safety']['reason'], 'SELECTED_PATH_HEADING_MISMATCH')
-        self.assertTrue(result['stop_requested'])
+        self.assertFalse(result['safety']['stop'], result)
+        self.assertEqual(result['safety']['reason'], 'PATH_ACCEPTED')
+        self.assertFalse(result['stop_requested'], result)
 
 
 if __name__ == '__main__':

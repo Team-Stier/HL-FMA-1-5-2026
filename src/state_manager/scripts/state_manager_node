@@ -60,9 +60,10 @@ class StateManagerNode:
             with open(calibration_file, encoding='utf-8') as stream:
                 self.config = merge_overlay(self.config, json.load(stream))
         elif calibration_file:
-            rospy.logwarn('Calibration overlay missing: %s; measured calibration remains required', calibration_file)
-            self.config['landmarks_validated'] = False
-            self.config.setdefault('vehicle', {})['validated'] = False
+            # The overlay is optional.  MissionRuntime validates only the
+            # landmarks needed by the currently matched RDDF, so an absent
+            # file must not turn unrelated course sections into a global stop.
+            rospy.logwarn('Calibration overlay missing: %s; using base mission configuration', calibration_file)
         if rospy.get_param('~calibration_mode', False):
             self.config['calibration_mode'] = True
         self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(10))

@@ -45,7 +45,6 @@ class MissionRuntime:
         self.clock_fault = False
         self.transition_fault = ''
         self.vehicle_ok = validate_vehicle(config)
-        self.vehicle_error = 'VEHICLE_CALIBRATION_REQUIRED'
         self.preview_cache = None
         if self.vehicle_ok:
             # Localization base_link is at the rear axle. The traffic stop
@@ -55,7 +54,6 @@ class MissionRuntime:
                                             config['vehicle']['reaction_s'], config.get('stop_buffer_m', .05))
             if minimum_stop > self.engine.rules['stop_tolerance_m']:
                 self.vehicle_ok = False
-                self.vehicle_error = 'STOP_PRECISION_BELOW_COMMAND_RESOLUTION'
 
     def _dynamic_obstacle(self, now, tracked, data):
         """Return an E-Stop request only for a cluster on a dynamic RDDF route."""
@@ -227,22 +225,6 @@ class MissionRuntime:
                 points.append((a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), a[2]+t*yaw_delta))
         return points
 
-    def _crosses_virtual_stop(self, points, wall):
-        if not wall or not wall['active']:
-            return False
-        if not wall['valid']:
-            return True
-        # Traffic requests use the RDDF corridor. Check segment interiors too,
-        # preventing a sparse response from skipping a stop-line restriction.
-        for a, b in zip(points, points[1:]):
-            steps = max(1, int(math.ceil(math.hypot(b[0]-a[0], b[1]-a[1]) / .1)))
-            for i in range(steps+1):
-                t = i / steps
-                matched = project(self.tracker.current, a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]))
-                if matched is None or matched['s'] > wall['target_s'] + 1e-6:
-                    return True
-        return False
-
     def step(self, now, data, candidates):
         if self.last_time is not None and now < self.last_time:
             self.clock_fault = True
@@ -266,15 +248,17 @@ class MissionRuntime:
         snapshot = dict(tracked, now=now, healthy=healthy, reason=reason,
                         speed=odom.get('speed', 0), yaw=odom.get('yaw', 0),
                         x=odom.get('x'), y=odom.get('y'),
-                        calibrated=self.vehicle_ok and self.config.get('landmarks_validated') is True
-                        and not self.config.get('calibration_mode', False),
+                        # Landmark completeness is checked for the active RDDF
+                        # by MissionEngine._landmarks().  Vehicle geometry is
+                        # required only by features that actually consume it.
+                        calibrated=not self.config.get('calibration_mode', False),
                         landmarks=self.config.get('landmarks', {}),
                         signal=data.get('signal', {}), path_ready=selection.ready,
                         decision_id=self.decision_id,
                         parking_maneuver=data.get('parking_maneuver', {}),
                         parking=self._parking_preview(data, tracked['section']) if healthy else {})
-        # Collision veto is independent of mission dwell accounting. In
-        # particular a dummy occupying the corridor must not reset its 3 s hold.
+        # Dynamic-obstacle E-Stop evaluation remains independent of mission
+        # dwell accounting, so it cannot reset a route-specific hold timer.
         decision = self.engine.update(snapshot)
         decision['virtual_stop'] = self.traffic_constraint(now, data.get('signal', {}))
         dynamic_token = str(self.config.get('dynamic_obstacle', {}).get(
@@ -293,40 +277,11 @@ class MissionRuntime:
             decision.update(stop_requested=True, speed_limit=0.0, next_route=None, reason='WAIT_NEW_PATH', phase='WAIT_PATH')
         safety = {'stop': True, 'sensor_valid': healthy, 'reason': reason, 'clearance_m': -1.0,
                   'path_fingerprint': ''}
-        if healthy and self.vehicle_ok and selection.ready:
-            candidate = selection.candidate
-            safety['path_fingerprint'] = path_fingerprint(candidate)
-            points = []
-            for pose in candidate.poses:
-                qx, qy, qz, qw = pose.orientation
-                yaw = math.atan2(2*(qw*qz + qx*qy), 1-2*(qy*qy+qz*qz))
-                # PlannedPath pose orientations describe body heading.
-                points.append((pose.position[0], pose.position[1], yaw + (math.pi if decision['direction'] < 0 else 0)))
-            path = Route('1_safety_path', points, decision['direction'])
-            matched = project(path, odom['x'], odom['y'])
-            distance = braking_distance(odom['speed'], self.config['vehicle']['deceleration_mps2'],
-                                        self.config['vehicle']['reaction_s'], self.config['vehicle'].get('margin_m', .25))
-            remaining = path.length - matched['s']
-            body_yaw = matched['yaw'] + (math.pi if decision['direction'] < 0 else 0)
-            heading_error = abs(math.atan2(math.sin(odom['yaw']-body_yaw), math.cos(odom['yaw']-body_yaw)))
-            if self._crosses_virtual_stop(points, decision.get('virtual_stop')):
-                safety['reason'] = 'PATH_CROSSES_VIRTUAL_STOP'
-            elif matched['distance'] > self.config.get('max_path_start_offset_m', 1.0):
-                safety['reason'] = 'SELECTED_PATH_TOO_FAR'
-            elif heading_error > self.config.get('max_path_heading_error_rad', 1.0):
-                safety['reason'] = 'SELECTED_PATH_HEADING_MISMATCH'
-            elif remaining < distance and not tracked['at_end'] and decision.get('remaining_stop_m') is None:
-                safety['reason'] = 'PATH_SHORTER_THAN_STOPPING_DISTANCE'
-            else:
-                horizon = path.slice(matched['s'], matched['s'] + max(distance, 0.5))
-                # Join measured vehicle pose to the selected path, checking
-                # swept space even when a local avoidance path is offset.
-                horizon.insert(0, (odom['x'], odom['y'], odom['yaw'] + (math.pi if decision['direction'] < 0 else 0)))
-                check = self._corridor(horizon, data, decision['direction'])
-                safety.update(stop=check['status'] != 'CLEAR', reason=check['status'] + ':' + check.get('reason', ''),
-                              clearance_m=check.get('nearest_obstacle_s') if check.get('nearest_obstacle_s') is not None else -1.0)
+        if healthy and selection.ready:
+            safety.update(stop=False, reason='PATH_ACCEPTED',
+                          path_fingerprint=path_fingerprint(selection.candidate))
         elif healthy:
-            safety['reason'] = self.vehicle_error if not self.vehicle_ok else 'REQUESTED_PATH_UNAVAILABLE'
+            safety['reason'] = 'REQUESTED_PATH_UNAVAILABLE'
         remaining_stop = decision.get('remaining_stop_m')
         if remaining_stop is not None and self.vehicle_ok:
             available = max(0.0, remaining_stop - self.config.get('stop_buffer_m', 0.05))

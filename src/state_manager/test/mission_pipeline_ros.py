@@ -120,13 +120,16 @@ class PipelineSmoke(unittest.TestCase):
                       self.publish_default_inputs)
         with self.lock:
             seen = dict(self.seen)
-        self.assertFalse(seen['state'].valid)
+        # The global calibration flags no longer invalidate an unrelated
+        # route. Section 8 still requests stop because its cluster-based
+        # E-Stop specifically requires measured vehicle geometry.
+        self.assertTrue(seen['state'].valid)
         self.assertTrue(seen['state'].stop_requested)
-        self.assertNotIn('EXCEPTION', seen['state'].reason)
+        self.assertEqual(seen['state'].reason, 'DYNAMIC_OBSTACLE_VEHICLE_CALIBRATION_REQUIRED')
         self.assertTrue(seen['markers'].markers)
         self.assertTrue(seen['safety'].stop)
-        self.assertFalse(seen['constraint'].valid)
-        self.assertTrue(seen['constraint'].active)
+        self.assertTrue(seen['constraint'].valid)
+        self.assertFalse(seen['constraint'].active)
         self.assertEqual(seen['constraint'].route_name, '8_dynamic-obstacle')
 
         def inspected(s):

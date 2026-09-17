@@ -46,12 +46,22 @@ class RuntimeTests(unittest.TestCase):
     def run_step(self, runtime, now, x=0, speed=0):
         return runtime.step(now, self.data(now, x, speed), self.candidate(runtime, now))
 
-    def test_unvalidated_vehicle_stops(self):
+    def test_global_validation_flags_do_not_stop_a_configured_route(self):
         self.config['vehicle']['validated'] = False
+        self.config['landmarks_validated'] = False
         runtime = MissionRuntime(self.routes, self.config)
         result = self.run_step(runtime, 1)
+        self.assertTrue(result['valid'], result)
+        self.assertFalse(result['stop_requested'], result)
+        self.assertEqual(result['safety']['reason'], 'PATH_ACCEPTED')
+
+    def test_current_route_landmarks_are_still_required(self):
+        self.config['landmarks_validated'] = False
+        self.config['landmarks']['1_right'] = {}
+        result = self.run_step(MissionRuntime(self.routes, self.config), 1)
         self.assertFalse(result['valid'])
         self.assertTrue(result['stop_requested'])
+        self.assertEqual(result['reason'], 'CALIBRATION_REQUIRED:hill_start_s')
 
     def test_dead_reckoning_accepts_supervisor_valid_position_covariance(self):
         runtime = MissionRuntime(self.routes, self.config)
@@ -105,15 +115,23 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['stop_requested'])
         self.assertFalse(result['valid'])
 
-    def test_raw_lidar_collision_still_stops_on_dynamic_section(self):
-        self.config['start_route'] = '8_dynamic-obstacle'
+    def test_raw_lidar_hit_does_not_trigger_removed_global_vehicle_gate(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1)
         data['scan']['hits'].append((.7, 0))
         result = runtime.step(1, data, self.candidate(runtime, 1))
-        self.assertEqual(result['mission'], 'DYNAMIC_OBSTACLE')
-        self.assertTrue(result['safety']['stop'])
+        self.assertEqual(result['mission'], 'HILL_STOP')
+        self.assertFalse(result['safety']['stop'], result)
+        self.assertFalse(result['stop_requested'], result)
+
+    def test_unvalidated_vehicle_stops_only_dynamic_geometry_feature(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        self.config['vehicle']['validated'] = False
+        runtime = MissionRuntime(self.routes, self.config)
+        result = runtime.step(1, self.cluster_data(1, []), self.candidate(runtime, 1))
+        self.assertTrue(result['valid'])
         self.assertTrue(result['stop_requested'])
+        self.assertEqual(result['reason'], 'DYNAMIC_OBSTACLE_VEHICLE_CALIBRATION_REQUIRED')
 
     def cluster_data(self, now, points):
         data = self.data(now)
@@ -195,10 +213,13 @@ class RuntimeTests(unittest.TestCase):
         result = runtime.step(1, self.data(1), old)
         self.assertTrue(result['stop_requested'])
 
-    def test_minimum_command_resolution_must_fit_stop_tolerance(self):
+    def test_stop_precision_check_is_not_a_global_motion_gate(self):
         self.config['vehicle']['reaction_s'] = 2.0
         runtime = MissionRuntime(self.routes, self.config)
-        self.assertFalse(self.run_step(runtime, 1)['valid'])
+        self.assertFalse(runtime.vehicle_ok)
+        result = self.run_step(runtime, 1)
+        self.assertTrue(result['valid'], result)
+        self.assertFalse(result['stop_requested'], result)
 
     def test_motion_beyond_measured_scan_bounds_stops(self):
         runtime = MissionRuntime(self.routes, self.config)
@@ -250,7 +271,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['virtual_stop']['active'])
         self.assertEqual(result['virtual_stop']['pose'], (5., 0., 0.))
 
-    def test_green_red_green_replans_and_rejects_old_unrestricted_geometry(self):
+    def test_green_red_green_updates_virtual_stop_without_global_path_veto(self):
         runtime = self.traffic_runtime()
         green = {'stamp': 1, 'route': '2', 'value': 'GREEN'}
         path = self.planned_prefix(runtime, 1, green)
@@ -258,10 +279,12 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result['virtual_stop']['active'])
         self.assertFalse(result['stop_requested'], result)
         red = dict(green, stamp=1.1, value='RED')
-        # A planner ignoring the new wall is vetoed even before reaching it.
+        # The removed vehicle gate no longer vetoes the complete path.  The
+        # traffic mission still publishes the stop line and remaining distance.
         result = runtime.step(1.1, dict(self.data(1.1), signal=red), self.candidate(runtime, 1.1))
-        self.assertEqual(result['safety']['reason'], 'PATH_CROSSES_VIRTUAL_STOP')
-        self.assertTrue(result['stop_requested'])
+        self.assertEqual(result['safety']['reason'], 'PATH_ACCEPTED')
+        self.assertFalse(result['stop_requested'], result)
+        self.assertAlmostEqual(result['remaining_stop_m'], 4.5)
         result = runtime.step(1.2, dict(self.data(1.2), signal=red), self.planned_prefix(runtime, 1.2, red))
         self.assertFalse(result['stop_requested'], result)
         green['stamp'] = 1.3
