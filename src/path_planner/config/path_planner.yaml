@@ -9,8 +9,8 @@ future_tolerance_s: 0.05
 planning_deadline_ms: 80.0
 
 # RDDF 중심선부터 실제 주행 가능 경계까지의 거리다. 차체 반폭을 뺀 값이 아니다.
-road_left_bound_m: 1.7
-road_right_bound_m: 1.7
+road_left_bound_m: 2.0
+road_right_bound_m: 2.0
 
 vehicle:
   # base_link는 후륜축 중심이다. 충돌 검사용 실제 차체 외곽 치수다.

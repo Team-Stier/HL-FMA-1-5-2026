@@ -26,13 +26,27 @@ Visualization Manager:
       Marker Topic: /mission/markers
       Queue Size: 1
     - Class: rviz/Path
-      Name: Selected output path (may be empty before calibration)
+      Name: Selected control path (yellow)
       Enabled: true
       Topic: /path/final
       Color: 255; 238; 40
       Line Style: Lines
       Line Width: 0.18
       Buffer Length: 1
+      Pose Style: None
+    - Class: rviz/Path
+      Name: Local avoidance path (cyan)
+      Enabled: true
+      Topic: /path/local_visualization
+      Color: 0; 255; 255
+      Alpha: 1
+      Line Style: Billboards
+      Line Width: 0.10
+      Buffer Length: 1
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0.15
       Pose Style: None
     - Class: rviz/MarkerArray
       Name: Inspection / observed RDDF / candidate paths / input freshness

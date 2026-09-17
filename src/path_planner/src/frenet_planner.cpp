@@ -251,19 +251,41 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
     return result;
   }
   const ReferencePoint start_reference = reference.sample(start_s);
+  const double heading_error = normalizeAngle(input.pose.yaw - start_reference.yaw);
+  if (!std::isfinite(heading_error) || std::abs(heading_error) >= kPi / 2.0) {
+    result.reason = "vehicle heading is opposite to forward reference";
+    return result;
+  }
+  {
+    // Test the RDDF swept vehicle footprint, not the total cluster count.
+    // Off-path clusters must not force an unnecessary Frenet search. Retain all
+    // original vertices so resampling never cuts across an S-course corner.
+    std::vector<double> stations{start_s, end_s};
+    for (double s = start_s + config_.sample_interval_m; s < end_s;
+         s += config_.sample_interval_m) stations.push_back(s);
+    for (const auto& point : reference.points()) {
+      if (point.s > start_s && point.s < end_s) stations.push_back(point.s);
+    }
+    std::sort(stations.begin(), stations.end());
+    stations.erase(std::unique(stations.begin(), stations.end()), stations.end());
+    for (double s : stations) {
+      const auto point = reference.sample(s);
+      result.path.push_back({point.x, point.y, point.yaw, point.curvature, s, 0.0});
+    }
+    if (!pathHasCollision(result.path, input.obstacles, config_.vehicle,
+                          config_.collision_margin_m, 0.05, 2.0 * kPi / 180.0)) {
+      previous_path_.clear();
+      result.valid = true;
+      result.reason = "RDDF_CLEAR";
+      return result;
+    }
+    result.path.clear();
+  }
   const double start_longitudinal_scale =
       1.0 - start_reference.curvature * input.projection.d;
   if (!std::isfinite(start_longitudinal_scale) ||
       start_longitudinal_scale < config_.minimum_longitudinal_scale) {
     result.reason = "Frenet longitudinal scale is singular at vehicle pose";
-    return result;
-  }
-  const double heading_error =
-      normalizeAngle(input.pose.yaw - start_reference.yaw);
-  // tan(yaw_error) alone aliases a backward-facing pose to a forward pose.
-  // Reverse parking requires its own direction-aware planner and controller.
-  if (!std::isfinite(heading_error) || std::abs(heading_error) >= kPi / 2.0) {
-    result.reason = "vehicle heading is opposite to forward reference";
     return result;
   }
   // For x(s, d)=reference(s)+normal(s)*d, the exact relation is
@@ -296,6 +318,24 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
                                       middle_d, 0.0, 0.0, first_length);
         const QuinticPolynomial second(middle_d, 0.0, 0.0, end_d, 0.0, 0.0,
                                        second_length);
+        // Continuous Cartesian joins avoid copying polyline corners into
+        // candidates. All curvature, boundary and collision checks remain.
+        const auto mid_ref = reference.sample(middle_s);
+        const auto end_ref = reference.sample(end_s);
+        const double mx = mid_ref.x - std::sin(mid_ref.yaw) * middle_d;
+        const double my = mid_ref.y + std::cos(mid_ref.yaw) * middle_d;
+        const double ex = end_ref.x - std::sin(end_ref.yaw) * end_d;
+        const double ey = end_ref.y + std::cos(end_ref.yaw) * end_d;
+        const double ax = -std::sin(mid_ref.yaw) * mid_ref.curvature;
+        const double ay = std::cos(mid_ref.yaw) * mid_ref.curvature;
+        const QuinticPolynomial x_first(input.pose.x, std::cos(input.pose.yaw), 0.,
+            mx, std::cos(mid_ref.yaw), ax, first_length);
+        const QuinticPolynomial y_first(input.pose.y, std::sin(input.pose.yaw), 0.,
+            my, std::sin(mid_ref.yaw), ay, first_length);
+        const QuinticPolynomial x_second(mx, std::cos(mid_ref.yaw), ax,
+            ex, std::cos(end_ref.yaw), -std::sin(end_ref.yaw)*end_ref.curvature, second_length);
+        const QuinticPolynomial y_second(my, std::sin(mid_ref.yaw), ay,
+            ey, std::sin(end_ref.yaw), std::cos(end_ref.yaw)*end_ref.curvature, second_length);
         const std::size_t sample_count = static_cast<std::size_t>(
             std::ceil(available_horizon / config_.sample_interval_m));
         candidate.path.reserve(sample_count + 1U);
@@ -326,8 +366,25 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
           PathPoint point;
           point.s = route_s;
           point.d = d;
-          point.x = reference_point.x - std::sin(reference_point.yaw) * d;
-          point.y = reference_point.y + std::cos(reference_point.yaw) * d;
+          const auto& xp = first_half ? x_first : x_second;
+          const auto& yp = first_half ? y_first : y_second;
+          point.x = xp.position(polynomial_s);
+          point.y = yp.position(polynomial_s);
+          const double dx = xp.first(polynomial_s);
+          const double dy = yp.first(polynomial_s);
+          const double forward = dx * std::cos(reference_point.yaw) +
+                                 dy * std::sin(reference_point.yaw);
+          const double lateral = -dx * std::sin(reference_point.yaw) +
+                                 dy * std::cos(reference_point.yaw);
+          if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
+              !std::isfinite(forward) || !std::isfinite(lateral) ||
+              forward < config_.minimum_longitudinal_scale ||
+              std::abs(lateral / forward) > config_.maximum_lateral_slope) {
+            candidate.feasible = false;
+            break;
+          }
+          point.d = -std::sin(reference_point.yaw) * (point.x-reference_point.x) +
+                     std::cos(reference_point.yaw) * (point.y-reference_point.y);
           const double longitudinal_scale =
               1.0 - reference_point.curvature * d;
           if (!std::isfinite(longitudinal_scale) ||
@@ -335,9 +392,7 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
             candidate.feasible = false;
             break;
           }
-          point.yaw = normalizeAngle(
-              reference_point.yaw +
-              std::atan2(slope, longitudinal_scale));
+          point.yaw = std::atan2(dy, dx);
           if (sample_index == 0U) {
             // The polyline projection tangent and the smoothed reference yaw
             // can differ slightly at a waypoint. Always anchor the published
@@ -350,7 +405,7 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
           const double relative_yaw =
               normalizeAngle(point.yaw - reference_point.yaw);
           const double body_center_d =
-              d + config_.vehicle.rear_axle_to_center_m *
+              point.d + config_.vehicle.rear_axle_to_center_m *
                       std::sin(relative_yaw);
           const double lateral_extent =
               config_.vehicle.length_m / 2.0 *

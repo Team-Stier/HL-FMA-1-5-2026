@@ -11,6 +11,7 @@
 
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/Path.h>
 #include <planning_interfaces/MissionState.h>
 #include <planning_interfaces/PathStatus.h>
 #include <planning_interfaces/PlannedPath.h>
@@ -42,6 +43,8 @@ class PathPlannerNode {
 
     path_publisher_ = node_.advertise<planning_interfaces::PlannedPath>(
         "/path/local", 1);
+    visualization_publisher_ = node_.advertise<nav_msgs::Path>(
+        "/path/local_visualization", 1);
     status_publisher_ = node_.advertise<planning_interfaces::PathStatus>(
         "/path_planner/status", 1);
     route_subscriber_ = node_.subscribe(
@@ -407,6 +410,11 @@ class PathPlannerNode {
       status.direction = mission_.direction;
     }
     status_publisher_.publish(status);
+    if (!ready) {
+      nav_msgs::Path empty;
+      empty.header = status.header;
+      visualization_publisher_.publish(empty);
+    }
   }
 
   void timerCallback(const ros::TimerEvent&) {
@@ -512,12 +520,14 @@ class PathPlannerNode {
       output.path.poses.push_back(pose);
     }
     path_publisher_.publish(output);
-    publishStatus(now, true, "OK");
+    visualization_publisher_.publish(output.path);
+    publishStatus(now, true, result.reason);
   }
 
   ros::NodeHandle node_;
   ros::NodeHandle private_node_;
   ros::Publisher path_publisher_;
+  ros::Publisher visualization_publisher_;
   ros::Publisher status_publisher_;
   ros::Subscriber route_subscriber_;
   ros::Subscriber mission_subscriber_;

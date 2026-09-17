@@ -89,6 +89,7 @@ class RddfTracker:
         self.active_source = None
         self.active_progress = None
         self.requested_successor = None
+        self.initialized_source = None
 
     def _observe_time(self, now):
         if self.last_now is not None and now < self.last_now:
@@ -96,6 +97,7 @@ class RddfTracker:
             self.active_source = None
             self.active_progress = None
             self.requested_successor = None
+            self.initialized_source = None
         self.last_now = now
 
     def update_pose(self, x, y, stamp, received, frame_id, yaw=None):
@@ -182,6 +184,13 @@ class RddfTracker:
     def _initial_match(self, x, y, yaw):
         result = current_rddf_match(self.route_map, (x, y), True,
                                     self.maximum, self.margin)
+        initialized = next((candidate for candidate in result.get('candidates', [])
+                            if candidate['source_route'] == self.initialized_source), None)
+        if initialized is not None:
+            self.active_source = initialized['source_route']
+            self.active_progress = self._progress(initialized)
+            self.initialized_source = None
+            return self._accepted(initialized, 'MATCHED_BY_INITIALIZATION')
         requested = next((candidate for candidate in result.get('candidates', [])
                           if candidate['source_route'] == self.requested_successor), None)
         if requested is not None:

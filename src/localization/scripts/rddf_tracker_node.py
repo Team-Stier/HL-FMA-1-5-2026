@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Publish current RDDF identification independently of RViz and screen seeking."""
 import math
+import json
 from pathlib import Path
 import sys
 import threading
@@ -64,6 +65,8 @@ class RddfTrackerNode:
             rospy.Subscriber(topics['valid'], Bool, self.valid_callback, queue_size=1),
             rospy.Subscriber(topics['rddf_successor_request'], String,
                              self.successor_callback, queue_size=1),
+            rospy.Subscriber('/mando_localization/internal/initialization/status', String,
+                             self.initialization_callback, queue_size=1),
         ]
         self.timer = rospy.Timer(rospy.Duration(1.0/rate), self.publish, reset=True)
 
@@ -93,6 +96,21 @@ class RddfTrackerNode:
     def successor_callback(self, message):
         with self.lock:
             self.tracker.update_successor_request(message.data)
+
+    def initialization_callback(self, message):
+        try:
+            status = json.loads(message.data)
+        except (ValueError, TypeError):
+            return
+        if not isinstance(status, dict):
+            return
+        with self.lock:
+            # Only resolve initial acquisition; never pin later route transitions.
+            if self.tracker.active_source is None:
+                source = status.get('route') if status.get('ready') is True else None
+                self.tracker.initialized_source = (
+                    source if isinstance(source, str) and source in self.tracker.route_map.routes
+                    else None)
 
     def publish(self, _event):
         with self.lock:

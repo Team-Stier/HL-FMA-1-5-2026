@@ -30,6 +30,25 @@ class TrackingTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_initialization_resolves_join_without_pinning_later_route(self):
+        self.configure_routes({'2': [(-10, 0), (0, 0)],
+                               '3_s-static-obstacle': [(0, 0), (10, 0)]})
+        self.tracker.update_pose(.02, .02, 10., 10., 'map', 0.)
+        self.tracker.update_valid(True, 10.)
+        self.assertFalse(self.tracker.evaluate(10.)['accepted'])
+        self.tracker.initialized_source = '3_s-static-obstacle'
+        result = self.tracker.evaluate(10.)
+        self.assertTrue(result['accepted'])
+        self.assertEqual(result['source_route'], '3_s-static-obstacle')
+        self.assertEqual(result['reason'], 'MATCHED_BY_INITIALIZATION')
+        self.assertIsNone(self.tracker.initialized_source)
+
+    def test_initialization_does_not_override_invalid_localization(self):
+        self.tracker.initialized_source = 'branch_a'
+        self.tracker.update_pose(25., 0., 10., 10., 'map', 0.)
+        self.tracker.update_valid(False, 10.)
+        self.assertEqual(self.tracker.evaluate(10.)['reason'], 'LOCALIZATION_INVALID')
+
     def configure_groups(self, groups, directions=None):
         root = Path(self.tmp.name)
         project = root/'yongin_route_project.json'

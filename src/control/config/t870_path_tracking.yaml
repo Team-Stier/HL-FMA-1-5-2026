@@ -49,8 +49,8 @@ control_node:
   lookahead_base_m: 1.00
   lookahead_speed_gain_sec: 0.50
   lookahead_curvature_gain_m: 1.00
-  lookahead_min_m: 0.50
-  lookahead_max_m: 1.50
+  lookahead_min_m: 2.0
+  lookahead_max_m: 2.0
   minimum_target_distance_m: 0.20
   curvature_preview_distance_m: 2.00
 

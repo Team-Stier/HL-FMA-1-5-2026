@@ -4,10 +4,11 @@
   <rosparam command="load" file="$(arg vehicle_config)"/>
 
   <arg name="hongik_test" default="false"/>
-  <arg name="mission_config" default="$(eval find('state_manager') + ('/config/missions_hongik.json' if arg('hongik_test') else '/config/missions.json'))"/>
-  <arg name="rddf_directory" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf' if arg('hongik_test') else '/rddf'))"/>
-  <arg name="rddf_initialization_config" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf/initialization.yaml' if arg('hongik_test') else '/config/rddf_initialization.yaml'))"/>
-  <arg name="localization_viewer_config" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf/viewer.yaml' if arg('hongik_test') else '/config/localization_viewer.yaml'))"/>
+  <arg name="hongik_s_test" default="false"/>
+  <arg name="mission_config" default="$(eval find('state_manager') + ('/config/missions_hongik.json' if arg('hongik_test') or arg('hongik_s_test') else '/config/missions.json'))"/>
+  <arg name="rddf_directory" default="$(eval find('mando_localization') + ('/test_data/hongik_s_rddf' if arg('hongik_s_test') else '/test_data/hongik_rddf' if arg('hongik_test') else '/rddf'))"/>
+  <arg name="rddf_initialization_config" default="$(eval find('mando_localization') + ('/test_data/hongik_s_rddf/initialization.yaml' if arg('hongik_s_test') else '/test_data/hongik_rddf/initialization.yaml' if arg('hongik_test') else '/config/rddf_initialization.yaml'))"/>
+  <arg name="localization_viewer_config" default="$(eval find('mando_localization') + ('/test_data/hongik_s_rddf/viewer.yaml' if arg('hongik_s_test') else '/test_data/hongik_rddf/viewer.yaml' if arg('hongik_test') else '/config/localization_viewer.yaml'))"/>
   <!-- Physical devices owned by sensor_bringup. -->
   <arg name="enable_lidar" default="true"/>
   <arg name="enable_camera" default="true"/>
