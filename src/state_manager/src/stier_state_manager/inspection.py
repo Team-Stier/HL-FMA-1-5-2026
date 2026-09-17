@@ -34,7 +34,7 @@ def inspection_specs(routes, samples, now, timeout=.5):
         elif fresh(observed, now, timeout) and observed.get('frame') != 'map':
             reason = 'FRAME_MISMATCH'
         lines.append('Observed RDDF: UNKNOWN (%s)' % reason)
-    for key, label in (('mission', 'Manager'), ('scan', 'LiDAR'), ('roi', 'ROI points'),
+    for key, label in (('mission', 'Manager'), ('roi', 'ROI points'),
                        ('clusters', 'Clusters'), ('signal', 'Traffic signal'),
                        ('safety', 'Safety'), ('selection', 'Selector')):
         item = samples.get(key)

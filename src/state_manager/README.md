@@ -91,7 +91,7 @@ roslaunch state_manager inspection.launch start_mission:=false start_detection:=
 | 청록색 observed RDDF와 inspection status | Localization `/molit/localization/rddf/current`가 관측한 실제 구간 |
 | RDDF/LOCAL/PARK 후보 경로 | 입력된 경로 형상·route·decision ID. 아직 주행이 허용되지 않아도 확인 가능 |
 | 노란 `/path/final` | Selector가 내보낸 출력. 미설정 상태에서는 비어 있는 것이 정상 |
-| 원본 LiDAR, ROI 내부 점, ROI 원, DBSCAN 군집 | 원본과 필터 결과 비교. DBSCAN 군집은 객체 종류나 움직임 판정이 아님 |
+| ROI 내부 점, ROI 원, DBSCAN 군집 | 인식 결과 확인. DBSCAN 군집은 객체 종류나 움직임 판정이 아님 |
 | Traffic signal | 매니저 입력 메시지의 값·신뢰도. 인식기가 미연결이면 `NO_DATA` |
 | Safety / Selector 상태 | 현재 정지 이유, 경로 준비 여부 |
 
@@ -130,12 +130,9 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 | 12 | 설정된 종료 분기 추종 | `finish_branch=left`는 중간 분기점, right는 끝에서 13 진입 |
 | 13 left/right | 설정된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
 
-주차 후보는 LiDAR로 전체 진입·출차 경로의 차체 폭/앞뒤 돌출부/여유 폭을 검사한다.
-연속된 서로 다른 3개 관측에서 `CLEAR`인 후보를 선택한다. 선택 후 진입 전까지
-막히면 다른 후보로 재선택할 수 있고, 진입한 뒤에는 좌/우 쌍을 고정한다.
-한쪽이 보이지 않거나 가려졌으면 `UNKNOWN`이다. 장애물이 안 찍혔다는 이유만으로
-빈 공간으로 간주하지 않는다. 모든 후보가 미확인이면 현장 가시성 또는 별도 관측
-플래너가 필요하며, 이 구현은 확인을 위해 임의로 전진하지 않는다.
+주차 공간 판단과 경로 생성은 향후 Parking Planner가 담당한다. State Manager는
+원본 LiDAR로 주차 후보를 계산하지 않으며, 현재는 유효한 주차 선택·maneuver 입력이
+없으면 주차 진입을 요청하지 않는다.
 
 RDDF의 주차 `reverse` 표시는 **시작 차체 방향** 메타데이터다. T 주차의 전진 접근→
 후진 삽입→전진 출차와 평행주차의 혼합 기어 동작 전체를 나타내지 않는다.
@@ -167,13 +164,13 @@ Control은 `MissionState.direction=-1`에서 후진 명령을 만든다. Arduino
 - 7구간: fresh `LEFT_ARROW`에서 벽 해제, 기존 좌회전 RDDF를 따라간다.
 - 적색·황색·불명·신호 단절: 진입 전에는 벽을 유지한다. 정지선까지 접근할 경로는 남긴다.
 - 통과 허가 후 앞범퍼가 정지선을 넘어 진입한 상태에서는 신호 변경만으로 벽을 다시 세우지 않는다.
-  LiDAR 장애물·위치 이상에 의한 정지는 계속 적용된다.
+  Localization 또는 경로 입력이 invalid인 경우의 정지는 계속 적용된다.
 
 `/path/rddf`의 끝을 `stop_line_s - vehicle.front_m - stop_buffer_m`까지만 생성한다.
 현재 관측을 매 tick에 반영하므로 초록→빨강에서는 다시 잘리고, 허용 신호에서는 전체
 lookahead가 복원된다. 후보 경로가 제한을 넘으면 매니저 안전 검사도
 `PATH_CROSSES_VIRTUAL_STOP`으로 거부한다. 정지선 미설정 시 신호 구간 경로는 비어 있으며,
-보정·위치·LiDAR·경로 검사를 통과해야 움직일 수 있다.
+보정·위치·경로 검사를 통과해야 움직일 수 있다.
 
 RViz `/mission/markers`에 정지선의 붉은 수직 벽과 `STOP WALL`/`RDDF OPEN` 문구가 나온다.
 벽 폭은 차폭+1m(차폭 미설정 시 표시용 3m)이며 실제 차로 폭의 측정값이 아니다.
@@ -223,8 +220,8 @@ RViz에는 앞·뒤 마커와 중앙 목표, 현재 정차 누적 시간이 표�
   정지구역 정상 쪽 경계 통과까지 30초를 감시한다. 정지 여부는 부호 있는 실제 속도와
   정차 시작 위치 대비 변화를 함께 확인한다. 기존 ramp/target 세 필드 방식도 지원한다.
 - 신호: 2/4는 GREEN, 7은 LEFT_ARROW만 새 진입을 허용한다. 이미 허가받고 진입한
-  교차로에서는 신호가 바뀌었다고 신호 조건만으로 급정지하지 않는다. 별도 LiDAR 정지는
-  계속 우선한다. 교차로 정지 3초·20초, 통과 30초 초과는 진단에 기록한다.
+  교차로에서는 신호가 바뀌었다고 신호 조건만으로 급정지하지 않는다. 교차로 정지
+  3초·20초, 통과 30초 초과는 진단에 기록한다.
 - 8구간은 RDDF를 추종한다. fresh DBSCAN 군집이 현재 위치부터 설정된 lookahead 안의
   RDDF 주행 폭과 겹치면 State Manager가 `emergency_stop_requested=true`를 유지한다.
   객체 종류나 속도를 분류하지 않고 해당 동적장애물 구간의 경로 점유만 판단한다.
@@ -250,11 +247,8 @@ roslaunch state_manager mission.launch calibration_mode:=true start_rviz:=true
 ```
 
 이 모드는 차량 출력을 끄며 State Manager의 주행 유효성을 false로 유지한다.
-Localization과 센서 드라이버는 별도로 실행한다. 예를 들어 기존 LiDAR 드라이버는
-`roslaunch lidar_bringup rplidar_s2.launch scan_topic:=/molit/sensors/lidar/scan frame_id:=laser_link publish_static_tf:=false`로 연결한다.
-이때 Localization이 실측된 `base_link→laser_link` TF를 발행해야 한다. 드라이버의
-기본 `/scan`·`laser` 설정과 중복 TF를 그대로 사용하지 않는다. RDDF는 위치 입력
-없이도 표시된다.
+Localization과 센서 드라이버는 별도로 실행한다. State Manager의 landmark 편집은
+원본 LiDAR나 `laser_link` TF를 요구하지 않으며 RDDF는 위치 입력 없이도 표시된다.
 RViz의 `Publish Point` 도구로 지도 위 위치를 클릭하기 전에 대상 의미를 선택한다.
 
 ```bash
@@ -363,7 +357,7 @@ ROS를 정지했다 다시 시작한 경우 새 경기 실행을 위해 State Ma
 State Manager는 원본 `LaserScan`이나 LiDAR TF를 구독하지 않는다. Object Detection이
 원본 scan을 처리하고, State Manager는 `dynamic` RDDF의 E-Stop 판단에 필요한 stamped
 `/dbscan_clusters`만 받는다. 3구간의 같은 군집은 Path Planner가 직접 사용한다.
-RViz inspection 노드는 확인용으로 원본 scan을 표시할 수 있지만 주행 허가에는 관여하지 않는다.
+RViz inspection도 원본 scan 대신 ROI·DBSCAN 결과만 표시한다.
 
 다음은 ROS 없이 실행 가능한 회귀 테스트다.
 

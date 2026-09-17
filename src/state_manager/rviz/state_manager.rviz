@@ -67,17 +67,6 @@ Visualization Manager:
       Keep: 1
       Shape: Arrow
       Color: 50; 230; 230
-    - Class: rviz/LaserScan
-      Name: Continuous LiDAR returns
-      Enabled: true
-      Topic: /molit/sensors/lidar/scan
-      Queue Size: 2
-      Size (m): 0.06
-      Style: Points
-      Decay Time: 0
-      Color Transformer: FlatColor
-      Color: 255; 132; 62
-      Position Transformer: XYZ
     - Class: rviz/Odometry
       Name: Approved localization
       Enabled: true

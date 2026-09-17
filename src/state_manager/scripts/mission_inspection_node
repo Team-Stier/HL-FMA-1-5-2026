@@ -8,7 +8,7 @@ from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry
 from planning_interfaces.msg import (RouteMap, MissionState, SafetyStatus, PathStatus,
                                     PlannedPath, SignalObservation)
-from sensor_msgs.msg import LaserScan, PointCloud2
+from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker, MarkerArray
 from stier_state_manager.geometry import Route
@@ -32,7 +32,6 @@ class InspectionNode:
                     ('/mission/state', MissionState, 'mission'),
                     ('/mission/safety', SafetyStatus, 'safety'),
                     ('/path/selector_status', PathStatus, 'selection'),
-                    ('/molit/sensors/lidar/scan', LaserScan, 'scan'),
                     ('/object_detection/roi_points', PointCloud2, 'roi'),
                     ('/dbscan_clusters', MarkerArray, 'clusters'),
                     ('/perception/traffic_signal', SignalObservation, 'signal')]
@@ -81,8 +80,6 @@ class InspectionNode:
             elif key == 'signal':
                 sample['text'] = '%s | route=%s junction=%s confidence=%.2f' % (
                     msg.value, msg.route_name, msg.junction_id, msg.confidence)
-            elif key == 'scan':
-                sample['text'] = '%d rays | %s' % (len(msg.ranges), msg.header.frame_id)
             elif key == 'roi':
                 sample['text'] = '%d points (not a free-space verdict)' % (msg.width * msg.height)
             elif key == 'clusters':
