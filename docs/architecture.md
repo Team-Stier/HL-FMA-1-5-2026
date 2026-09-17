@@ -1,6 +1,6 @@
 # 시스템 아키텍처와 패키지 사용 현황
 
-이 문서는 2026-09-16 현재 소스와 `state_manager/mission.launch`의 실제 연결을 기준으로
+이 문서는 2026-09-17 현재 소스와 `stier_bringup/full_vehicle.launch`의 실제 연결을 기준으로
 작성했다. 첫 번째 그림은 센서부터 차량까지 실제 전체 흐름을 생략 없이 표시한다.
 카메라 차로 제어처럼 제거한 기능은 그림에 넣지 않는다.
 
@@ -148,6 +148,11 @@ PP 연결은 다음 코드·설정으로 확인된다.
 Control이 속도 상한과 정지 요청을 함께 적용한다.
 
 ## Launch 상태
+
+전체 실차 실행은 `roslaunch stier_bringup full_vehicle.launch` 하나로 센서·Arduino,
+Localization과 아래 미션 구성을 함께 시작한다. `run.sh`도 이 launch만 호출한다.
+Localization의 Encoder/IMU/GPS 내부 드라이버는 꺼서 `sensor_bringup`과 장치를 중복으로
+열지 않는다.
 
 `state_manager/mission.launch` 기본 실행 구성은 다음과 같다.
 

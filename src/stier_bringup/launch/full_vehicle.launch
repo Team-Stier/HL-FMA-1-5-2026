@@ -1,0 +1,69 @@
+<launch>
+  <!-- Physical devices owned by sensor_bringup. -->
+  <arg name="enable_lidar" default="true"/>
+  <arg name="enable_camera" default="true"/>
+  <arg name="enable_gps" default="true"/>
+  <arg name="enable_imu" default="true"/>
+  <arg name="enable_arduino" default="true"/>
+  <arg name="camera_launch" default="cam.launch"/>
+  <arg name="arduino_config"
+       default="$(find vehicle_interface_bringup)/config/serial.yaml"/>
+  <arg name="arduino_port" default=""/>
+  <arg name="arduino_baud" default=""/>
+  <arg name="arduino_respawn" default="true"/>
+
+  <!-- Localization owns fusion, the map tree and RDDF matching, not drivers. -->
+  <arg name="enable_gps_fusion" default="$(arg enable_gps)"/>
+  <arg name="start_rddf_initialization" default="true"/>
+  <arg name="start_rddf_tracking" default="true"/>
+
+  <!-- Mission, perception, planning and control. -->
+  <arg name="start_object_detection" default="true"/>
+  <arg name="start_local_planner" default="true"/>
+  <arg name="start_traffic_light" default="false"/>
+  <arg name="traffic_light_device" default="auto"/>
+  <arg name="start_control" default="true"/>
+  <arg name="lateral_controller" default="pure_pursuit"/>
+  <arg name="control_calibration_required" default="false"/>
+  <arg name="start_rviz" default="false"/>
+
+  <include file="$(find sensor_bringup)/launch/sensors.launch">
+    <arg name="enable_lidar" value="$(arg enable_lidar)"/>
+    <arg name="enable_cam" value="$(arg enable_camera)"/>
+    <arg name="enable_gps" value="$(arg enable_gps)"/>
+    <arg name="enable_imu" value="$(arg enable_imu)"/>
+    <arg name="enable_arduino" value="$(arg enable_arduino)"/>
+    <arg name="camera_launch" value="$(arg camera_launch)"/>
+    <arg name="arduino_config" value="$(arg arduino_config)"/>
+    <arg name="arduino_port" value="$(arg arduino_port)"/>
+    <arg name="arduino_baud" value="$(arg arduino_baud)"/>
+    <arg name="arduino_respawn" value="$(arg arduino_respawn)"/>
+    <!-- The Localization static-TF publisher is the only TF owner. -->
+    <arg name="publish_lidar_static_tf" value="false"/>
+  </include>
+
+  <include file="$(find mando_localization)/launch/bringup.launch">
+    <!-- sensor_bringup already owns all physical serial devices. Keeping
+         these false prevents two rosserial/Xsens/u-blox processes from
+         opening the same device. -->
+    <arg name="start_encoder_driver" value="false"/>
+    <arg name="start_imu_driver" value="false"/>
+    <arg name="start_gps_driver" value="false"/>
+    <arg name="enable_gps_fusion" value="$(arg enable_gps_fusion)"/>
+    <arg name="start_rddf_initialization" value="$(arg start_rddf_initialization)"/>
+    <arg name="start_rddf_tracking" value="$(arg start_rddf_tracking)"/>
+    <arg name="start_rviz" value="false"/>
+  </include>
+
+  <include file="$(find state_manager)/launch/mission.launch">
+    <arg name="start_object_detection" value="$(arg start_object_detection)"/>
+    <arg name="start_local_planner" value="$(arg start_local_planner)"/>
+    <arg name="start_traffic_light" value="$(arg start_traffic_light)"/>
+    <arg name="traffic_light_device" value="$(arg traffic_light_device)"/>
+    <arg name="start_control" value="$(arg start_control)"/>
+    <arg name="lateral_controller" value="$(arg lateral_controller)"/>
+    <arg name="control_calibration_required" value="$(arg control_calibration_required)"/>
+    <!-- Use one RViz process for the complete system. -->
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+  </include>
+</launch>

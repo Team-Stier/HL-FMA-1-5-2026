@@ -22,5 +22,7 @@
     <exec_depend>mavros_msgs</exec_depend>
     <exec_depend>rtcm_msgs</exec_depend>
     <exec_depend>ntrip_client</exec_depend>
+    <exec_depend>topic_tools</exec_depend>
+    <exec_depend>ublox_gps</exec_depend>
 
 </package>

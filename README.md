@@ -181,6 +181,7 @@ src/
 │   ├── cam/
 │   ├── gps/
 │   └── imu/
+├── stier_bringup/             # 센서부터 차량 제어까지 전체 실차 launch
 ├── traffic_light/
 ├── localization/
 ├── object_detection/
@@ -348,60 +349,38 @@ catkin_make
 source devel/setup.bash
 ```
 
-전체 프로그램용 `run.sh`는 source 호출을 감지하면 별도의 Bash 프로세스에서 bringup을
-수행해 호출한 셸의 옵션, 작업 디렉터리, trap을 변경하지 않아야 한다. Ubuntu 20.04
-실행 호스트에서 `/opt/ros/noetic/setup.bash`를 불러오고 `catkin_make`를 실행한 뒤
-workspace의 `devel/setup.bash`를 불러온다. 이어서
-Localization → Object Detection → Traffic Light Recognition → Parking Path Planning →
-State Manager 통합 launch 순서로 노드를 시작한다. 이 통합 launch가 Selector·PP Control을
-함께 실행한다. `path_planner`는 아직 ROS
-wrapper가 없는 독립 C++ 코어이므로 `run.sh` 실행 대상이 아니다.
-상시 실행 노드가
-종료되면 전체 프로그램도 종료하고, `Ctrl+C`를 누르면 스크립트가 실행한 모든 노드를
-함께 종료한다.
+전체 실차 구성의 단일 진입점은 `stier_bringup/full_vehicle.launch`다. 센서·Arduino,
+Localization, Object Detection, State Manager, Path Planner, Selector와 PP Control을 한
+`roslaunch` 프로세스가 관리한다. Localization 내부 드라이버는 비활성화하여
+`sensor_bringup`과 동일한 직렬 장치를 중복으로 열지 않는다.
 
-`run.sh`는 기존 ROS master와의 연결을 확인하고, master가 없으면 `roscore`를 시작한다.
-센서 드라이버와 차량 인터페이스는 `run.sh`의 관리 대상이 아니며 내부 노드를 시작하기
-전에 실행 호스트에서 별도로 준비한다. 실행 호스트의 workspace 루트에서 전체 프로그램을
-다음과 같이 시작한다.
+워크스페이스를 빌드한 뒤 다음 중 하나로 실행한다.
 
 ```bash
-source ./run.sh
+./run.sh
+# 또는
+roslaunch stier_bringup full_vehicle.launch
 ```
 
-센서와 Localization을 별도로 실행한 상태에서 미션과 RViz만 확인할 때는 다음 명령을 사용한다.
-기준점 보정과 실차 출력 활성화 절차는 [State Manager 안내서](src/state_manager/README.md)에 있다.
+`run.sh`는 빌드나 여러 백그라운드 프로세스를 직접 관리하지 않고 위 launch를 그대로
+실행하는 편의 래퍼다. ROS master가 없으면 `roslaunch`가 자동으로 시작하고 `Ctrl+C` 시
+포함된 노드를 함께 종료한다. Arduino 포트와 선택 기능은 launch 인자로 전달한다.
+
+```bash
+./run.sh arduino_port:=/dev/ttyACM0 start_rviz:=true
+```
+
+GPS 없는 시험은 드라이버와 GPS fusion을 함께 끈다.
+
+```bash
+./run.sh enable_gps:=false enable_gps_fusion:=false
+```
+
+센서와 Localization을 별도로 실행한 상태에서 미션만 점검하는 기존 launch도 유지한다.
+기준점 보정 절차는 [State Manager 안내서](src/state_manager/README.md)에 있다.
 
 ```bash
 roslaunch state_manager mission.launch start_rviz:=true
-```
-
-각 실행 노드 패키지는 `run.sh`가 호출할 한 줄의 `rosrun` 명령을 제공한다. YAML 등
-패키지 전용 초기화가 필요한 경우에는 같은 역할을 하는 `./src/<pkgname>/launch.sh`를
-사용할 수 있다. Localization은 품질 gate 설정을 빠뜨리지 않도록 `launch.sh`를 사용한다.
-메시지 전용 `perception_interfaces`, `sensor_interfaces`, `planning_interfaces`, `erp42_msgs` 패키지는 이 규칙의
-대상이 아니다. 노드 내부 알고리즘이나 의존성이 추가되더라도 아래 실행 계약은 유지한다.
-
-```bash
-./src/localization/launch.sh
-rosrun object_detection object_detection_node
-rosrun traffic_light traffic_light_node
-rosrun parking_path_planning parking_path_planning_node
-./src/state_manager/launch.sh
-```
-
-예를 들어 패키지별 환경변수, 모델 경로, 파라미터 파일 등의 초기화가 필요해
-`launch.sh`를 추가했다면, 해당 패키지 개발자는 `run.sh`의 `rosrun` 실행 줄을
-다음 `launch.sh` 실행 줄로 직접 교체해야 한다. `run.sh`는 `launch.sh`의 존재 여부를
-자동으로 감지하지 않는다. 아래 스크립트는 선택적 실행 계약의 경로 예시이며, 실제
-파일을 추가한 패키지에만 적용한다.
-
-```bash
-./src/localization/launch.sh
-./src/object_detection/launch.sh
-./src/traffic_light/launch.sh
-./src/parking_path_planning/launch.sh
-./src/state_manager/launch.sh
 ```
 
 ## 실차 장치 실행 명령 모음
