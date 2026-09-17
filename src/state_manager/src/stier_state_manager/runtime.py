@@ -1,7 +1,6 @@
 """Orchestrate route tracking, missions and observed-space vetoes without ROS."""
 import math
 
-from selector.core import SelectorCore, State, path_fingerprint
 from .geometry import Route, RouteTracker, braking_distance, corridor_status, project
 from .mission import MissionEngine, PARKING_ROUTES
 
@@ -37,8 +36,6 @@ class MissionRuntime:
         self.engine = MissionEngine(config)
         self.routes = self._with_finish_runout(routes, self.engine.rules['finish_runout_m'])
         self.tracker = RouteTracker(self.routes, config.get('start_route', '1_right'), config.get('tracker'))
-        self.selector = SelectorCore(timeout=config.get('input_timeout_s', 0.5), future_tolerance=0,
-                                     max_path_heading_error_rad=config.get('max_path_heading_error_rad', 1.0))
         self.decision_id = 0
         self.request = None
         self.parking_request = None
@@ -115,35 +112,16 @@ class MissionRuntime:
         timeout = self.config.get('input_timeout_s', 0.5)
         odom = data.get('odom', {})
         valid = data.get('localization', {})
-        localization_state = data.get('localization_state', {})
         scan = data.get('scan', {})
         if not fresh(odom.get('stamp'), now, timeout):
             return False, 'ODOMETRY_STALE'
         if not fresh(valid.get('stamp'), now, timeout) or valid.get('valid') is not True:
             return False, 'LOCALIZATION_INVALID'
-        if not fresh(localization_state.get('stamp'), now, timeout):
-            return False, 'LOCALIZATION_STATE_STALE'
-        state = localization_state.get('state')
-        if state not in ('TRACKING', 'DEGRADED', 'DEAD_RECKONING'):
-            return False, 'LOCALIZATION_STATE_INVALID'
         if odom.get('frame') != 'map' or odom.get('child_frame') != 'base_link':
             return False, 'ODOMETRY_FRAME_INVALID'
-        if not all(math.isfinite(odom.get(k, math.nan)) for k in ('x', 'y', 'yaw', 'speed', 'position_variance', 'yaw_variance')):
+        if not all(math.isfinite(odom.get(k, math.nan)) for k in
+                   ('x', 'y', 'yaw', 'speed')):
             return False, 'ODOMETRY_NONFINITE'
-        # In DEAD_RECKONING the Localization Supervisor owns the validity
-        # budget. With GPS intentionally disabled, position covariance grows
-        # monotonically even while IMU/encoder odometry remains the selected
-        # operating mode, so the GPS-era position cap must not reject it a
-        # second time here. Yaw uncertainty and all finite/nonnegative checks
-        # remain enforced.
-        position_variance_ok = (0 <= odom['position_variance'] and
-                                (state == 'DEAD_RECKONING' or
-                                 odom['position_variance'] <= self.config.get(
-                                     'max_position_variance_m2', 0.25)))
-        yaw_variance_ok = (0 <= odom['yaw_variance'] <=
-                           self.config.get('max_yaw_variance_rad2', 0.08))
-        if not (position_variance_ok and yaw_variance_ok):
-            return False, 'LOCALIZATION_UNCERTAIN'
         if not fresh(scan.get('stamp'), now, timeout) or not scan.get('valid'):
             return False, scan.get('reason', 'LIDAR_STALE_OR_INVALID')
         if abs(scan['stamp'] - odom['stamp']) > self.config.get('max_pose_scan_skew_s', 0.2):
@@ -153,6 +131,35 @@ class MissionRuntime:
                 or abs(odom['yaw_rate']) > self.config['vehicle']['max_yaw_rate_rps']):
             return False, 'MOTION_OUTSIDE_SCAN_CALIBRATION'
         return True, 'OK'
+
+    def _path_selection(self, data, now):
+        """Consume the external Selector's decision without revalidating geometry."""
+        status = data.get('selector_status', {})
+        result = {'ready': False, 'reason': 'SELECTOR_STATUS_MISSING',
+                  'path_fingerprint': ''}
+        if self.request is None:
+            return result
+        timeout = self.config.get('input_timeout_s', 0.5)
+        if (not fresh(status.get('stamp'), now, timeout)
+                or not fresh(status.get('receipt_stamp'), now, timeout)):
+            result['reason'] = 'SELECTOR_STATUS_STALE'
+            return result
+        route, mode, direction = self.request
+        if (status.get('decision_id'), status.get('route'),
+                status.get('source'), status.get('direction')) != (
+                    self.decision_id, route, mode, direction):
+            result['reason'] = 'SELECTOR_STATUS_REQUEST_MISMATCH'
+            return result
+        if status.get('ready') is not True:
+            result['reason'] = status.get('reason') or 'REQUESTED_PATH_UNAVAILABLE'
+            return result
+        fingerprint = status.get('path_fingerprint')
+        if not isinstance(fingerprint, str) or not fingerprint:
+            result['reason'] = 'SELECTOR_FINGERPRINT_MISSING'
+            return result
+        result.update(ready=True, reason='PATH_ACCEPTED',
+                      path_fingerprint=fingerprint)
+        return result
 
     def _corridor(self, points, data, direction=1):
         vehicle, scan = self.config['vehicle'], data['scan']
@@ -236,7 +243,10 @@ class MissionRuntime:
                 points.append((a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), a[2]+t*yaw_delta))
         return points
 
-    def step(self, now, data, candidates):
+    def step(self, now, data, selector_status=None):
+        if selector_status is not None:
+            data = dict(data)
+            data['selector_status'] = selector_status
         if self.last_time is not None and now < self.last_time:
             self.clock_fault = True
         self.last_time = now
@@ -255,7 +265,7 @@ class MissionRuntime:
         if self.request is None:
             mode = 'LOCAL' if tracked['section'] == 3 else 'PARKING' if tracked['section'] in (5, 6, 10, 11) else 'RDDF'
             self._set_request(tracked['route'], mode, 1)
-        selection = self.selector.evaluate(State(now, now, self.decision_id, *self.request), candidates, now)
+        selection = self._path_selection(data, now)
         snapshot = dict(tracked, now=now, healthy=healthy, reason=reason,
                         speed=odom.get('speed', 0), yaw=odom.get('yaw', 0),
                         x=odom.get('x'), y=odom.get('y'),
@@ -264,7 +274,7 @@ class MissionRuntime:
                         # required only by features that actually consume it.
                         calibrated=not self.config.get('calibration_mode', False),
                         landmarks=self.config.get('landmarks', {}),
-                        signal=data.get('signal', {}), path_ready=selection.ready,
+                        signal=data.get('signal', {}), path_ready=selection['ready'],
                         decision_id=self.decision_id,
                         parking_maneuver=data.get('parking_maneuver', {}),
                         parking=self._parking_preview(data, tracked['section']) if healthy else {},
@@ -285,15 +295,15 @@ class MissionRuntime:
         if request != self.request or parking_request != self.parking_request:
             self._set_request(*request)
             self.parking_request = parking_request
-            selection = self.selector.evaluate(State(now, now, self.decision_id, *self.request), candidates, now)
+            selection = self._path_selection(data, now)
             decision.update(stop_requested=True, speed_limit=0.0, next_route=None, reason='WAIT_NEW_PATH', phase='WAIT_PATH')
         safety = {'stop': True, 'sensor_valid': healthy, 'reason': reason, 'clearance_m': -1.0,
                   'path_fingerprint': ''}
-        if healthy and selection.ready:
+        if healthy and selection['ready']:
             safety.update(stop=False, reason='PATH_ACCEPTED',
-                          path_fingerprint=path_fingerprint(selection.candidate))
+                          path_fingerprint=selection['path_fingerprint'])
         elif healthy:
-            safety['reason'] = 'REQUESTED_PATH_UNAVAILABLE'
+            safety['reason'] = selection['reason']
         remaining_stop = decision.get('remaining_stop_m')
         if remaining_stop is not None and self.vehicle_ok:
             available = max(0.0, remaining_stop - self.config.get('stop_buffer_m', 0.05))

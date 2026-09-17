@@ -10,7 +10,7 @@ PACKAGES = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(PACKAGES / name / 'src') for name in
                 ('state_manager', 'selector')]
 
-from selector.core import Candidate, Pose, SelectorCore, State
+from selector.core import Candidate, Pose, SelectorCore, State, path_fingerprint
 from stier_state_manager.geometry import Route, scan_to_geometry
 from stier_state_manager.runtime import MissionRuntime
 
@@ -73,7 +73,23 @@ class Pipeline:
         if edit:
             edit(data)
         choices = self.candidates() if candidates is None else candidates
-        decision = self.runtime.step(self.now, data, choices)
+        route, mode, direction = self.runtime.request or (
+            self.runtime.tracker.route_name,
+            'LOCAL' if self.runtime.tracker.current.section == 3 else 'RDDF', 1)
+        request_state = State(self.now, self.now,
+                              self.runtime.decision_id or 1,
+                              route, mode, direction)
+        readiness = self.selector.evaluate(request_state, choices, self.now)
+        selector_status = {
+            'stamp': self.now, 'receipt_stamp': self.now,
+            'decision_id': request_state.decision_id,
+            'route': route, 'source': readiness.source,
+            'direction': direction, 'ready': readiness.ready,
+            'reason': readiness.reason,
+            'path_fingerprint': (path_fingerprint(readiness.candidate)
+                                 if readiness.ready else ''),
+        }
+        decision = self.runtime.step(self.now, data, selector_status)
         state = State(self.now, self.now, decision['decision_id'],
                       decision['route'], decision['path_mode'],
                       decision['direction'], decision['valid'],

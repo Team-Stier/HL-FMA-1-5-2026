@@ -220,6 +220,7 @@ flowchart LR
     SM -->|"/path/rddf"| SELECTOR
     LOCAL -->|"/path/local"| SELECTOR
     PARKING["Parking Planner<br/>미구현"] -.->|"/path/park"| SELECTOR
+    SELECTOR -.->|"/path/selector_status<br/>경로 승인 결과"| SM
     PARKING -.->|"/parking/maneuver"| SM
     SELECTOR -->|"/path/final"| CONTROL["Control<br/>Pure Pursuit 기본"]
     LOC -->|"/molit/localization/odometry"| CONTROL

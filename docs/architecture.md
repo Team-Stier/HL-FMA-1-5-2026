@@ -58,6 +58,7 @@ flowchart TB
     SM -->|/path/rddf + 선택 요청| SEL
     LP -->|/path/local| SEL
     PARK -.->|/path/park| SEL
+    SEL -.->|/path/selector_status<br/>유일한 경로 승인 결과| SM
 
     SEL -->|/path/final · 유일한 경로 입력| PP
     SM -.->|속도 · 정지 · 방향 · E-Stop<br/>경로 아님| PP
@@ -69,7 +70,7 @@ flowchart TB
 선 교차를 줄이기 위해 여러 노드가 공유하는 위치·지도 입력과 검증용 역방향 선은
 그림에서 생략하고 아래 입력·출력 표에 기록했다. 생략된 선은 Localization에서
 Object Detection·Path Planner·PP로 가는 위치 정보, RDDF 파일 로더에서 Path Planner로
-가는 `/route/map`, LiDAR와 `/path/local`에서 State Manager로 가는 안전 검증 입력이다.
+가는 `/route/map`, LiDAR와 Selector에서 State Manager로 가는 상태 입력이다.
 이 선들은 새로운 경로를 생성하거나 Selector를 우회하지 않는다.
 
 **PP는 State Manager의 `/path/rddf`를 직접 받지 않는다.** State Manager가 잘라서 만든
@@ -92,7 +93,9 @@ Localization의 `/molit/localization/rddf/current`가 확정한 원본 RDDF 이�
 
 Selector는 경로를 새로 만들거나 RDDF를 자르지 않는다. State Manager가 요청한
 `path_mode`, `decision_id`, `route_name`, `direction`, timestamp가 정확히 맞는 후보만
-`/path/final`로 전달한다. 현재 일반 구간은 RDDF, 3번 정적장애물 구간만 LOCAL이다.
+`/path/final`로 전달한다. 경로 geometry와 freshness는 외부 Selector 한 곳에서만
+검사하며, State Manager는 `/path/selector_status`의 승인 결과만 사용한다. 현재 일반
+구간은 RDDF, 3번 정적장애물 구간만 LOCAL이다.
 
 ## Object Detection과 Path Planner 연결 상세
 

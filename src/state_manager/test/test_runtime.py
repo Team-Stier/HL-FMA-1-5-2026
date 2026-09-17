@@ -7,7 +7,6 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from selector.core import Candidate, Pose
 from stier_state_manager.geometry import Route, scan_to_geometry
 from stier_state_manager.runtime import MissionRuntime
 
@@ -40,10 +39,11 @@ class RuntimeTests(unittest.TestCase):
 
     def candidate(self, runtime, now):
         name, mode, direction = runtime.request or (runtime.tracker.route_name, 'RDDF', 1)
-        points = self.routes[name].points
-        return {mode: Candidate(now, now, runtime.decision_id or 1, name, direction, 'map', 'map', now,
-                                 [Pose('map', (x, y, 0), (0, 0, math.sin(yaw/2), math.cos(yaw/2)))
-                                  for x, y, yaw in points])}
+        return {'stamp': now, 'receipt_stamp': now,
+                'decision_id': runtime.decision_id or 1,
+                'route': name, 'source': mode, 'direction': direction,
+                'ready': True, 'reason': 'PATH_READY',
+                'path_fingerprint': 'test-path'}
 
     def run_step(self, runtime, now, x=0, speed=0):
         return runtime.step(now, self.data(now, x, speed), self.candidate(runtime, now))
@@ -65,7 +65,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['stop_requested'])
         self.assertEqual(result['reason'], 'CALIBRATION_REQUIRED:hill_start_s')
 
-    def test_dead_reckoning_accepts_supervisor_valid_position_covariance(self):
+    def test_supervisor_valid_is_not_rejected_by_position_covariance(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1)
         data['localization_state']['state'] = 'DEAD_RECKONING'
@@ -73,19 +73,21 @@ class RuntimeTests(unittest.TestCase):
         healthy, reason = runtime._health(data, 1)
         self.assertTrue(healthy, reason)
 
-    def test_tracking_still_rejects_excess_position_covariance(self):
+    def test_tracking_does_not_recheck_position_covariance(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1)
+        data.pop('localization_state')
         data['odom']['position_variance'] = 20.0
-        self.assertEqual(runtime._health(data, 1), (False, 'LOCALIZATION_UNCERTAIN'))
+        data['odom']['yaw_variance'] = 20.0
+        self.assertEqual(runtime._health(data, 1), (True, 'OK'))
 
-    def test_dead_reckoning_still_rejects_excess_yaw_covariance(self):
+    def test_supervisor_valid_is_not_rejected_by_yaw_covariance(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1)
         data['localization_state']['state'] = 'DEAD_RECKONING'
         data['odom']['position_variance'] = 20.0
         data['odom']['yaw_variance'] = 0.1
-        self.assertEqual(runtime._health(data, 1), (False, 'LOCALIZATION_UNCERTAIN'))
+        self.assertEqual(runtime._health(data, 1), (True, 'OK'))
 
     def test_dead_reckoning_covariance_growth_is_capped_for_lidar_margin(self):
         runtime = MissionRuntime(self.routes, self.config)
@@ -285,17 +287,13 @@ class RuntimeTests(unittest.TestCase):
         return MissionRuntime(self.routes, self.config)
 
     def planned_prefix(self, runtime, now, signal):
-        points = runtime.rddf_points(now, signal)
-        return {'RDDF': Candidate(now, now, runtime.decision_id or 1,
-                                 runtime.tracker.route_name, 1, 'map', 'map', now,
-                                 [Pose('map', (x,y,0), (0,0,math.sin(yaw/2),math.cos(yaw/2)))
-                                  for x,y,yaw in points])}
+        return self.candidate(runtime, now)
 
     def test_red_approach_path_stops_before_front_bumper_and_buffer(self):
         runtime = self.traffic_runtime()
         signal = {'stamp': 1, 'route': '2', 'value': 'RED'}
         candidate = self.planned_prefix(runtime, 1, signal)
-        self.assertAlmostEqual(candidate['RDDF'].poses[-1].position[0], 4.45)
+        self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 4.45)
         result = runtime.step(1, dict(self.data(1), signal=signal), candidate)
         self.assertFalse(result['stop_requested'], result)
         self.assertTrue(result['virtual_stop']['active'])

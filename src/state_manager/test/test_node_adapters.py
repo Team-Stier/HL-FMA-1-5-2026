@@ -55,7 +55,7 @@ class AdapterTests(unittest.TestCase):
         exec(compile(definitions, str(source), 'exec'), namespace)
         self.node = namespace['StateManagerNode'].__new__(namespace['StateManagerNode'])
         self.node.lock = threading.RLock()
-        self.node.data, self.node.candidates = {}, {}
+        self.node.data = {}
         self.node.last_clock, self.node.clock_fault = None, ''
         self.node.config = {'input_timeout_s': .5, 'max_scan_duration_s': .2}
         self.node.routes, self.node.runtime, self.node.map_fingerprint = {}, None, None
@@ -125,12 +125,23 @@ class AdapterTests(unittest.TestCase):
     def test_clock_regression_clears_observations_and_latches_fault(self):
         self.node.clock_now()
         self.node.data['signal'] = {'value': 'GREEN'}
-        self.node.candidates['PARKING'] = object()
         self.now = 9
         self.node.clock_now()
         self.assertEqual(self.node.data, {})
-        self.assertEqual(self.node.candidates, {})
         self.assertEqual(self.node.clock_fault, 'CLOCK_REGRESSION_RESTART_REQUIRED')
+
+    def test_selector_status_is_the_only_path_readiness_input(self):
+        message = NS(header=self.header(), decision_id=42,
+                     route_name='3_s-static-obstacle', source='LOCAL',
+                     direction=1, ready=True, reason='PATH_READY',
+                     path_fingerprint='abc123')
+        self.node.on_selector_status(message)
+        self.assertEqual(self.node.data['selector_status'], {
+            'stamp': 9.9, 'receipt_stamp': 10.0, 'decision_id': 42,
+            'route': '3_s-static-obstacle', 'source': 'LOCAL',
+            'direction': 1, 'ready': True, 'reason': 'PATH_READY',
+            'path_fingerprint': 'abc123',
+        })
 
     def test_invalid_quaternion_invalidates_odometry(self):
         message = NS(header=self.header(), child_frame_id='base_link',

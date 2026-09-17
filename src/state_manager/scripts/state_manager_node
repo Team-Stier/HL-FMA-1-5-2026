@@ -15,9 +15,9 @@ from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
-from planning_interfaces.msg import (MissionState, ParkingManeuver, PlannedPath,
-                                    RouteMap, SafetyStatus, SignalObservation, TrafficConstraint)
-from selector.core import Candidate, Pose
+from planning_interfaces.msg import (MissionState, ParkingManeuver, PathStatus,
+                                    PlannedPath, RouteMap, SafetyStatus,
+                                    SignalObservation, TrafficConstraint)
 from stier_state_manager.geometry import Route, transform_scan_to_geometry
 from stier_state_manager.calibration import validate_landmarks
 from stier_state_manager.mission import PARKING_ROUTES, ROUTES
@@ -45,7 +45,7 @@ def quaternion_yaw(q):
 class StateManagerNode:
     def __init__(self):
         self.lock = threading.RLock()
-        self.data, self.candidates, self.routes = {}, {}, {}
+        self.data, self.routes = {}, {}
         self.runtime, self.map_fingerprint = None, None
         self.active_match_route = ''
         self.rddf_match = None
@@ -85,8 +85,8 @@ class StateManagerNode:
             rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
             rospy.Subscriber('/parking/maneuver', ParkingManeuver, self.on_parking_maneuver, queue_size=1),
-            rospy.Subscriber('/path/local', PlannedPath, self.on_path, callback_args='LOCAL', queue_size=1),
-            rospy.Subscriber('/path/park', PlannedPath, self.on_path, callback_args='PARKING', queue_size=1),
+            rospy.Subscriber('/path/selector_status', PathStatus,
+                             self.on_selector_status, queue_size=1),
         ]
         rate = float(self.config.get('rate_hz', 10))
         if not math.isfinite(rate) or not 0 < rate <= 50:
@@ -147,17 +147,24 @@ class StateManagerNode:
         try:
             yaw = quaternion_yaw(msg.pose.pose.orientation)
             covariance = msg.pose.covariance
-            if len(covariance) != 36 or not all(math.isfinite(v) for v in covariance):
-                raise ValueError('invalid pose covariance')
-            if any(covariance[i] < 0 for i in (0, 7, 14, 21, 28, 35)):
-                raise ValueError('negative covariance diagonal')
             p, velocity = msg.pose.pose.position, msg.twist.twist.linear
             yaw_rate = msg.twist.twist.angular.z
             if not all(math.isfinite(v) for v in (p.x, p.y, p.z, velocity.x, velocity.y, velocity.z, yaw_rate)):
                 raise ValueError('nonfinite odometry')
             speed = math.copysign(math.hypot(velocity.x, velocity.y), velocity.x or 1)
+            # Localization Supervisor owns covariance acceptance and exposes its
+            # decision on /valid.  Keep usable covariance only as optional
+            # geometry margin data for the still-pending parking preview.
+            position_variance = math.nan
+            yaw_variance = math.nan
+            if (len(covariance) == 36
+                    and all(math.isfinite(covariance[i]) and covariance[i] >= 0
+                            for i in (0, 7, 35))):
+                position_variance = max(covariance[0], covariance[7])
+                yaw_variance = covariance[35]
             observation.update(x=p.x, y=p.y, yaw=yaw, speed=speed, yaw_rate=yaw_rate,
-                               position_variance=max(covariance[0], covariance[7]), yaw_variance=covariance[35])
+                               position_variance=position_variance,
+                               yaw_variance=yaw_variance)
         except (ValueError, TypeError) as error:
             observation.update(x=math.nan, reason=str(error))
             rospy.logwarn_throttle(2.0, 'Odometry rejected: %s', error)
@@ -236,7 +243,6 @@ class StateManagerNode:
         runtime.decision_id = secrets.randbits(48) or 1
         self.runtime = runtime
         self.active_match_route = route_name
-        self.candidates.clear()
         self.last_decision = None
         rospy.loginfo('State Manager RDDF 활성화: %s (s=%.2f m)', route_name, initial_s)
 
@@ -245,7 +251,6 @@ class StateManagerNode:
         now = rospy.Time.now().to_sec()
         if self.last_clock is not None and now < self.last_clock:
             self.data.clear()
-            self.candidates.clear()
             self.clock_fault = 'CLOCK_REGRESSION_RESTART_REQUIRED'
         self.last_clock = now
         return now
@@ -382,21 +387,21 @@ class StateManagerNode:
                 'target_s': msg.target_s, 'final_leg': msg.final_leg,
             }
 
-    @staticmethod
-    def candidate(msg, received):
-        poses = tuple(Pose(p.header.frame_id, (p.pose.position.x, p.pose.position.y, p.pose.position.z),
-                          (p.pose.orientation.x, p.pose.orientation.y, p.pose.orientation.z, p.pose.orientation.w))
-                      for p in msg.path.poses)
-        return Candidate(msg.header.stamp.to_sec(), received, msg.decision_id, msg.route_name,
-                         msg.direction, msg.header.frame_id, msg.path.header.frame_id,
-                         msg.path.header.stamp.to_sec(), poses)
-
-    def on_path(self, msg, source):
+    def on_selector_status(self, msg):
         with self.lock:
-            self.candidates[source] = self.candidate(msg, self.clock_now())
+            self.data['selector_status'] = {
+                'stamp': msg.header.stamp.to_sec(),
+                'receipt_stamp': self.clock_now(),
+                'decision_id': int(msg.decision_id),
+                'route': msg.route_name,
+                'source': msg.source,
+                'direction': int(msg.direction),
+                'ready': bool(msg.ready),
+                'reason': msg.reason,
+                'path_fingerprint': msg.path_fingerprint,
+            }
 
     def rddf_candidate(self, now):
-        self.candidates.pop('RDDF', None)
         runtime = self.runtime
         if runtime is None or runtime.request is None:
             return
@@ -415,7 +420,6 @@ class StateManagerNode:
             pose.pose.position.x, pose.pose.position.y = x, y
             pose.pose.orientation.z, pose.pose.orientation.w = math.sin(yaw / 2), math.cos(yaw / 2)
             wrapper.path.poses.append(pose)
-        self.candidates['RDDF'] = self.candidate(wrapper, now)
         self.path_pub.publish(wrapper)
 
     def fault_decision(self, reason):
@@ -499,7 +503,7 @@ class StateManagerNode:
                         self.clock_fault or self.map_fault or self.configuration_fault or waiting)
                 else:
                     self.rddf_candidate(now)
-                    decision = self.runtime.step(now, self.data, self.candidates)
+                    decision = self.runtime.step(now, self.data)
                 self.last_decision = decision
                 self.publish(decision, now)
             except Exception as error:  # Keep the heartbeat fail-closed on adapter/runtime failure.

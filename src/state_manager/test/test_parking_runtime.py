@@ -8,7 +8,6 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from selector.core import Candidate, Pose
 from stier_state_manager.geometry import Route, RouteTracker, scan_to_geometry
 from stier_state_manager.runtime import MissionRuntime
 
@@ -62,14 +61,11 @@ class ParkingRuntimeTests(unittest.TestCase):
     def candidate(self, now, decision_id=None, direction=None, body_yaw=None):
         direction = self.runtime.request[2] if direction is None else direction
         decision_id = self.runtime.decision_id if decision_id is None else decision_id
-        # The reverse preview begins from the same stopped pose and extends
-        # behind the vehicle; poses contain body heading, not motion heading.
-        points = [(2, 0), (1, -.2), (0, -.4)] if direction == -1 else [(x, 0) for x in range(11)]
-        yaw = (math.atan2(.2, 1) if direction == -1 else 0) if body_yaw is None else body_yaw
-        poses = [Pose('map', (x, y, 0), (0, 0, math.sin(yaw / 2), math.cos(yaw / 2)))
-                 for x, y in points]
-        return {'PARKING': Candidate(now, now, decision_id, self.route_name, direction,
-                                     'map', 'map', now, poses)}
+        return {'stamp': now, 'receipt_stamp': now,
+                'decision_id': decision_id, 'route': self.route_name,
+                'source': 'PARKING', 'direction': direction,
+                'ready': True, 'reason': 'PATH_READY',
+                'path_fingerprint': 'parking-test-path'}
 
     def accept_forward(self):
         self.runtime.step(1.0, self.data(1.0), {})

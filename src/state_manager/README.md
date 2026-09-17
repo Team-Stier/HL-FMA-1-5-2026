@@ -315,16 +315,14 @@ rostopic echo /erp42_serial/drive
 ```
 
 RViz에는 모든 RDDF, 활성 경로, 구간 이름, 현재 위치, 미션·단계·진행률과 정지 사유가
-표시된다. 유효하지 않은 위치는 주행 판단에 사용하지 않는다. 위치 freshness, 좌표계,
-공분산, 경로와의 거리·방향, 불가능한 위치 도약을 감시한다. 정확한 위치를 새로
-만드는 기능은 아니며 Localization 품질이 낮으면 정지한다.
+표시된다. 유효하지 않은 위치는 주행 판단에 사용하지 않는다. State Manager는
+Odometry의 freshness·좌표계·유한성을 확인하지만 위치 품질과 공분산 허용 여부는
+Localization Supervisor가 발행한 `/molit/localization/valid`를 단일 기준으로 따른다.
 
 GPS를 의도적으로 끈 Localization은 `/molit/localization/state=DEAD_RECKONING`과
-`valid=true`를 함께 발행한다. 이때 State Manager는 계속 증가하는 위치 공분산의
-상한을 다시 적용하지 않고 Localization Supervisor의 valid 판정을 따른다. 공분산의
-유한성·비음수와 yaw 공분산 상한, 토픽 freshness 검사는 그대로 유지한다. LiDAR
-회피 여유 계산에는 일반 위치 공분산 상한까지만 반영해 GPS 없는 EKF의 시간 누적값이
-모든 유한한 LiDAR 점을 장애물로 만드는 것을 방지한다.
+`valid=true`를 함께 발행한다. State Manager는 TRACKING과 DEAD_RECKONING을 구분해
+위치·yaw 공분산을 다시 제한하지 않는다. 주차 후보용 LiDAR 회피 여유 계산은 기존과
+같이 Odometry 공분산을 기하 여유에만 사용한다.
 
 ## 인지·플래너 인터페이스
 
@@ -340,7 +338,7 @@ GPS를 의도적으로 끈 Localization은 `/molit/localization/state=DEAD_RECKO
 | `/mission/state` | `MissionState` | 활성 요청, decision_id, 속도·정지·전용 E-Stop 제약 |
 | `/mission/traffic_constraint` | `TrafficConstraint` | 신호 정지선 벽 상태·진행거리 제한·선 위치를 진단·검증용으로 제공 |
 | `/path/rddf`, `/path/local`, `/path/park` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
-| `/path/selector_status` | `PathStatus` | 경로 준비 여부. 정지 중에도 readiness는 갱신 |
+| `/path/selector_status` | `PathStatus` | 외부 Selector의 유일한 경로 승인 결과. State Manager는 후보 경로를 재검사하지 않음 |
 | `/path/final` | `nav_msgs/Path` | Control용 최종 경로. invalid이면 비움 |
 | `/mission/safety` | `SafetyStatus` | LiDAR/위치 상태와 최종 경로의 정지 판단 |
 | `/mission/diagnostics` | `std_msgs/String` JSON | 경기 시간·제외 신호 대기·완료 미션·규정 진단 |
