@@ -35,8 +35,8 @@ class FrenetFieldTestNode:
         self.speed_limit_mps = float(rospy.get_param("~speed_limit_mps", 1.40))
         self.road_left_m = float(rospy.get_param("~road_left_bound_m", 3.0))
         self.road_right_m = float(rospy.get_param("~road_right_bound_m", 3.0))
-        self.vehicle_length_m = float(rospy.get_param("~vehicle_length_m", 1.40))
-        self.vehicle_width_m = float(rospy.get_param("~vehicle_width_m", 0.775))
+        self.vehicle_length_m = float(rospy.get_param("~vehicle_length_m", 1.35))
+        self.vehicle_width_m = float(rospy.get_param("~vehicle_width_m", 0.85))
         self.wheelbase_m = float(rospy.get_param("~wheelbase_m", 0.75))
         self.rear_axle_to_center_m = float(
             rospy.get_param("~rear_axle_to_center_m", 0.38)

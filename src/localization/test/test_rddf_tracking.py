@@ -213,7 +213,9 @@ class TrackingTest(unittest.TestCase):
             '7': [(5, -5), (5, 5)],
         })
         self.feed(x=2, y=0, yaw=0)
-        self.assertEqual(self.message().source_route_name, '1_right')
+        first = self.message()
+        self.assertEqual(first.source_route_name, '1_right')
+        self.assertEqual(list(first.active_source_route_names), ['1_right', '2'])
         self.feed(x=5, y=0, yaw=0)
         crossing = self.message()
         self.assertTrue(crossing.matched)
@@ -223,6 +225,19 @@ class TrackingTest(unittest.TestCase):
         self.assertTrue(handoff.matched)
         self.assertEqual(handoff.reason, 'ROUTE_TRANSITION')
         self.assertEqual(handoff.source_route_name, '2')
+        self.assertEqual(list(handoff.active_source_route_names), ['2'])
+
+    def test_active_window_advances_current_and_next_in_order(self):
+        self.configure_routes({
+            '1_left': [(0, 0), (10, 0)],
+            '2': [(10, 0), (20, 0)],
+            '3_s-static-obstacle': [(20, 0), (30, 0)],
+        })
+        self.feed(x=2, y=0, yaw=0)
+        self.assertEqual(list(self.message().active_source_route_names), ['1_left', '2'])
+        self.feed(x=10, y=0, yaw=0)
+        self.assertEqual(list(self.message().active_source_route_names),
+                         ['2', '3_s-static-obstacle'])
 
     def test_active_route_is_retained_when_far_from_centerline(self):
         self.configure_routes({'1_right': [(0, 0), (10, 0)]})

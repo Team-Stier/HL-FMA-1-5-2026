@@ -1,4 +1,8 @@
 <launch>
+  <arg name="vehicle_config" default="$(find stier_bringup)/config/vehicle.yaml"/>
+  <!-- Static ego geometry shared by localization, planning and mission nodes. -->
+  <rosparam command="load" file="$(arg vehicle_config)"/>
+
   <arg name="hongik_test" default="false"/>
   <arg name="mission_config" default="$(eval find('state_manager') + ('/config/missions_hongik.json' if arg('hongik_test') else '/config/missions.json'))"/>
   <arg name="rddf_directory" default="$(eval find('mando_localization') + ('/test_data/hongik_rddf' if arg('hongik_test') else '/rddf'))"/>

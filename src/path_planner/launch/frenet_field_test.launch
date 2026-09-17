@@ -53,8 +53,8 @@
     <param name="road_left_bound_m" value="3.0"/>
     <param name="road_right_bound_m" value="3.0"/>
     <!-- Keep the RViz body/axles identical to the test planner geometry. -->
-    <param name="vehicle_length_m" value="1.40"/>
-    <param name="vehicle_width_m" value="0.775"/>
+    <param name="vehicle_length_m" value="1.35"/>
+    <param name="vehicle_width_m" value="0.85"/>
     <param name="wheelbase_m" value="0.75"/>
     <param name="rear_axle_to_center_m" value="0.38"/>
   </node>

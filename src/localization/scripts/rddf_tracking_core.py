@@ -138,6 +138,21 @@ class RddfTracker:
             result.append(name)
         return result
 
+    def _active_sources(self):
+        """Current RDDF plus geometrically connected next-numbered RDDFs."""
+        if self.active_source is None:
+            return []
+        current_end = self.route_map.routes[self.active_source][-1]
+        connected = []
+        for source in self._successors(self.active_source):
+            start = self.route_map.routes[source][0]
+            if math.hypot(float(start[0])-float(current_end[0]),
+                          float(start[1])-float(current_end[1])) <= self.join_tolerance:
+                connected.append(source)
+        if self.requested_successor in connected:
+            connected = [self.requested_successor]
+        return [self.active_source] + sorted(connected)
+
     def _heading_choice(self, candidates, yaw):
         if yaw is None or not math.isfinite(yaw) or not candidates:
             return None
@@ -290,7 +305,7 @@ class RddfTracker:
     def evaluate(self, now):
         self._observe_time(now)
         def rejected(reason):
-            return dict(accepted=False, reason=reason, routes=[])
+            return dict(accepted=False, reason=reason, routes=[], active_sources=[])
         if self.pose is None:
             return rejected('NO_GLOBAL')
         pose = self.pose
@@ -309,6 +324,8 @@ class RddfTracker:
         yaw = pose.get('yaw')
         if yaw is not None and not math.isfinite(yaw):
             return rejected('INVALID_INPUT')
-        if self.active_source is None:
-            return self._initial_match(pose['x'], pose['y'], yaw)
-        return self._tracked_match(pose['x'], pose['y'], yaw)
+        result = (self._initial_match(pose['x'], pose['y'], yaw)
+                  if self.active_source is None
+                  else self._tracked_match(pose['x'], pose['y'], yaw))
+        result['active_sources'] = self._active_sources() if result.get('accepted') else []
+        return result

@@ -19,10 +19,10 @@
   "stop_buffer_m": 0.05,
   "landmarks_validated": false,
   "vehicle": {
-    "validated": false,
-    "width_m": null,
-    "front_m": null,
-    "rear_m": null,
+    "validated": true,
+    "width_m": 0.85,
+    "front_m": 1.055,
+    "rear_m": 0.295,
     "deceleration_mps2": null,
     "reaction_s": null,
     "max_speed_mps": null

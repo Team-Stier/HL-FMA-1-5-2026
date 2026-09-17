@@ -196,6 +196,7 @@ class StateManagerNode:
                 'matched': bool(msg.matched),
                 'reason': msg.reason,
                 'route': msg.source_route_name,
+                'active_routes': list(getattr(msg, 'active_source_route_names', [])),
                 'segment_index': int(msg.segment_index),
                 'segment_fraction': float(msg.nearest.segment_fraction),
                 'distance_m': float(msg.nearest.distance_m),
@@ -235,6 +236,8 @@ class StateManagerNode:
             return
         if self.runtime is None and route.section == 1 and route_name != self.start_route:
             return
+        if self.runtime is not None:
+            self.runtime.active_source_routes = tuple(match.get('active_routes', ()))
         if self.runtime is not None and route_name == self.active_match_route:
             return
         fraction = match['segment_fraction']
@@ -247,6 +250,7 @@ class StateManagerNode:
             # The first independently matched RDDF gets a new command epoch.
             self.runtime.decision_id = secrets.randbits(48) or 1
         self.runtime.activate_route(route_name, initial_s)
+        self.runtime.active_source_routes = tuple(match.get('active_routes', ()))
         self.active_match_route = route_name
         self.last_decision = None
         rospy.loginfo('State Manager RDDF 활성화: %s (s=%.2f m)', route_name, initial_s)

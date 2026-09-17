@@ -14,8 +14,8 @@ road_right_bound_m: 1.7
 
 vehicle:
   # base_link는 후륜축 중심이다. 충돌 검사용 실제 차체 외곽 치수다.
-  length_m: 1.40
-  width_m: 0.775
+  length_m: 1.35
+  width_m: 0.85
   wheelbase_m: 0.75
   rear_axle_to_center_m: 0.38
 

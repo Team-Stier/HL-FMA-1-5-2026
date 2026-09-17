@@ -266,7 +266,8 @@ class RuntimeTests(unittest.TestCase):
     def test_stop_precision_check_is_not_a_global_motion_gate(self):
         self.config['vehicle']['reaction_s'] = 2.0
         runtime = MissionRuntime(self.routes, self.config)
-        self.assertFalse(runtime.vehicle_ok)
+        self.assertTrue(runtime.vehicle_ok)
+        self.assertFalse(runtime.vehicle_dynamics_ok)
         result = self.run_step(runtime, 1)
         self.assertTrue(result['valid'], result)
         self.assertFalse(result['stop_requested'], result)

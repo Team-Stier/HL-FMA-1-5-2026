@@ -14,7 +14,14 @@ def validate_vehicle(config):
     vehicle = config.get('vehicle', {})
     if vehicle.get('validated') is not True:
         return False
-    positive = ('front_m', 'deceleration_mps2', 'reaction_s', 'max_speed_mps')
+    positive = ('width_m', 'front_m', 'rear_m')
+    return all(type(vehicle.get(k)) in (int, float) and math.isfinite(vehicle[k])
+               and vehicle[k] > 0 for k in positive)
+
+
+def validate_vehicle_dynamics(config):
+    vehicle = config.get('vehicle', {})
+    positive = ('deceleration_mps2', 'reaction_s', 'max_speed_mps')
     return all(type(vehicle.get(k)) in (int, float) and math.isfinite(vehicle[k])
                and vehicle[k] > 0 for k in positive)
 
@@ -38,17 +45,20 @@ class MissionRuntime:
         self.decision_id = 0
         self.request = None
         self.rddf_bounds = None
+        self.active_source_routes = None
         self.last_time = None
         self.clock_fault = False
         self.vehicle_ok = validate_vehicle(config)
+        self.vehicle_dynamics_ok = validate_vehicle_dynamics(config)
         if self.vehicle_ok:
             # Localization base_link is at the rear axle. The traffic stop
             # reference must use the actual measured front bumper overhang.
             self.engine.rules['front_bumper_offset_m'] = config['vehicle']['front_m']
+        if self.vehicle_dynamics_ok:
             minimum_stop = braking_distance(1.0/3.6, config['vehicle']['deceleration_mps2'],
                                             config['vehicle']['reaction_s'], config.get('stop_buffer_m', .05))
             if minimum_stop > self.engine.rules['stop_tolerance_m']:
-                self.vehicle_ok = False
+                self.vehicle_dynamics_ok = False
 
     def activate_route(self, route_name, progress_s=0.0):
         """Accept Localization's active RDDF without resetting mission state."""
@@ -268,6 +278,8 @@ class MissionRuntime:
             successors = [r for r in self.routes.values()
                           if r.section == route.section + 1 and r.section not in parking
                           and r.section != 3 and r.direction == 1
+                          and (self.active_source_routes is None
+                               or r.name in self.active_source_routes)
                           and math.hypot(r.start[0]-route.end[0],
                                          r.start[1]-route.end[1]) <= 2.5]
             if len(successors) == 1:
@@ -367,12 +379,12 @@ class MissionRuntime:
         elif healthy:
             safety['reason'] = selection['reason']
         remaining_stop = decision.get('remaining_stop_m')
-        if remaining_stop is not None and self.vehicle_ok:
+        if remaining_stop is not None and self.vehicle_dynamics_ok:
             available = max(0.0, remaining_stop - self.config.get('stop_buffer_m', 0.05))
             a, reaction = self.config['vehicle']['deceleration_mps2'], self.config['vehicle']['reaction_s']
             cap = max(0.0, math.sqrt((a*reaction)**2 + 2*a*available) - a*reaction)
             decision['speed_limit'] = min(decision['speed_limit'], cap)
-        if self.vehicle_ok:
+        if self.vehicle_dynamics_ok:
             decision['speed_limit'] = min(decision['speed_limit'], self.config['vehicle']['max_speed_mps'])
         # Localization alone owns active-RDDF handoff. ``next_route`` remains a
         # mission hint for diagnostics; it never changes tracking state here.

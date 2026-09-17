@@ -36,6 +36,7 @@ def match_message(result, stamp, pose_stamp, frame):
     message.reason = result['reason']
     message.route_name = result['route'] if message.matched else ''
     message.source_route_name = result['source_route'] if message.matched else ''
+    message.active_source_route_names = result.get('active_sources', [])
     message.segment_index = result['index'] if message.matched else -1
     message.has_nearest = 'distance' in result
     if message.has_nearest:
