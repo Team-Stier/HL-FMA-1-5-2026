@@ -29,6 +29,7 @@ RULE_DEFAULTS = {
     "intersection_stop_penalty_s": 3.0,
     "intersection_stop_timeout_s": 20.0,
     "intersection_clearance_timeout_s": 30.0,
+    "traffic_force_departure_s": 20.0,
     "parking_yaw_tolerance_rad": math.radians(10.0),
 }
 
@@ -135,7 +136,8 @@ class MissionEngine:
             if not 0 < self.rules[name] <= maximum:
                 raise ValueError("invalid intersection rule: " + name)
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
-                     "finish_runout_m", "hill_hold_position_tolerance_m"):
+                     "finish_runout_m", "hill_hold_position_tolerance_m",
+                     "traffic_force_departure_s"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
         for name in ("parking_stable_observations",):
@@ -184,6 +186,7 @@ class MissionEngine:
             state["dwell_since"] = None
             state.pop("hill_hold_anchor", None)
             state["intersection_stop_since"] = None
+            state["signal_wait_since"] = None
         self._candidate_evidence.clear()
 
     def _complete(self, key, now):
@@ -509,6 +512,7 @@ class MissionEngine:
             if front_s >= stop and permitted:
                 state["authorized"] = True
                 state.setdefault("intersection_entered", now)
+                state["signal_wait_since"] = None
             elif front_s > stop + self.rules["stop_tolerance_m"]:
                 self._once("unauthorized_intersection_entry", snap["route"])
                 self._stop(out, "INTERSECTION_ENTERED_WITHOUT_PERMISSION", "FAULT")
@@ -516,9 +520,29 @@ class MissionEngine:
             elif not permitted:
                 out["reason"] = "WAIT_" + required
                 if front_s >= stop - self.rules["stop_tolerance_m"]:
-                    self._stop(out, "WAIT_" + required, "WAIT_SIGNAL")
-                    return
+                    standing = abs(snap["speed"]) <= self.rules["standstill_speed_mps"]
+                    if standing:
+                        if state.get("signal_wait_since") is None:
+                            state["signal_wait_since"] = now
+                        waited = now - state["signal_wait_since"]
+                    else:
+                        state["signal_wait_since"] = None
+                        waited = 0.0
+                    if standing and waited >= self.rules["traffic_force_departure_s"]:
+                        state["authorized"] = True
+                        state["intersection_entered"] = now
+                        self._once("traffic_force_departure", snap["route"])
+                        out["diagnostics"].append("TRAFFIC_FORCE_DEPARTURE_AFTER_TIMEOUT")
+                        out["reason"] = "TRAFFIC_FORCE_DEPARTURE_AFTER_TIMEOUT"
+                        out["virtual_stop"] = self._traffic_constraint(
+                            snap["route"], required, marks, None, now, signal)
+                    else:
+                        self._stop(out, "WAIT_" + required, "WAIT_SIGNAL")
+                        return
+                else:
+                    state["signal_wait_since"] = None
             else:
+                state["signal_wait_since"] = None
                 # Green may permit a rolling approach. A red before the front
                 # crosses still revokes entry; no early authorization latch.
                 out["remaining_stop_m"] = None

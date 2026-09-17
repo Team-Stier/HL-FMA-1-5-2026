@@ -352,6 +352,49 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result['virtual_stop']['active'])
         self.assertFalse(result['stop_requested'], result)
 
+    def test_nonpermitted_signal_forces_departure_after_twenty_stopped_seconds(self):
+        for signal_value in ('RED', 'YELLOW', 'UNKNOWN'):
+            with self.subTest(signal_value=signal_value):
+                runtime = self.traffic_runtime()
+                for index in range(201):
+                    now = 1.0 + index / 10.0
+                    signal = {'stamp': now, 'route': '2', 'value': signal_value}
+                    data = dict(self.data(now, x=4.5, speed=0.0, runtime=runtime),
+                                signal=signal)
+                    result = runtime.step(now, data, self.candidate(runtime, now))
+                    if index < 200:
+                        self.assertTrue(result['stop_requested'], result)
+                self.assertFalse(result['stop_requested'], result)
+                self.assertEqual(result['phase'], 'CROSSING')
+                self.assertEqual(result['reason'], 'TRAFFIC_FORCE_DEPARTURE_AFTER_TIMEOUT')
+                self.assertFalse(result['virtual_stop']['active'])
+
+    def test_force_departure_timer_requires_continuous_standstill(self):
+        runtime = self.traffic_runtime()
+        result = None
+        for index in range(251):
+            now = 1.0 + index / 10.0
+            speed = 0.1 if index == 50 else 0.0
+            signal = {'stamp': now, 'route': '2', 'value': 'UNKNOWN'}
+            data = dict(self.data(now, x=4.5, speed=speed, runtime=runtime), signal=signal)
+            result = runtime.step(now, data, self.candidate(runtime, now))
+        self.assertTrue(result['stop_requested'], result)
+        now = 26.1
+        signal = {'stamp': now, 'route': '2', 'value': 'UNKNOWN'}
+        data = dict(self.data(now, x=4.5, speed=0.0, runtime=runtime), signal=signal)
+        result = runtime.step(now, data, self.candidate(runtime, now))
+        self.assertFalse(result['stop_requested'], result)
+
+    def test_left_turn_green_uses_same_force_departure_timeout(self):
+        runtime = self.traffic_runtime('7')
+        for index in range(201):
+            now = 1.0 + index / 10.0
+            signal = {'stamp': now, 'route': '7', 'value': 'GREEN'}
+            data = dict(self.data(now, x=4.5, speed=0.0, runtime=runtime), signal=signal)
+            result = runtime.step(now, data, self.candidate(runtime, now))
+        self.assertFalse(result['stop_requested'], result)
+        self.assertEqual(result['reason'], 'TRAFFIC_FORCE_DEPARTURE_AFTER_TIMEOUT')
+
     def test_midpoint_is_on_curved_rddf_and_not_chord_midpoint(self):
         route = Route('1_right', [(0,0,0), (4,0,math.pi/2), (4,6,math.pi/2)])
         self.routes['1_right'] = route

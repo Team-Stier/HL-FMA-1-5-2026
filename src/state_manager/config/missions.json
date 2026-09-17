@@ -35,6 +35,7 @@
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
+    "traffic_force_departure_s": 20.0,
     "parking_stable_observations": 3,
     "hill_hold_position_tolerance_m": 0.02
   },
