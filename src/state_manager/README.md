@@ -6,7 +6,7 @@
 PDF 자체는 저장소에 포함하지 않는다. 시험장 현장 설정은 `config/missions.json`과
 별도의 landmark 파일로 관리한다.
 
-**이 코드는 미션 결정·경로 검증·LiDAR 상태 판단의 구현이다.** 경로 추종 Control과
+**이 코드는 미션 결정과 경로 요청의 구현이다.** 경로 추종 Control과
 S자 회피용 Object Detection/Local Planner가 연결됐고 신호등 패키지도 선택 실행할 수
 있다. 주차 경로 플래너는 아직 통합되지 않았다. 실제 차폭·제동 성능·일부 landmark는
 미측정 상태다. `mission.launch`는 Control이
@@ -21,8 +21,7 @@ flowchart LR
   R[Localization RDDF Provider] -->|RouteMap| S
   C[Camera] --> T[신호등 인식기]
   T -->|SignalObservation| S
-  D[상시 LiDAR + 시각별 TF] --> S
-  D --> O[Object Detection]
+  D[LiDAR] --> O[Object Detection]
   O -->|DBSCAN clusters| P[Local Path Planner]
   O -->|DBSCAN clusters<br/>dynamic RDDF only| S
   L -->|Odometry| P
@@ -122,11 +121,11 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 | 1 left/right | 앞·뒤 정지구역 마커 중앙 접근, 연속 3초 이상 정차, 재출발 | 경사로 정상 통과 후 2로 연결. 0.5m 이상 밀림은 fault |
 | 2 | 비허용 신호에서 정지선 가상 벽, fresh `GREEN`에서 RDDF 직진 | 허가 후 교차로를 빠져나갈 때까지 진입 상태 유지 |
 | 3 | S자 정적 장애물 회피 | `LOCAL` 경로 필수. 없거나 충돌/미관측이면 정지 |
-| 4 | 2와 같은 신호 처리 + T 주차 좌/우 공간 미리 관측 | 교차로 통과·구간 끝·선택 공간 관측 확인 후 5 |
+| 4 | 2와 같은 신호 처리 | 교차로 통과 후 향후 Parking Planner의 선택 결과 필요 |
 | 5/6 | 선택한 T 주차 진입/출차 경로를 한 쌍으로 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
 | 7 | 정지선 가상 벽에서 `LEFT_ARROW` 대기, 허용 시 RDDF 좌회전 | 일반 녹색으로 좌회전 허가를 대신하지 않음 |
 | 8 | RDDF 추종 + DBSCAN 동적장애물 감시 | 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 구간 끝에서 9로 연결 |
-| 9 | 기준경로 추종 + 평행주차 좌/우 미리 관측 | 구간 끝에서 확인된 쪽 10으로 연결 |
+| 9 | 기준경로 추종 | 구간 끝에서 향후 Parking Planner의 선택 결과 필요 |
 | 10/11 | 선택한 평행주차 진입/출차 쌍 유지 | 후진 주차 확인선·자세 확인, 정지 후 전진 출차 |
 | 12 | 설정된 종료 분기 추종 | `finish_branch=left`는 중간 분기점, right는 끝에서 13 진입 |
 | 13 left/right | 설정된 종료 경로 주행 | 뒷바퀴가 종료선을 지난 뒤 정지 |
@@ -295,10 +294,10 @@ rosservice call /landmark_editor/validate
 또한 `config/missions.json`을 작업용 파일로 복사하고 다음 차량 값을 측정해 입력한다.
 `width_m`, `front_m`, `rear_m`는 `base_link` 기준 차체 외곽이다.
 `deceleration_mps2`와 `reaction_s`는 제어·통신·센서 지연을 포함해 실측한다.
-`max_speed_mps`와 `max_yaw_rate_rps`는 스캔 중 허용되는 최대 이동/회전 속도다.
-측정 속도가 이 범위를 벗어나면 정지하며, 주행 명령 속도도 이 상한으로 제한한다.
-`vehicle.validated`와 `vehicle.curb_visibility_validated`는 측정/검증 후에만 true로
-설정한다. 실제 차량값은 기본 파일에 넣어 두지 않았다. 1 KPH 명령의 제동거리와
+`max_speed_mps`는 미션 속도 상한이다. `vehicle.validated`는 전방 범퍼 위치·제동값·
+속도 상한을 측정하고 검증한 뒤에만 true로 설정한다. 폭과 뒤쪽 길이는 RViz 표시와
+향후 주차 플래너 연결용이며 State Manager가 원본 scan을 검사하는 데 사용하지 않는다.
+실제 차량값은 기본 파일에 넣어 두지 않았다. 1 KPH 명령의 제동거리와
 정지 여유가 정지 허용 오차보다 크면 현재 정수 속도 인터페이스로 정밀 정지가
 불가능하므로 런타임이 차량 설정을 거부한다.
 
@@ -321,9 +320,8 @@ Odometry의 freshness·좌표계·유한성을 확인하지만 위치 품질과 
 Localization Supervisor가 발행한 `/molit/localization/valid`를 단일 기준으로 따른다.
 
 GPS를 의도적으로 끈 Localization은 `/molit/localization/state=DEAD_RECKONING`과
-`valid=true`를 함께 발행한다. State Manager는 TRACKING과 DEAD_RECKONING을 구분해
-위치·yaw 공분산을 다시 제한하지 않는다. 주차 후보용 LiDAR 회피 여유 계산은 기존과
-같이 Odometry 공분산을 기하 여유에만 사용한다.
+`valid=true`를 함께 발행한다. State Manager는 위치·yaw 공분산을 다시 제한하지 않고
+Localization의 `/valid` 판단을 따른다.
 
 ## 인지·플래너 인터페이스
 
@@ -341,7 +339,7 @@ GPS를 의도적으로 끈 Localization은 `/molit/localization/state=DEAD_RECKO
 | `/path/rddf`, `/path/local`, `/path/park` | `PlannedPath` | 요청 id/route/direction 일치, 유효한 자세·연속 경로 |
 | `/path/selector_status` | `PathStatus` | 외부 Selector의 유일한 경로 승인 결과. State Manager는 후보 경로를 재검사하지 않음 |
 | `/path/final` | `nav_msgs/Path` | Control용 최종 경로. invalid이면 비움 |
-| `/mission/safety` | `SafetyStatus` | LiDAR/위치 상태와 최종 경로의 정지 판단 |
+| `/mission/safety` | `SafetyStatus` | 위치·경로·미션 상태의 정지 판단 |
 | `/mission/diagnostics` | `std_msgs/String` JSON | 경기 시간·제외 신호 대기·완료 미션·규정 진단 |
 | `/mission/markers` | `visualization_msgs/MarkerArray` | RViz 표시 |
 | `/erp42_serial/drive` | `erp42_msgs/DriveCmd` | Control의 최종 Arduino 명령; 속도·조향·brake·Gear·EStop |
@@ -360,25 +358,12 @@ fallback하지 않는다. PARKING 역시 전용 플래너 응답이 없으면 �
 미래 시각·낡은 관측·다른 구간의 신호·낮은 confidence는 허가로 쓰지 않는다.
 ROS를 정지했다 다시 시작한 경우 새 경기 실행을 위해 State Manager도 재시작한다.
 
-## 상시 LiDAR 감독과 검증 범위
+## LiDAR 입력 소유권
 
-모든 구간에서 LiDAR freshness와 측정 시각의 TF를 확인한다. 선택된 경로 위에서
-실제 속도에 따른 제동거리와 차체의 회전·돌출부를 검사한다. 유한한 반사점은
-연석인지 라바콘인지 몰라도 차체 영역과 겹치면 정지 사유가 된다. 미관측 부채꼴,
-가림 뒤 공간, NaN 빔은 빈 공간으로 처리하지 않는다. 현재 차체 내부만 관측 범위
-검사에서 제외하며, 그 안의 실제 반사점까지 제거하지 않는다.
-
-스캔 각 빔에 대한 이동 보정(deskew)은 아직 없으며 첫 빔 시각의 TF를 사용한다.
-최대 이동·회전 속도와 스캔 소요 시간, 센서 최대거리로부터 스캔 변형의 상한을
-계산해 검사 여유 폭에 더하고, 위치 공분산도 여유에 반영한다. 이 보수적인 여유가
-좁은 코스에서 정지를 유발하면 실제 이동 보정과 센서 검증으로 관측 오차를 줄여야
-한다. 단순히 관측되지 않은 공간을 안전하다고 바꾸어 해결하지 않는다.
-
-2D LiDAR 높이 때문에 낮은 연석이 스캔 평면에 들어오지 않을 수 있다. 경사로에서는
-센서 평면이 기울어지므로 TF 기울기와 현장 가시성을 검증해야 한다. 너무 기울어진
-스캔은 차단한다. `curb_visibility_validated`는 장착·노면 실험을 기록하기 위한
-설정이며 연석 검출 알고리즘이나 충돌 방지 보증이 아니다. 필요하면 낮은 연석용
-추가 센서 또는 3D 지면 분리가 필요하다.
+State Manager는 원본 `LaserScan`이나 LiDAR TF를 구독하지 않는다. Object Detection이
+원본 scan을 처리하고, State Manager는 `dynamic` RDDF의 E-Stop 판단에 필요한 stamped
+`/dbscan_clusters`만 받는다. 3구간의 같은 군집은 Path Planner가 직접 사용한다.
+RViz inspection 노드는 확인용으로 원본 scan을 표시할 수 있지만 주행 허가에는 관여하지 않는다.
 
 다음은 ROS 없이 실행 가능한 회귀 테스트다.
 

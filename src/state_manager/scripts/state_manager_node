@@ -8,17 +8,15 @@ import secrets
 import threading
 
 import rospy
-import tf2_ros
 from geometry_msgs.msg import PoseStamped
 from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry, Path
-from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
 from planning_interfaces.msg import (MissionState, ParkingManeuver, PathStatus,
                                     PlannedPath, RouteMap, SafetyStatus,
                                     SignalObservation, TrafficConstraint)
-from stier_state_manager.geometry import Route, transform_scan_to_geometry
+from stier_state_manager.geometry import Route
 from stier_state_manager.calibration import validate_landmarks
 from stier_state_manager.mission import PARKING_ROUTES, ROUTES
 from stier_state_manager.runtime import MissionRuntime
@@ -66,8 +64,6 @@ class StateManagerNode:
             rospy.logwarn('Calibration overlay missing: %s; using base mission configuration', calibration_file)
         if rospy.get_param('~calibration_mode', False):
             self.config['calibration_mode'] = True
-        self.tf_buffer = tf2_ros.Buffer(cache_time=rospy.Duration(10))
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         self.state_pub = rospy.Publisher('/mission/state', MissionState, queue_size=1)
         self.safety_pub = rospy.Publisher('/mission/safety', SafetyStatus, queue_size=1)
         self.constraint_pub = rospy.Publisher('/mission/traffic_constraint', TrafficConstraint, queue_size=1)
@@ -81,7 +77,6 @@ class StateManagerNode:
             rospy.Subscriber('/molit/localization/state', String, self.on_localization_state, queue_size=1),
             rospy.Subscriber('/molit/localization/rddf/current', RddfMatch,
                              self.on_current_rddf, queue_size=1),
-            rospy.Subscriber('/molit/sensors/lidar/scan', LaserScan, self.on_scan, queue_size=1),
             rospy.Subscriber('/dbscan_clusters', MarkerArray, self.on_clusters, queue_size=1),
             rospy.Subscriber('/perception/traffic_signal', SignalObservation, self.on_signal, queue_size=1),
             rospy.Subscriber('/parking/maneuver', ParkingManeuver, self.on_parking_maneuver, queue_size=1),
@@ -257,50 +252,6 @@ class StateManagerNode:
             self.clock_fault = 'CLOCK_REGRESSION_RESTART_REQUIRED'
         self.last_clock = now
         return now
-
-    def on_scan(self, msg):
-        stamp, now = msg.header.stamp.to_sec(), rospy.Time.now().to_sec()
-        observation = {'stamp': stamp, 'valid': False, 'reason': 'LIDAR_INVALID', 'hits': [], 'rays': []}
-        try:
-            duration = ((len(msg.ranges) - 1) * msg.time_increment
-                        if msg.time_increment > 0 else msg.scan_time)
-            values = (stamp, duration, msg.time_increment, msg.scan_time)
-            if (not all(math.isfinite(v) for v in values) or stamp <= 0 or duration <= 0
-                    or msg.time_increment < 0 or msg.scan_time < 0 or len(msg.ranges) < 2):
-                raise ValueError('LIDAR_TIMING_INVALID')
-            if now - stamp < 0 or now - stamp > self.config.get('input_timeout_s', .5) or stamp + duration > now:
-                raise ValueError('LIDAR_ACQUISITION_STALE_OR_FUTURE')
-            if duration > self.config.get('max_scan_duration_s', .2):
-                raise ValueError('LIDAR_ACQUISITION_TOO_LONG')
-            if not msg.header.frame_id:
-                raise ValueError('LIDAR_FRAME_MISSING')
-            transform = self.tf_buffer.lookup_transform('map', msg.header.frame_id, msg.header.stamp, rospy.Duration(.05))
-            t, q = transform.transform.translation, transform.transform.rotation
-            # Sensor observations retain their original acquisition timestamps;
-            # callback/timer time is never substituted for scan time.
-            hits, rays = transform_scan_to_geometry(msg.ranges, msg.angle_min, msg.angle_increment,
-                msg.range_min, msg.range_max, translation=(t.x, t.y, t.z),
-                rotation=(q.x, q.y, q.z, q.w), max_range=self.config.get('lidar_max_range_m'))
-            if len(rays) < 2 or not hasattr(rays, 'plane_normal'):
-                raise ValueError('LIDAR_NO_VALID_RAYS')
-            tilt = math.acos(min(1.0, abs(rays.plane_normal[2])))
-            if tilt > self.config.get('max_lidar_plane_tilt_rad', .2):
-                raise ValueError('LIDAR_PLANE_TILT_OUTSIDE_VALIDATION')
-            # Optional limits are measured map-height limits, not a claim that
-            # map z equals local ground height on the slope.
-            low, high = self.config.get('lidar_height_min_m'), self.config.get('lidar_height_max_m')
-            if ((low is not None and t.z < low) or (high is not None and t.z > high)):
-                raise ValueError('LIDAR_HEIGHT_OUTSIDE_VALIDATION')
-            observation.update(valid=True, reason='OK', hits=hits, rays=rays,
-                               duration=duration, end_stamp=stamp + duration, plane_tilt_rad=tilt,
-                               range_max=msg.range_max)
-        except (ValueError, TypeError, tf2_ros.LookupException,
-                tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as error:
-            observation['reason'] = str(error)
-            rospy.logwarn_throttle(2.0, 'LiDAR rejected: %s', error)
-        with self.lock:
-            self.clock_now()
-            self.data['scan'] = observation
 
     def on_clusters(self, msg):
         """Convert the detector's stamped POINTS markers into validated map points."""

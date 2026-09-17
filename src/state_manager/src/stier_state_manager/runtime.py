@@ -1,8 +1,8 @@
 """Orchestrate route tracking, missions and observed-space vetoes without ROS."""
 import math
 
-from .geometry import Route, RouteTracker, braking_distance, corridor_status, project
-from .mission import MissionEngine, PARKING_ROUTES
+from .geometry import Route, RouteTracker, braking_distance, project
+from .mission import MissionEngine
 
 
 def fresh(stamp, now, timeout=0.5):
@@ -12,22 +12,11 @@ def fresh(stamp, now, timeout=0.5):
 
 def validate_vehicle(config):
     vehicle = config.get('vehicle', {})
-    if vehicle.get('validated') is not True or vehicle.get('curb_visibility_validated') is not True:
+    if vehicle.get('validated') is not True:
         return False
-    positive = ('width_m', 'front_m', 'rear_m', 'deceleration_mps2', 'reaction_s',
-                'max_speed_mps', 'max_yaw_rate_rps')
+    positive = ('front_m', 'deceleration_mps2', 'reaction_s', 'max_speed_mps')
     return all(type(vehicle.get(k)) in (int, float) and math.isfinite(vehicle[k])
                and vehicle[k] > 0 for k in positive)
-
-
-def footprint(pose, vehicle):
-    x, y, yaw = pose
-    c, s = math.cos(yaw), math.sin(yaw)
-    return [(x + a*c - b*s, y + a*s + b*c)
-            for a, b in ((vehicle['front_m'], vehicle['width_m']/2),
-                         (vehicle['front_m'], -vehicle['width_m']/2),
-                         (-vehicle['rear_m'], -vehicle['width_m']/2),
-                         (-vehicle['rear_m'], vehicle['width_m']/2))]
 
 
 class MissionRuntime:
@@ -44,7 +33,6 @@ class MissionRuntime:
         self.clock_fault = False
         self.transition_fault = ''
         self.vehicle_ok = validate_vehicle(config)
-        self.preview_cache = None
         if self.vehicle_ok:
             # Localization base_link is at the rear axle. The traffic stop
             # reference must use the actual measured front bumper overhang.
@@ -113,7 +101,6 @@ class MissionRuntime:
         timeout = self.config.get('input_timeout_s', 0.5)
         odom = data.get('odom', {})
         valid = data.get('localization', {})
-        scan = data.get('scan', {})
         if not fresh(odom.get('stamp'), now, timeout):
             return False, 'ODOMETRY_STALE'
         if not fresh(valid.get('stamp'), now, timeout) or valid.get('valid') is not True:
@@ -123,14 +110,6 @@ class MissionRuntime:
         if not all(math.isfinite(odom.get(k, math.nan)) for k in
                    ('x', 'y', 'yaw', 'speed')):
             return False, 'ODOMETRY_NONFINITE'
-        if not fresh(scan.get('stamp'), now, timeout) or not scan.get('valid'):
-            return False, scan.get('reason', 'LIDAR_STALE_OR_INVALID')
-        if abs(scan['stamp'] - odom['stamp']) > self.config.get('max_pose_scan_skew_s', 0.2):
-            return False, 'POSE_LIDAR_TIME_SKEW'
-        if self.vehicle_ok and (not math.isfinite(odom.get('yaw_rate', math.nan))
-                or abs(odom['speed']) > self.config['vehicle']['max_speed_mps']
-                or abs(odom['yaw_rate']) > self.config['vehicle']['max_yaw_rate_rps']):
-            return False, 'MOTION_OUTSIDE_SCAN_CALIBRATION'
         return True, 'OK'
 
     def _matched_progress(self, data, now):
@@ -203,49 +182,6 @@ class MissionRuntime:
             return result
         result.update(ready=True, reason='PATH_ACCEPTED',
                       path_fingerprint=fingerprint)
-        return result
-
-    def _corridor(self, points, data, direction=1):
-        vehicle, scan = self.config['vehicle'], data['scan']
-        pose = tuple(data['odom'][key] for key in ('x', 'y', 'yaw'))
-        # A scan transformed at its first beam is not deskewed. Enlarge the
-        # swept footprint by an explicit bound on possible acquisition motion,
-        # including rotation of the farthest return, and localization error.
-        duration = scan.get('duration', 0.0)
-        rotation = min(math.pi, vehicle['max_yaw_rate_rps'] * duration)
-        motion_margin = vehicle['max_speed_mps'] * duration + 2*scan.get('range_max', 0)*math.sin(rotation/2)
-        position_variance = data['odom']['position_variance']
-        if data.get('localization_state', {}).get('state') == 'DEAD_RECKONING':
-            # Do not let the deliberately unbounded GPS-less covariance make
-            # every finite LiDAR return look like a collision. The normal
-            # tracking cap remains the conservative geometric margin here.
-            position_variance = min(
-                position_variance,
-                self.config.get('max_position_variance_m2', 0.25))
-        localization_margin = self.config.get('localization_sigma_margin', 2.0) * math.sqrt(position_variance)
-        return corridor_status(points, scan['hits'], scan['rays'],
-                               vehicle_width=vehicle['width_m'], front=vehicle['front_m'],
-                               rear=vehicle['rear_m'], margin=vehicle.get('margin_m', 0.25) + motion_margin + localization_margin,
-                               direction=direction, coverage_exclusion=footprint(pose, vehicle))
-
-    def _parking_preview(self, data, section):
-        result = {}
-        if section not in (4, 9) or not self.vehicle_ok:
-            return result
-        kind = 't' if section == 4 else 'parallel'
-        cache_key = (section, data['scan']['stamp'])
-        if self.preview_cache and self.preview_cache[0] == cache_key:
-            return self.preview_cache[1]
-        for side, names in PARKING_ROUTES[kind].items():
-            statuses = []
-            for name in names:
-                # Test both orientations: metadata only describes initial yaw.
-                # This conservative envelope cannot replace a parking planner.
-                for direction in (1, -1):
-                    statuses.append(self._corridor(self.routes[name].points, data, direction)['status'])
-            value = 'BLOCKED' if 'BLOCKED' in statuses else 'CLEAR' if all(s == 'CLEAR' for s in statuses) else 'UNKNOWN'
-            result[side] = {'stamp': data['scan']['stamp'], 'value': value}
-        self.preview_cache = (cache_key, result)
         return result
 
     def traffic_constraint(self, now, signal):
@@ -323,7 +259,7 @@ class MissionRuntime:
                         signal=data.get('signal', {}), path_ready=selection['ready'],
                         decision_id=self.decision_id,
                         parking_maneuver=data.get('parking_maneuver', {}),
-                        parking=self._parking_preview(data, tracked['section']) if healthy else {},
+                        parking=data.get('parking', {}) if healthy else {},
                         finish_branch_s=self.tracker.finish_left_branch_s)
         # Dynamic-obstacle E-Stop evaluation remains independent of mission
         # dwell accounting, so it cannot reset a route-specific hold timer.

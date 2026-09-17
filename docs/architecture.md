@@ -70,7 +70,7 @@ flowchart TB
 선 교차를 줄이기 위해 여러 노드가 공유하는 위치·지도 입력과 검증용 역방향 선은
 그림에서 생략하고 아래 입력·출력 표에 기록했다. 생략된 선은 Localization에서
 Object Detection·Path Planner·PP로 가는 위치 정보, RDDF 파일 로더에서 Path Planner로
-가는 `/route/map`, LiDAR와 Selector에서 State Manager로 가는 상태 입력이다.
+가는 `/route/map`, Selector에서 State Manager로 가는 상태 입력이다.
 이 선들은 새로운 경로를 생성하거나 Selector를 우회하지 않는다.
 
 **PP는 State Manager의 `/path/rddf`를 직접 받지 않는다.** State Manager가 잘라서 만든

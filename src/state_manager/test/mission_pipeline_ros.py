@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """ROS Noetic State Manager/Selector transport smoke test."""
-import math
 import threading
 import time
 import unittest
@@ -11,7 +10,6 @@ from geometry_msgs.msg import PoseStamped
 from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry
 from planning_interfaces.msg import MissionState, PathStatus, PlannedPath, Route, RouteMap, SafetyStatus, TrafficConstraint
-from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import MarkerArray
 from stier_state_manager.mission import PARKING_ROUTES, ROUTES
@@ -34,7 +32,6 @@ class PipelineSmoke(unittest.TestCase):
         publishers = {'map': ('/route/map', RouteMap),
                       'observed': ('/molit/localization/rddf/current', RddfMatch),
                       'odom': ('/molit/localization/odometry', Odometry),
-                      'scan': ('/molit/sensors/lidar/scan', LaserScan),
                       'valid': ('/molit/localization/valid', Bool),
                       'localization_state': ('/molit/localization/state', String)}
         self.publishers = {key: rospy.Publisher(topic, kind, queue_size=10, latch=key == 'map')
@@ -91,14 +88,7 @@ class PipelineSmoke(unittest.TestCase):
         odom.header.stamp, odom.header.frame_id, odom.child_frame_id = stamp, 'map', 'base_link'
         odom.pose.pose.orientation.w = 1.0
         odom.pose.covariance[0] = odom.pose.covariance[7] = odom.pose.covariance[35] = .01
-        scan = LaserScan()
-        scan.header.stamp, scan.header.frame_id = stamp, 'map'
-        scan.angle_min, scan.angle_max, scan.angle_increment = -math.pi, math.pi, math.pi / 180
-        scan.range_min, scan.range_max = .01, 30.0
-        scan.ranges = [math.inf] * 361
-        scan.scan_time, scan.time_increment = .01, .01 / 360
         self.publishers['odom'].publish(odom)
-        self.publishers['scan'].publish(scan)
         self.publishers['valid'].publish(Bool(data=True))
         self.publishers['localization_state'].publish(String(data='TRACKING'))
         observed = RddfMatch()

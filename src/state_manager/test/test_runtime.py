@@ -7,7 +7,7 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from stier_state_manager.geometry import Route, project, scan_to_geometry
+from stier_state_manager.geometry import Route, project
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -42,15 +42,12 @@ class RuntimeTests(unittest.TestCase):
                 'candidates': [candidate]}
 
     def data(self, now, x=0.0, speed=0.0, runtime=None):
-        hits, rays = scan_to_geometry([math.inf]*361, -math.pi, math.pi/180, 0.01, 30,
-                                      scanner_pose=(x, 0, 0))
         runtime = runtime or MissionRuntime(self.routes, self.config)
         return {'odom': {'stamp': now, 'frame': 'map', 'child_frame': 'base_link',
                          'x': x, 'y': 0, 'yaw': 0, 'speed': speed, 'yaw_rate': 0,
                          'position_variance': .01, 'yaw_variance': .01},
                 'localization': {'stamp': now, 'valid': True},
                 'localization_state': {'stamp': now, 'state': 'TRACKING'},
-                'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays},
                 'rddf_match': self.match(runtime, now, x)}
 
     def candidate(self, runtime, now):
@@ -116,15 +113,6 @@ class RuntimeTests(unittest.TestCase):
         data['odom']['yaw_variance'] = 0.1
         self.assertEqual(runtime._health(data, 1), (True, 'OK'))
 
-    def test_dead_reckoning_covariance_growth_is_capped_for_lidar_margin(self):
-        runtime = MissionRuntime(self.routes, self.config)
-        data = self.data(1)
-        data['localization_state']['state'] = 'DEAD_RECKONING'
-        data['odom']['position_variance'] = 20.0
-        data['scan']['hits'].append((1.0, 2.0))
-        result = runtime._corridor([(0, 0, 0), (2, 0, 0)], data)
-        self.assertEqual(result['status'], 'CLEAR')
-
     def test_calibration_session_never_drives(self):
         self.config['calibration_mode'] = True
         result = self.run_step(MissionRuntime(self.routes, self.config), 1)
@@ -146,10 +134,10 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['stop_requested'])
         self.assertFalse(result['valid'])
 
-    def test_raw_lidar_hit_does_not_trigger_removed_global_vehicle_gate(self):
+    def test_raw_lidar_is_not_a_state_manager_input(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1)
-        data['scan']['hits'].append((.7, 0))
+        self.assertNotIn('scan', data)
         result = runtime.step(1, data, self.candidate(runtime, 1))
         self.assertEqual(result['mission'], 'HILL_STOP')
         self.assertFalse(result['safety']['stop'], result)
@@ -226,19 +214,6 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(result['stop_requested'])
         self.assertEqual(result['phase'], 'WAIT_DYNAMIC_OBSERVATION')
 
-    def test_lidar_dropout_then_recovery_resets_continuous_hold(self):
-        runtime = MissionRuntime(self.routes, self.config)
-        self.run_step(runtime, 1)
-        for i in range(20):
-            self.run_step(runtime, 2+i/10, 4)
-        data = self.data(4, 4)
-        data['scan']['stamp'] = 1
-        result = runtime.step(4, data, self.candidate(runtime, 4))
-        self.assertFalse(result['valid'])
-        for i in range(20):
-            result = self.run_step(runtime, 4.1+i/10, 4)
-        self.assertNotIn('hill', result['completed_missions'])
-
     def test_wrong_frame_and_clock_regression_stop(self):
         runtime = MissionRuntime(self.routes, self.config)
         self.run_step(runtime, 2)
@@ -262,22 +237,6 @@ class RuntimeTests(unittest.TestCase):
         result = self.run_step(runtime, 1)
         self.assertTrue(result['valid'], result)
         self.assertFalse(result['stop_requested'], result)
-
-    def test_motion_beyond_measured_scan_bounds_stops(self):
-        runtime = MissionRuntime(self.routes, self.config)
-        result = self.run_step(runtime, 1, speed=3.0)
-        self.assertFalse(result['valid'])
-        self.assertEqual(result['safety']['reason'], 'MOTION_OUTSIDE_SCAN_CALIBRATION')
-
-    def test_scan_motion_expands_collision_envelope(self):
-        runtime = MissionRuntime(self.routes, self.config)
-        data = self.data(1)
-        data['scan']['hits'] = [(1, 1.0)]
-        before = runtime._corridor([(0, 0, 0), (1, 0, 0)], data)
-        self.assertEqual(before['status'], 'CLEAR')
-        data['scan'].update(duration=.1, range_max=30)
-        after = runtime._corridor([(0, 0, 0), (1, 0, 0)], data)
-        self.assertEqual(after['status'], 'BLOCKED')
 
     def test_real_catalogue_has_nineteen_routes_and_twelve_left_fork(self):
         source = PACKAGE.parent / 'localization' / 'scripts' / 'rddf_route_provider.py'

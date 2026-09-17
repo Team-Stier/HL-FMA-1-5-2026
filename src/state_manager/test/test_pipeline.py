@@ -11,7 +11,7 @@ sys.path[:0] = [str(PACKAGES / name / 'src') for name in
                 ('state_manager', 'selector')]
 
 from selector.core import Candidate, Pose, SelectorCore, State, path_fingerprint
-from stier_state_manager.geometry import Route, project, scan_to_geometry
+from stier_state_manager.geometry import Route, project
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -44,9 +44,6 @@ class Pipeline:
         self.now = 1.0
 
     def observation(self, x, speed=0.0):
-        hits, rays = scan_to_geometry([math.inf] * 361, -math.pi,
-                                      math.pi / 180, .01, 60.0,
-                                      scanner_pose=(x, 0.0, 0.0))
         route = self.runtime.source_routes[self.runtime.tracker.route_name]
         matched = project(route, x, 0.0)
         segment = matched['segment']
@@ -61,9 +58,6 @@ class Pipeline:
                          'yaw': 0.0, 'speed': speed, 'yaw_rate': 0.0,
                          'position_variance': .01, 'yaw_variance': .01},
                 'localization': {'stamp': self.now, 'valid': True},
-                'localization_state': {'stamp': self.now, 'state': 'TRACKING'},
-                'scan': {'stamp': self.now, 'valid': True,
-                         'hits': hits, 'rays': rays},
                 'rddf_match': {'stamp': self.now, 'received': self.now,
                                'pose_stamp': self.now, 'frame': 'map',
                                'matched': True, **candidate,
@@ -115,15 +109,14 @@ class Pipeline:
 
 
 class DirectPipelineTests(unittest.TestCase):
-    def test_lidar_dropout_stops_and_fresh_data_recovers(self):
+    def test_raw_lidar_status_does_not_gate_state_manager(self):
         pipeline = Pipeline()
         self.assertTrue(pipeline.step()[2])
         decision, selected, commandable = pipeline.step(
-            edit=lambda data: data['scan'].update(valid=False))
-        self.assertFalse(decision['valid'])
-        self.assertFalse(commandable)
+            edit=lambda data: data.update(scan={'stamp': 0, 'valid': False}))
+        self.assertTrue(decision['valid'])
+        self.assertTrue(commandable)
         self.assertTrue(selected.ready)
-        self.assertTrue(pipeline.step()[2])
 
     def test_missing_requested_local_path_never_falls_back_to_rddf(self):
         pipeline = Pipeline()

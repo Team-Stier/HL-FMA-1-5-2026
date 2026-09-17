@@ -8,7 +8,7 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(PACKAGE / 'src'), str(PACKAGE.parent / 'selector' / 'src')]
-from stier_state_manager.geometry import Route, RouteTracker, project, scan_to_geometry
+from stier_state_manager.geometry import Route, RouteTracker, project
 from stier_state_manager.runtime import MissionRuntime
 
 
@@ -36,15 +36,11 @@ class ParkingRuntimeTests(unittest.TestCase):
         return runtime
 
     def data(self, now, x=0.0, y=0.0, yaw=0.0, speed=0.0, maneuver=None):
-        hits, rays = scan_to_geometry([math.inf] * 361, -math.pi, math.pi / 180,
-                                      .01, 30, scanner_pose=(x, y, yaw))
         result = {
             'odom': {'stamp': now, 'frame': 'map', 'child_frame': 'base_link',
                      'x': x, 'y': y, 'yaw': yaw, 'speed': speed, 'yaw_rate': 0.0,
                      'position_variance': .01, 'yaw_variance': .01},
             'localization': {'stamp': now, 'valid': True},
-            'localization_state': {'stamp': now, 'state': 'TRACKING'},
-            'scan': {'stamp': now, 'valid': True, 'hits': hits, 'rays': rays},
         }
         route = self.runtime.source_routes[self.runtime.tracker.route_name]
         matched = project(route, x, y)

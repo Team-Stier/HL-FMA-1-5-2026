@@ -4,12 +4,7 @@
     "longitude": 127.1072336
   },
   "input_timeout_s": 0.5,
-  "max_pose_scan_skew_s": 0.2,
-  "max_position_variance_m2": 0.25,
-  "max_yaw_variance_rad2": 0.08,
   "min_confidence": 0.8,
-  "max_lidar_plane_tilt_rad": 0.2,
-  "max_scan_duration_s": 0.2,
   "rate_hz": 10,
   "path_lookahead_m": 20,
   "dynamic_obstacle": {
@@ -25,15 +20,12 @@
   "landmarks_validated": false,
   "vehicle": {
     "validated": false,
-    "curb_visibility_validated": false,
     "width_m": null,
     "front_m": null,
     "rear_m": null,
     "deceleration_mps2": null,
     "reaction_s": null,
-    "margin_m": 0.25,
-    "max_speed_mps": null,
-    "max_yaw_rate_rps": null
+    "max_speed_mps": null
   },
   "finish_branch": "left",
   "rules": {
@@ -134,6 +126,5 @@
       "7.stop_line_s"
     ],
     "pending": []
-  },
-  "localization_sigma_margin": 2.0
+  }
 }

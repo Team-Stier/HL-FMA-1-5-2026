@@ -14,7 +14,7 @@ from types import SimpleNamespace as NS
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from stier_state_manager.geometry import Route, transform_scan_to_geometry
+from stier_state_manager.geometry import Route
 from stier_state_manager.calibration import validate_landmarks
 from stier_state_manager.mission import PARKING_ROUTES, ROUTES
 
@@ -44,10 +44,7 @@ class AdapterTests(unittest.TestCase):
                      'Route': Route, 'ROUTES': ROUTES, 'PARKING_ROUTES': PARKING_ROUTES,
                      'validate_landmarks': validate_landmarks,
                      'MissionRuntime': fake_runtime,
-                     'transform_scan_to_geometry': transform_scan_to_geometry,
-                     'Marker': NS(ADD=0, DELETEALL=3, POINTS=8),
-                     'tf2_ros': NS(LookupException=LookupError, ConnectivityException=ConnectionError,
-                                   ExtrapolationException=TimeoutError)}
+                     'Marker': NS(ADD=0, DELETEALL=3, POINTS=8)}
         source = Path(__file__).resolve().parents[1] / 'scripts' / 'state_manager_node'
         parsed = ast.parse(source.read_text())
         definitions = ast.Module(body=[n for n in parsed.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))],
@@ -57,43 +54,14 @@ class AdapterTests(unittest.TestCase):
         self.node.lock = threading.RLock()
         self.node.data = {}
         self.node.last_clock, self.node.clock_fault = None, ''
-        self.node.config = {'input_timeout_s': .5, 'max_scan_duration_s': .2}
+        self.node.config = {'input_timeout_s': .5}
         self.node.routes, self.node.runtime, self.node.map_fingerprint = {}, None, None
         self.node.active_match_route, self.node.rddf_match = '', None
         self.node.last_decision = None
         self.node.configuration_fault, self.node.map_fault = '', ''
-        transform = NS(transform=NS(translation=NS(x=0, y=0, z=.3), rotation=NS(x=1, y=0, z=0, w=0)))
-        self.node.tf_buffer = NS(lookup_transform=lambda *args: transform)
 
     def header(self, stamp=9.9, frame='map'):
         return NS(stamp=Stamp(stamp), frame_id=frame)
-
-    def scan(self, stamp=9.9):
-        return NS(header=self.header(stamp, 'laser'), ranges=[math.inf] * 721,
-                  time_increment=.1 / 720, scan_time=.1, angle_min=-math.pi,
-                  angle_increment=math.pi / 360, range_min=.05, range_max=20)
-
-    def test_scan_retains_source_time_and_roll_flipped_tf(self):
-        self.node.on_scan(self.scan())
-        observation = self.node.data['scan']
-        self.assertTrue(observation['valid'])
-        self.assertEqual(observation['stamp'], 9.9)
-        self.assertEqual(observation['rays'].plane_normal, (0, 0, -1))
-
-    def test_expired_scan_cannot_be_refreshed_by_callback(self):
-        self.node.on_scan(self.scan(9))
-        self.assertFalse(self.node.data['scan']['valid'])
-        self.assertEqual(self.node.data['scan']['stamp'], 9)
-
-    def test_future_last_beam_is_rejected(self):
-        self.node.on_scan(self.scan(9.95))
-        self.assertFalse(self.node.data['scan']['valid'])
-
-    def test_unknown_acquisition_duration_is_rejected(self):
-        scan = self.scan()
-        scan.time_increment = scan.scan_time = 0
-        self.node.on_scan(scan)
-        self.assertFalse(self.node.data['scan']['valid'])
 
     def test_general_green_is_preserved_distinct_from_left_arrow(self):
         self.node.on_signal(NS(header=self.header(), route_name='7', junction_id='left_turn',
