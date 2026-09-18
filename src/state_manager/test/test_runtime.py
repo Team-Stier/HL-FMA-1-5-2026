@@ -122,6 +122,22 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(stopped['stop_requested'])
         self.assertEqual(stopped['phase'], 'WAIT_SIGNAL')
 
+    def test_local_static_avoidance_prepares_section_four_handoff(self):
+        routes = {
+            '3_s-static-obstacle': Route(
+                '3_s-static-obstacle', [(0, 0, 0), (10, 0, 0)]),
+            '4': Route('4', [(10, 0, 0), (20, 0, 0)]),
+        }
+        runtime = MissionRuntime(
+            routes, dict(self.config, start_route='3_s-static-obstacle'))
+        runtime.request = ('3_s-static-obstacle', 'LOCAL', 1)
+        runtime.decision_id = 7
+        runtime.active_source_routes = ('3_s-static-obstacle', '4')
+
+        runtime.activate_route('4')
+
+        self.assertEqual(runtime.prefetch_handoff_request, (8, '4', 'RDDF', 1))
+
     def test_missing_stale_or_wrong_prefetch_cannot_skip_path_wait(self):
         for failure in ('missing', 'stale', 'wrong', 'rejected'):
             runtime = MissionRuntime(self.routes, self.config)
@@ -150,6 +166,52 @@ class RuntimeTests(unittest.TestCase):
         runtime.active_source_routes = ('4', '5_T-left-in')
         runtime.progress_s = 1.0
         self.assertGreater(runtime.rddf_points(10.0, None)[-1][0], 10.0)
+
+    def test_parallel_rddf_extends_current_gear_leg_not_next_route(self):
+        routes = {
+            '10_parallel-left-in': Route(
+                '10_parallel-left-in', [(0, 0, 0), (10, 0, 0)]),
+            '11-parallel-left-out': Route(
+                '11-parallel-left-out', [(10, 0, 0), (20, 0, 0)]),
+        }
+        runtime = MissionRuntime(
+            routes, dict(self.config, start_route='10_parallel-left-in'))
+        runtime.active_source_routes = (
+            '10_parallel-left-in', '11-parallel-left-out')
+        runtime.rddf_bounds = ('10_parallel-left-in', 0.0, 10.0)
+
+        points = runtime.rddf_points(10.0, None)
+
+        self.assertEqual(points[-1][0], 13.0)
+        self.assertTrue(all(point[0] <= 13.0 for point in points))
+        self.assertEqual(runtime.rddf_bounds, ('10_parallel-left-in', 0.0, 10.0))
+
+    def test_every_bounded_gear_leg_gets_a_straight_control_tail(self):
+        route = Route('5_T-left-in', [(0, 0, 0), (4, 0, 0)], -1)
+        runtime = MissionRuntime(
+            {route.name: route}, dict(self.config, start_route=route.name))
+        runtime.rddf_bounds = (route.name, 0.0, 2.0)
+
+        points = runtime.rddf_points(10.0, None)
+
+        self.assertEqual(points[-1][:2], (5.0, 0.0))
+
+    def test_direction_changing_route_boundary_uses_straight_tail(self):
+        routes = {
+            '4': Route('4', [(0, 0, 0), (4, 0, 0)], 1),
+            '5_T-left-in': Route('5_T-left-in',
+                                 [(4, 0, math.pi / 2), (4, 4, math.pi / 2)], -1),
+            '5_T-right-in': Route('5_T-right-in',
+                                  [(4, 0, -math.pi / 2), (4, -4, -math.pi / 2)], -1),
+        }
+        runtime = MissionRuntime(routes, dict(self.config, start_route='4'))
+        runtime.active_source_routes = ('4', '5_T-left-in', '5_T-right-in')
+        runtime.progress_s = 3.0
+
+        points = runtime.rddf_points(10.0, None)
+
+        self.assertEqual(points[-1][:2], (7.0, 0.0))
+        self.assertTrue(all(abs(point[1]) < 1e-9 for point in points))
 
     def test_localization_match_is_progress_authority(self):
         runtime = MissionRuntime(self.routes, self.config)
@@ -277,7 +339,25 @@ class RuntimeTests(unittest.TestCase):
 
         clear = self.cluster_data(1.1, [])
         clear['clusters']['clusters'] = []
-        released = runtime.step(1.1, clear, self.candidate(runtime, 1.1))
+        held = runtime.step(1.1, clear, self.candidate(runtime, 1.1))
+        self.assertTrue(held['emergency_stop_requested'])
+        released = runtime.step(4.5, self.cluster_data(4.5, []), self.candidate(runtime, 4.5))
+        self.assertFalse(released['emergency_stop_requested'])
+        self.assertFalse(released['stop_requested'], released)
+
+    def test_dynamic_estop_timer_is_not_reset_by_continuous_detection(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        runtime = MissionRuntime(self.routes, self.config)
+        obstacle = [(2.0, 0.0)]
+
+        self.assertTrue(runtime.step(
+            1.0, self.cluster_data(1.0, obstacle), self.candidate(runtime, 1.0)
+        )['emergency_stop_requested'])
+        self.assertTrue(runtime.step(
+            4.4, self.cluster_data(4.4, obstacle), self.candidate(runtime, 4.4)
+        )['emergency_stop_requested'])
+        released = runtime.step(
+            4.5, self.cluster_data(4.5, obstacle), self.candidate(runtime, 4.5))
         self.assertFalse(released['emergency_stop_requested'])
         self.assertFalse(released['stop_requested'], released)
 

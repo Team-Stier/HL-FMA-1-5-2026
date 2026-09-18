@@ -9,6 +9,7 @@
   "path_lookahead_m": 20.0,
   "dynamic_obstacle": {
     "route_token": "dynamic",
+    "estop_hold_s": 3.5,
     "input_timeout_s": 2.0,
     "lookahead_m": 3.0,
     "corridor_half_width_m": 0.65,
@@ -27,11 +28,11 @@
     "reaction_s": null,
     "max_speed_mps": null
   },
-  "start_branch": "left",
-  "finish_fallback_branch": "left",
+  "start_branch": "right",
+  "finish_fallback_branch": "right",
   "parking_branches": {
-    "t": "left",
-    "parallel": "left"
+    "t": "right",
+    "parallel": "right"
   },
   "parallel_parking_profiles": {
     "10_parallel-left-in": {

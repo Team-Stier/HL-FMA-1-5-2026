@@ -72,16 +72,16 @@ class ParkingRuntimeTests(unittest.TestCase):
                                        self.candidate(now))
         return result
 
-    def test_rddf_path_is_clipped_to_current_gear_leg(self):
+    def test_rddf_path_extends_past_current_gear_leg_for_control(self):
         result = self.prime()
         self.assertEqual((result['path_mode'], result['direction']), ('RDDF', 1))
-        self.assertAlmostEqual(self.runtime.rddf_points(1.1, {})[-1][0], 5.0)
+        self.assertAlmostEqual(self.runtime.rddf_points(1.1, {})[-1][0], 8.0)
 
         switched = self.hold(1.1, 4.9)
         self.assertEqual((switched['direction'], switched['decision_id']), (-1, 2))
         points = self.runtime.rddf_points(2.2, {})
         self.assertAlmostEqual(points[0][0], 5.0)
-        self.assertAlmostEqual(points[-1][0], 15.0)
+        self.assertAlmostEqual(points[-1][0], 18.0)
 
     def test_gear_change_waits_for_actual_standstill_and_new_path(self):
         self.prime()

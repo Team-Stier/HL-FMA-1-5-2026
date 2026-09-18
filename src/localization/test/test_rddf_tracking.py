@@ -268,6 +268,21 @@ class TrackingTest(unittest.TestCase):
         self.assertEqual(result.source_route_name, '1_right')
         self.assertEqual(result.reason, 'MATCHED_OFF_ROUTE')
 
+    def test_parallel_route_does_not_jump_to_nearby_later_gear_leg(self):
+        self.configure_routes({
+            '10_parallel-left-in': [
+                (0, 0), (1, 0), (2, 0), (3, 0), (4, 0),
+                (1.1, .05), (0, .05),
+            ],
+        })
+        self.tracker.initialized_source = '10_parallel-left-in'
+        self.feed(x=0, y=0, yaw=0)
+        self.assertEqual(self.message().nearest.segment_index, 0)
+
+        self.feed(x=1.1, y=.05, yaw=0)
+        matched = self.message()
+        self.assertLessEqual(matched.nearest.segment_index, 2)
+
     def test_initial_crossing_uses_vehicle_heading(self):
         self.configure_routes({
             '1_right': [(0, 0), (10, 0)],

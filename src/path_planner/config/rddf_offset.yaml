@@ -1,0 +1,3 @@
+offset_m: 0.7
+obstacle_corridor_m: 1.5
+obstacle_lookahead_m: 10.0

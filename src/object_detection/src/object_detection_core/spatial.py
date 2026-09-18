@@ -4,7 +4,7 @@ import numpy as np
 
 try:
     from scipy.spatial import cKDTree
-except ImportError:  # Keep the node usable until python3-scipy is installed.
+except (ImportError, AttributeError):  # NumPy/SciPy version mismatch uses fallback.
     cKDTree = None
 
 

@@ -13,11 +13,7 @@ State Manager가 요청한 `path_mode`의 경로만 검증해서 `/path/final`�
 메시지/수신 시각은 기본 0.5초 이내, 미래 허용치는 0.05초다. Wrapper와 Path의
 header stamp가 필요하며, 두 header와 모든 PoseStamped의 frame은 `map`이어야 한다.
 경로는 2개 이상의 유한 좌표, 정규화 quaternion, 기본 최대 2m 간격을 요구한다.
-Pose의 quaternion은 차체 방향이어야 한다. 각 이동 선분 양 끝의 차체 방향과
-선분의 진행 방향을 비교하며, 후진 경로는 두 방향이 반대여야 한다. 오차가
-`~max_path_heading_error_rad`(기본 1.0 rad)를 넘으면 `PATH_BODY_DIRECTION_MISMATCH`로
-거부한다. 이 값은 0보다 크고 π/2보다 작아야 한다. 따라서 전진 경로의 direction만
--1로 바꾸어도 후진 경로로 승인되지 않는다.
+경로 Pose의 yaw와 진행 방향은 Selector에서 중복 검사하지 않는다.
 조건 미충족 시 빈 Path로 이전 경로를 지우며 `/path/selector_status`의 `ready=false`를
 발행한다. LOCAL/PARKING 경로가 없으면 RDDF로 자동 복귀하지 않는다.
 
