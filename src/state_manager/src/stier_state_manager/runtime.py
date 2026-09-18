@@ -277,12 +277,6 @@ class MissionRuntime:
         if self.rddf_bounds and self.rddf_bounds[0] == route.name:
             start = max(start, self.rddf_bounds[1])
             end = min(end, self.rddf_bounds[2])
-        wall = self.traffic_constraint(now, signal)
-        if wall:
-            if not wall['valid']:
-                return []
-            if wall['active']:
-                end = min(end, wall['target_s'])
         if end <= start:
             return []
         # Preserve original corners as well as interpolated endpoints.
@@ -297,19 +291,11 @@ class MissionRuntime:
                       and self.routes[name].section == route.section + 1
                       and math.hypot(self.routes[name].start[0]-route.end[0],
                                      self.routes[name].start[1]-route.end[1]) <= 2.5]
-        if bounds_reach_end and not (wall and wall['active']) and len(successors) == 1:
+        if bounds_reach_end and len(successors) == 1:
             end = route.length
             samples = route.slice(start, end)
             successor = successors[0]
             next_end = successor.length
-            next_wall = self.engine.traffic_constraint(
-                successor.name, successor.section, successor.length, now, signal)
-            if next_wall and not next_wall['valid']:
-                next_end = 0.0
-            elif next_wall and next_wall['active']:
-                next_end = min(next_end, next_wall['stop_line_s'] -
-                               self.engine.rules['front_bumper_offset_m'] -
-                               self.config.get('stop_buffer_m', .05))
             if next_end > 0:
                 extension = successor.slice(0.0, next_end)
                 if math.hypot(samples[-1][0]-extension[0][0],

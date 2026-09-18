@@ -62,12 +62,12 @@ class RuntimeTests(unittest.TestCase):
     def run_step(self, runtime, now, x=0, speed=0):
         return runtime.step(now, self.data(now, x, speed, runtime), self.candidate(runtime, now))
 
-    def test_rddf_preview_crosses_seam_but_respects_next_stop_line(self):
+    def test_signal_stop_does_not_cut_rddf_preview(self):
         runtime = MissionRuntime(self.routes, self.config)
         runtime.progress_s = 9.0
         points = runtime.rddf_points(10.0, None)
         self.assertGreater(points[-1][0], 10.0)
-        self.assertLessEqual(points[-1][0], 14.45 + 1e-6)
+        self.assertAlmostEqual(points[-1][0], 20.0)
 
     def test_rounded_cusp_does_not_add_reverse_micrometre_segment(self):
         for yaw in (0.0, 0.69, 2.35, -2.8):
@@ -381,11 +381,11 @@ class RuntimeTests(unittest.TestCase):
     def planned_prefix(self, runtime, now, signal):
         return self.candidate(runtime, now)
 
-    def test_red_approach_path_stops_before_front_bumper_and_buffer(self):
+    def test_red_approach_keeps_rddf_and_publishes_stop_request_separately(self):
         runtime = self.traffic_runtime()
         signal = {'stamp': 1, 'route': '2', 'value': 'RED'}
         candidate = self.planned_prefix(runtime, 1, signal)
-        self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 4.45)
+        self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 10.0)
         result = runtime.step(1, dict(self.data(1), signal=signal), candidate)
         self.assertFalse(result['stop_requested'], result)
         self.assertTrue(result['virtual_stop']['active'])
@@ -412,7 +412,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result['stop_requested'], result)
         self.assertEqual(runtime.rddf_points(1.3, green)[-1][0], 10)
 
-    def test_unknown_stale_wrong_route_future_or_wrong_turn_keeps_wall(self):
+    def test_unknown_stale_wrong_route_future_or_wrong_turn_does_not_cut_path(self):
         for name in ('2', '4', '7'):
             runtime = self.traffic_runtime(name)
             required = 'LEFT_ARROW' if name == '7' else 'GREEN'
@@ -423,13 +423,15 @@ class RuntimeTests(unittest.TestCase):
                            {'stamp': 1, 'route': 'wrong', 'value': required},
                            {'stamp': 1, 'route': name, 'value': 'GREEN' if name == '7' else 'LEFT_ARROW'}):
                 with self.subTest(name=name, signal=signal):
-                    self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 4.45)
+                    self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 10.0)
             self.assertEqual(runtime.rddf_points(1, {'stamp': 1, 'route': name, 'value': required})[-1][0], 10)
 
-    def test_traffic_without_marker_produces_no_path_even_on_green(self):
+    def test_traffic_without_marker_keeps_path_for_mission_stop(self):
         runtime = self.traffic_runtime()
         self.config['landmarks']['2']['stop_line_s'] = None
-        self.assertEqual(runtime.rddf_points(1, {'stamp': 1, 'route': '2', 'value': 'GREEN'}), [])
+        self.assertAlmostEqual(
+            runtime.rddf_points(1, {'stamp': 1, 'route': '2', 'value': 'GREEN'})[-1][0],
+            10.0)
 
     def test_red_after_authorized_entry_does_not_recreate_wall(self):
         runtime = self.traffic_runtime()
