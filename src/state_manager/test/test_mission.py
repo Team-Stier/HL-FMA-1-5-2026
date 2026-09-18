@@ -78,13 +78,14 @@ class MissionTests(unittest.TestCase):
         section = 4 if kind == "t" else 9
         return self.run_at(section, now=start)
 
-    def test_hill_requires_three_seconds_of_continuous_standstill(self):
+    def test_hill_releases_three_and_half_seconds_after_first_stop(self):
+        self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
         self.assertTrue(self.run_at(now=0.0, s=5.0, speed=0.0)["stop_requested"])
-        self.poll(start=0.25, end=2.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=2.999, s=5.0, speed=0.0)["stop_requested"])
-        released = self.run_at(now=3.0, s=5.0, speed=0.0)
+        self.poll(start=0.25, end=3.25, s=5.0, speed=0.0)
+        self.assertTrue(self.run_at(now=3.499, s=5.0, speed=0.0)["stop_requested"])
+        released = self.run_at(now=3.5, s=5.0, speed=0.0)
         self.assertFalse(released["stop_requested"])
-        self.assertEqual(released["completed_missions"]["hill"], 3.0)
+        self.assertEqual(released["completed_missions"]["hill"], 3.5)
         self.assertEqual(self.run_at(now=4.0, s=20.0, at_end=True)["next_route"], "2")
 
     def test_hill_stop_accepts_lateral_offset_within_longitudinal_tolerance(self):
@@ -126,29 +127,27 @@ class MissionTests(unittest.TestCase):
         self.assertFalse(released['stop_requested'])
         self.assertEqual(released['completed_missions']['hill'], 4.5)
 
-    def test_hill_movement_resets_hold(self):
+    def test_hill_movement_does_not_reset_hold(self):
+        self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
         self.run_at(now=0, s=5.0, speed=0.0)
         self.run_at(now=2, s=5.0, speed=0.6)
         self.run_at(now=3, s=5.0, speed=0.0)
-        self.poll(start=3.25, end=5.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=5.9, s=5.0, speed=0.0)["stop_requested"])
-        self.assertFalse(self.run_at(now=6, s=5.0, speed=0.0)["stop_requested"])
+        self.assertTrue(self.run_at(now=3.49, s=5.0, speed=0.0)["stop_requested"])
+        self.assertFalse(self.run_at(now=3.5, s=5.0, speed=0.0)["stop_requested"])
 
-    def test_localization_loss_restarts_hill_dwell(self):
+    def test_localization_loss_does_not_reset_hill_hold(self):
+        self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
         self.run_at(now=0, s=5.0, speed=0.0)
         lost = self.run_at(now=2, s=5.0, speed=0.0, healthy=False, reason="STALE_ODOM")
         self.assertEqual(lost["reason"], "STALE_ODOM")
         self.run_at(now=3, s=5.0, speed=0.0)
-        self.poll(start=3.25, end=5.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=5.9, s=5.0, speed=0.0)["stop_requested"])
-        self.assertFalse(self.run_at(now=6, s=5.0, speed=0.0)["stop_requested"])
+        self.assertFalse(self.run_at(now=3.5, s=5.0, speed=0.0)["stop_requested"])
 
-    def test_collision_restarts_hill_dwell(self):
+    def test_collision_does_not_reset_hill_hold(self):
         self.run_at(now=0, s=5.0, speed=0.0)
         self.run_at(now=2, s=5.0, speed=0.0, collision=True)
         self.run_at(now=3, s=5.0, speed=0.0)
-        self.poll(start=3.25, end=5.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=5.9, s=5.0, speed=0.0)["stop_requested"])
+        self.assertFalse(self.run_at(now=3.0, s=5.0, speed=0.0)["stop_requested"])
 
     def test_hill_uses_raw_progress_to_detect_rollback_and_latches_fault(self):
         self.run_at(now=0, s=5.0, raw_s=5.0)
@@ -655,11 +654,11 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(result["reason"], "CLOCK_REGRESSION")
         self.assertNotIn("hill", result["completed_missions"])
 
-    def test_missed_update_interval_does_not_count_as_observed_hold(self):
+    def test_elapsed_time_counts_without_intermediate_updates(self):
         self.run_at(now=0, s=5, speed=0)
         result = self.run_at(now=3, s=5, speed=0)
-        self.assertTrue(result["stop_requested"])
-        self.assertNotIn("hill", result["completed_missions"])
+        self.assertFalse(result["stop_requested"])
+        self.assertIn("hill", result["completed_missions"])
 
     def test_configuration_cannot_relax_mandatory_rules(self):
         for rule, value in (("hill_hold_s", 2.9),
@@ -686,7 +685,7 @@ class MissionTests(unittest.TestCase):
             self.assertEqual(result['phase'], 'UNAVAILABLE')
             self.assertTrue(result['stop_requested'])
 
-    def test_small_hill_rollback_and_lateral_drift_reset_hold(self):
+    def test_small_hill_rollback_and_lateral_drift_do_not_reset_hold(self):
         for change in ({'raw_s': 4.97}, {'x': 5., 'y': .03}):
             with self.subTest(change=change):
                 self.engine = MissionEngine()
@@ -694,10 +693,8 @@ class MissionTests(unittest.TestCase):
                 values = dict(s=5, raw_s=5, x=5, y=0, speed=0)
                 values.update(change)
                 result = self.run_at(now=3, **values)
-                self.assertNotIn('hill', result['completed_missions'])
-                self.assertEqual(result['hill_hold_elapsed_s'], 0)
-                result = self.poll(start=3.25, end=6, **values)
                 self.assertIn('hill', result['completed_missions'])
+                self.assertEqual(result['hill_hold_elapsed_s'], 3)
 
     def test_hill_accepts_signed_speed_within_standstill_range(self):
         for speed in (-.5, -.1, 0., .1, .5):

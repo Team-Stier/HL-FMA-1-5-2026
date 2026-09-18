@@ -499,29 +499,17 @@ class MissionEngine:
                 return
         if "hill" not in self.completed_missions:
             out["remaining_stop_m"] = max(0.0, stop - s)
-            # Accept speed noise in both directions within the standstill range.
-            # Position also catches slow drift hidden by the speed deadband.
-            stationary = standing and at_or_past_target
-            position = (raw_s, snap.get("x"), snap.get("y"))
-            anchor = state.get("hill_hold_anchor")
-            drift = abs(raw_s - anchor[0]) if anchor else 0.0
-            if anchor and all(_number(v) for v in position[1:] + anchor[1:]):
-                drift = max(drift, math.hypot(position[1] - anchor[1], position[2] - anchor[2]))
-            if not stationary or drift > self.rules["hill_hold_position_tolerance_m"]:
-                state["dwell_since"] = None
-                state.pop("hill_hold_anchor", None)
-            if stationary and state.get("hill_hold_anchor") is None:
-                state["hill_hold_anchor"] = position
-            held = self._dwell(state, now, stationary, self.rules["hill_hold_s"])
-            out["hill_hold_elapsed_s"] = (now - state["dwell_since"]
-                                            if state.get("dwell_since") is not None else 0.0)
+            first_stop = state.get("first_stop_time")
+            elapsed = max(0.0, now - first_stop) if first_stop is not None else 0.0
+            held = first_stop is not None and elapsed >= self.rules["hill_hold_s"]
+            out["hill_hold_elapsed_s"] = elapsed
             if held:
                 self._complete("hill", now)
                 state["hill_release"] = now
                 out["phase"] = "CLIMBING"
                 out["remaining_stop_m"] = None
             elif at_or_past_target:
-                self._stop(out, "HILL_REQUIRED_HOLD", "HOLD" if stationary else "STOPPING")
+                self._stop(out, "HILL_REQUIRED_HOLD", "HOLD" if standing else "STOPPING")
                 return
         else:
             out["phase"] = "CLIMBING"
