@@ -34,8 +34,11 @@ class CalibratedIMU:
             self.core.initial_heading = None
         self.heading_transaction = None
         self.p = self.core.p
-        self.rddf_heading_force_routes = set(
-            str(route) for route in rospy.get_param('~rddf_heading_force_routes', []))
+        self.rddf_heading_force_on_entry_routes = set(
+            str(route) for route in rospy.get_param(
+                '~rddf_heading_force_on_entry_routes', []))
+        self.last_rddf_route = None
+        self.forced_rddf_entry_routes = set()
         self.topics = rospy.get_param('~topics')
         self.frames = rospy.get_param('~frames')
         for key in ('imu_normalized', 'imu_calibrated', 'gps_navpvt', 'encoder_twist', 'encoder_state'):
@@ -85,11 +88,19 @@ class CalibratedIMU:
 
     def rddf_callback(self, message):
         with self.lock:
-            if (message.matched and message.route_name in self.rddf_heading_force_routes
+            if not message.matched:
+                return
+            previous = self.last_rddf_route
+            self.last_rddf_route = message.route_name
+            if (previous is not None and previous != message.route_name
+                    and message.route_name in self.rddf_heading_force_on_entry_routes
+                    and message.route_name not in self.forced_rddf_entry_routes
                     and self._mount()):
                 if self.core.force_body_yaw(message.nearest.heading_rad, self.mount):
-                    rospy.loginfo_throttle(
-                        1.0, 'Forced yaw to RDDF %s: %.3f deg',
+                    self.forced_rddf_entry_routes.add(message.route_name)
+                    rospy.loginfo(
+                        'Forced yaw once on RDDF entry %s -> %s: %.3f deg',
+                        previous,
                         message.route_name, math.degrees(message.nearest.heading_rad))
 
     def set_initial_heading(self, request):
