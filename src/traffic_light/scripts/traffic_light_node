@@ -48,6 +48,7 @@ class TrafficLightNode:
             '/perception/traffic_light/image_annotated', Image, queue_size=1)
         self.route_name_override = str(rospy.get_param('~route_name', '')).strip()
         self.active_route = ''
+        self.signal_enabled = False
 
         image_topic = str(rospy.get_param('~image_topic', '/usb_cam/image_raw'))
         self.signal_pub = rospy.Publisher(
@@ -72,7 +73,12 @@ class TrafficLightNode:
         return digest.hexdigest()
 
     def _mission_callback(self, msg):
-        self.active_route = msg.route_name.strip()
+        route_name = msg.route_name.strip()
+        if route_name != self.active_route:
+            self.signal_enabled = False
+        self.active_route = route_name
+        if msg.section in (2, 4, 7) and 0.0 <= msg.remaining_stop_m <= 5.0:
+            self.signal_enabled = True
 
     def _publish(self, header, decision):
         route_name = self.route_name_override or self.active_route
@@ -80,8 +86,8 @@ class TrafficLightNode:
         signal.header = header
         signal.route_name = route_name
         signal.junction_id = ('route_' + route_name) if route_name else ''
-        signal.value = decision.signal
-        signal.confidence = decision.signal_confidence
+        signal.value = decision.signal if self.route_name_override or self.signal_enabled else 'UNKNOWN'
+        signal.confidence = decision.signal_confidence if self.route_name_override or self.signal_enabled else 0.0
         self.signal_pub.publish(signal)
 
         lanes = LaneSignals()
