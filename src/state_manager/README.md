@@ -187,15 +187,14 @@ Left in은 전진 1→9, 후진 9→10이고, Right in은 전진 1→4, 후진 4
 - 통과 허가 후 앞범퍼가 정지선을 넘어 진입한 상태에서는 신호 변경만으로 벽을 다시 세우지 않는다.
   Localization 또는 경로 입력이 invalid인 경우의 정지는 계속 적용된다.
 
-`/path/rddf`의 끝을 `stop_line_s - vehicle.front_m - stop_buffer_m`까지만 생성한다.
-현재 관측을 매 tick에 반영하므로 초록→빨강에서는 다시 잘리고, 허용 신호에서는 전체
-lookahead가 복원된다. 후보 경로가 제한을 넘으면 매니저 안전 검사도
-`PATH_CROSSES_VIRTUAL_STOP`으로 거부한다. 정지선 미설정 시 신호 구간 경로는 비어 있으며,
-보정·위치·경로 검사를 통과해야 움직일 수 있다.
+`/path/rddf`는 신호 대기 중에도 정지선 뒤의 lookahead를 계속 제공해
+조향 제어가 RDDF 끝점으로 급격히 틀어지지 않게 한다. 종방향 정지는
+`remaining_stop_m`과 `stop_requested`가 담당하며, 앞범퍼가 정지선 약 0.8m 전에
+도달하면 정지한다. 정지선 설정이 잘못되어도 RDDF 자체는 유지되고 미션 상태가
+차량을 정지시킨다.
 
 RViz `/mission/markers`에 정지선의 붉은 수직 벽과 `STOP WALL`/`RDDF OPEN` 문구가 나온다.
 벽 폭은 차폭+1m(차폭 미설정 시 표시용 3m)이며 실제 차로 폭의 측정값이 아니다.
-플래너 제한은 벽 그림의 옆을 돌아가는 우회를 허용하지 않는 **해당 RDDF 진행거리 제한**이다.
 마커는 0.5초 뒤 만료되므로 갱신이 끊긴 화면을 현재 상태로 오인하지 않아야 한다.
 
 `/mission/traffic_constraint` (`planning_interfaces/TrafficConstraint`)는 정지선 상태를
