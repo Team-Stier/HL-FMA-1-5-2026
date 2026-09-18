@@ -215,6 +215,19 @@ def lidar_forward_mask(points, lidar_origin_x_m, min_forward_m):
     return points[:, 0] >= origin + minimum
 
 
+def forward_box_mask(points, lidar_origin_x_m, min_forward_m,
+                     max_forward_m, half_width_m):
+    """Keep a base_link-aligned box ahead of the LiDAR origin."""
+    points = np.asarray(points, dtype=float)
+    origin = float(lidar_origin_x_m)
+    minimum = float(min_forward_m)
+    maximum = float(max_forward_m)
+    half_width = float(half_width_m)
+    return ((points[:, 0] >= origin + minimum)
+            & (points[:, 0] <= origin + maximum)
+            & (np.abs(points[:, 1]) <= half_width))
+
+
 def angular_roi_mask(points, min_angle_deg, max_angle_deg):
     """Return points inside a base_link angular sector.
 

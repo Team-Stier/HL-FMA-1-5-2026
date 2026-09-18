@@ -27,6 +27,7 @@ from object_detection_core.rddf_roi import (
     RddfRouteNetwork,
     angular_roi_mask,
     circle_union_mask,
+    forward_box_mask,
     lidar_forward_mask,
     vehicle_exclusion_mask,
 )
@@ -225,6 +226,14 @@ class RddfRoiDetector:
         self.max_depth = int(rospy.get_param("~roi/max_successor_depth"))
         connection_distance = _positive(
             "connection_distance_m", rospy.get_param("~roi/connection_distance_m"))
+        self.dynamic_route_token = str(rospy.get_param(
+            "~roi/dynamic_forward_roi/route_token")).strip().lower()
+        self.dynamic_max_forward = _positive(
+            "dynamic_forward_roi/max_forward_m",
+            rospy.get_param("~roi/dynamic_forward_roi/max_forward_m"))
+        self.dynamic_half_width = _positive(
+            "dynamic_forward_roi/half_width_m",
+            rospy.get_param("~roi/dynamic_forward_roi/half_width_m"))
         self.network = (RddfRouteNetwork.from_directory(
             rospy.get_param("~rddf_directory"), connection_distance)
             if self.corridor_enabled else None)
@@ -346,8 +355,10 @@ class RddfRoiDetector:
                 self._clear_outputs(scan.header.stamp)
                 rospy.logwarn_throttle(5.0, "RDDF ROI 대기: RDDF match가 오래되었거나 미래 시각임")
                 return
+        dynamic_forward_roi = (self.corridor_enabled
+                               and self.dynamic_route_token in source_route.lower())
         try:
-            if self.corridor_enabled:
+            if self.corridor_enabled and not dynamic_forward_roi:
                 polylines = self.network.corridor(
                     source_route, segment_index, segment_fraction,
                     self.lookahead, self.lookbehind, self.max_depth)
@@ -363,13 +374,20 @@ class RddfRoiDetector:
             lidar_removed_count = 0
             removed_count = 0
             angle_removed_count = 0
-            if (self.lidar_forward_roi_enabled or self.self_filter_enabled
+            if (dynamic_forward_roi or self.lidar_forward_roi_enabled or self.self_filter_enabled
                     or self.angular_roi_enabled):
                 base_transform = self.tf_buffer.lookup_transform(
                     self.base_frame, scan.header.frame_id, scan.header.stamp,
                     rospy.Duration(0.05))
                 base_xyz = transform_points(laser_xyz, base_transform, scan.header.frame_id)
-                if self.lidar_forward_roi_enabled:
+                if dynamic_forward_roi:
+                    lidar_origin_x = base_transform.transform.translation.x
+                    lidar_keep = forward_box_mask(
+                        base_xyz[:, :2], lidar_origin_x, self.lidar_min_forward,
+                        self.dynamic_max_forward, self.dynamic_half_width)
+                    lidar_removed_count = int(np.count_nonzero(~lidar_keep))
+                    keep &= lidar_keep
+                elif self.lidar_forward_roi_enabled:
                     lidar_origin_x = base_transform.transform.translation.x
                     lidar_keep = lidar_forward_mask(
                         base_xyz[:, :2], lidar_origin_x, self.lidar_min_forward)
@@ -385,7 +403,7 @@ class RddfRoiDetector:
                     angle_removed_count = int(np.count_nonzero(keep & ~angle_keep))
                     keep &= angle_keep
             xyz = xyz[keep]
-            if self.corridor_enabled:
+            if self.corridor_enabled and not dynamic_forward_roi:
                 mask = circle_union_mask(xyz[:, :2], centers, self.radius)
                 filtered = xyz[mask]
             else:

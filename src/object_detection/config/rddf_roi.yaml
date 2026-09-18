@@ -28,6 +28,12 @@ max_successor_depth: 4
 # 용인 RDDF는 대부분 정확히 맞닿으므로 크게 올리면 잘못된 좌우 경로가 연결될 수 있다.
 connection_distance_m: 1.0
 
+# 동적 장애물 구간은 RDDF 원형 ROI 대신 LiDAR 기준 전방 직사각형 ROI를 사용한다.
+dynamic_forward_roi:
+  route_token: dynamic
+  max_forward_m: 4.0
+  half_width_m: 0.65
+
 # LiDAR 장착 위치를 기준으로 차량 전방(base_link +X)만 남기는 ROI
 # raw scan yaw 보정과 X축 180도 장착 roll을 TF로 적용한 뒤 차량 전방을 사용한다.
 lidar_forward_roi:
