@@ -84,7 +84,7 @@ class MissionTests(unittest.TestCase):
                 self.assertIn('hill', result['completed_missions'])
                 self.assertFalse(result['stop_requested'])
 
-    def test_hill_zone_does_not_expand_longitudinal_stop_tolerance(self):
+    def test_hill_zone_keeps_approach_before_target_and_holds_after(self):
         for s in (4.2, 5.8):
             self.engine = MissionEngine()
             snap = self.snap(s=s, raw_s=s, speed=0.0)
@@ -92,7 +92,23 @@ class MissionTests(unittest.TestCase):
                 hill_zone_start_s=4., hill_zone_end_s=6.)
             result = self.engine.update(snap)
             self.assertNotIn('hill', result['completed_missions'])
-            self.assertEqual(result['reason'] == 'HILL_STOP_ZONE_MISSED', s > 5.2)
+            self.assertEqual(result['reason'] == 'HILL_REQUIRED_HOLD', s > 5.2)
+
+    def test_hill_hold_releases_after_three_and_half_seconds_outside_zone(self):
+        self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
+        marks = {'hill_zone_start_s': 4., 'hill_zone_end_s': 6.}
+        self.run_at(now=0, s=5, raw_s=5, speed=1,
+                    landmarks={'1_left': marks})
+        self.assertTrue(self.run_at(now=1, s=7, raw_s=7, speed=0,
+                                    landmarks={'1_left': marks})['stop_requested'])
+        self.poll(start=1.25, end=4.25, s=7, raw_s=7, speed=0,
+                  landmarks={'1_left': marks})
+        self.assertTrue(self.run_at(now=4.49, s=7, raw_s=7, speed=0,
+                                    landmarks={'1_left': marks})['stop_requested'])
+        released = self.run_at(now=4.5, s=7, raw_s=7, speed=0,
+                               landmarks={'1_left': marks})
+        self.assertFalse(released['stop_requested'])
+        self.assertEqual(released['completed_missions']['hill'], 4.5)
 
     def test_hill_movement_resets_hold(self):
         self.run_at(now=0, s=5.0, speed=0.0)
@@ -131,9 +147,9 @@ class MissionTests(unittest.TestCase):
         snap["landmarks"]["1_left"]["hill_stop_s"] = 2.5
         self.assertEqual(self.engine.update(snap)["reason"], "HILL_STOP_OUTSIDE_RULE_ZONE")
 
-    def test_hill_stop_cannot_be_silently_skipped(self):
+    def test_hill_stop_after_target_requires_hold(self):
         result = self.run_at(s=6.0)
-        self.assertEqual(result["reason"], "HILL_STOP_ZONE_MISSED")
+        self.assertEqual(result["reason"], "HILL_REQUIRED_HOLD")
         self.assertIsNone(result["next_route"])
 
     def test_hill_clearance_timeout_does_not_override_safety_stop(self):

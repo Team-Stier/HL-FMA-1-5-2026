@@ -480,9 +480,8 @@ class MissionEngine:
         start = zone_start if paired else marks["hill_start_s"]
         top = zone_end if paired else marks["hill_top_s"]
         out["hill_target_s"] = stop
-        zone_ok = zone_start <= raw_s <= zone_end
-        near_stop = abs(raw_s - stop) <= self.rules["stop_tolerance_m"]
-        if standing and zone_ok and near_stop:
+        at_or_past_target = raw_s >= stop - self.rules["stop_tolerance_m"]
+        if standing and at_or_past_target:
             state.setdefault("first_stop_time", now)
         if (not state.get("hill_cleared") and state.get("first_stop_time") is not None
                 and now - state["first_stop_time"] > self.rules["hill_clearance_timeout_s"]):
@@ -500,13 +499,9 @@ class MissionEngine:
                 return
         if "hill" not in self.completed_missions:
             out["remaining_stop_m"] = max(0.0, stop - s)
-            if raw_s > stop + self.rules["stop_tolerance_m"]:
-                self._once("hill_stop_missed", out["route"])
-                self._stop(out, "HILL_STOP_ZONE_MISSED", "FAULT")
-                return
             # Accept speed noise in both directions within the standstill range.
             # Position also catches slow drift hidden by the speed deadband.
-            stationary = standing and zone_ok and near_stop
+            stationary = standing and at_or_past_target
             position = (raw_s, snap.get("x"), snap.get("y"))
             anchor = state.get("hill_hold_anchor")
             drift = abs(raw_s - anchor[0]) if anchor else 0.0
@@ -525,7 +520,7 @@ class MissionEngine:
                 state["hill_release"] = now
                 out["phase"] = "CLIMBING"
                 out["remaining_stop_m"] = None
-            elif near_stop:
+            elif at_or_past_target:
                 self._stop(out, "HILL_REQUIRED_HOLD", "HOLD" if stationary else "STOPPING")
                 return
         else:

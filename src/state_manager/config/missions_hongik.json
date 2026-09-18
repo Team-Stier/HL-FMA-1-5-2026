@@ -76,7 +76,7 @@
     }
   },
   "rules": {
-    "hill_hold_s": 3.0,
+    "hill_hold_s": 3.5,
     "standstill_speed_mps": 0.5,
     "parking_hold_s": 1.0,
     "stop_tolerance_m": 0.2,
