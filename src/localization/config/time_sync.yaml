@@ -14,6 +14,8 @@ clock_preflight:
 
 gps_driver_timing_topic: /mando_localization/internal/driver/gps_timing
 sensor_timing_monitor:
+  # PC NTP 검사는 진단에 남기되, 운행 중 GPS/IMU/RDDF를 차단하지 않는다.
+  enforce_host_clock_ready: false
   publish_rate_hz: 1.0
   host_check_period_sec: 5.0
   host_check_stale_sec: 15.0

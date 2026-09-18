@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Rules regression tests using fake time and explicit perception snapshots."""
 
+import json
+import math
 import os
 import sys
 import unittest
@@ -48,6 +50,14 @@ class MissionTests(unittest.TestCase):
         parking = self.run_at(5, now=0.1, s=1.0)
         self.assertAlmostEqual(normal["speed_limit"] * 3.6, 8.0)
         self.assertAlmostEqual(parking["speed_limit"] * 3.6, 6.0)
+
+    def test_hongik_speed_limits_command_eight_kph(self):
+        config_path = os.path.join(os.path.dirname(__file__), "..", "config", "missions_hongik.json")
+        with open(config_path, encoding="utf-8") as config_file:
+            config = json.load(config_file)
+        for zone, speed_mps in config["speeds"].items():
+            with self.subTest(zone=zone):
+                self.assertEqual(min(8, math.floor(speed_mps * 3.6)), 8)
 
     def poll(self, section=1, start=0.0, end=3.0, **kwargs):
         """Provide continuous quarter-second observations across a fake hold."""

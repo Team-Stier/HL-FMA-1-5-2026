@@ -194,6 +194,7 @@ class MonitorCallbackTest(unittest.TestCase):
         monitor = self.module.SensorTimingMonitor.__new__(self.module.SensorTimingMonitor)
         config = load_config(SCRIPTS.parent/'config/time_sync.yaml')
         monitor.policy = config['sensor_timing_monitor']
+        monitor.enforce_host_clock_ready = True
         monitor.lock = threading.RLock(); monitor.sim = False; monitor.gps_receipt_mode = False
         monitor.windows = {name: TimingWindow(30, 100, settings['max_gap_sec'], .1)
                            for name, settings in monitor.policy['sensors'].items()}
@@ -221,6 +222,17 @@ class MonitorCallbackTest(unittest.TestCase):
             monitor.publish_once()
         self.assertFalse(self.ready[-1])
         self.assertEqual(self.diagnostics[-1].status[0].message, 'HOST_CLOCK_CHECK_MISSING_OR_STALE')
+
+    def test_disabled_host_clock_gate_keeps_diagnostics_and_allows_consumers(self):
+        monitor = self.monitor()
+        monitor.enforce_host_clock_ready = False
+        monitor.host = {'ready': False, 'status': 'HOST_CLOCK_REJECTED',
+                        'reasons': ['untrusted_reference_sample']}
+        with patch.object(self.module.time, 'monotonic', return_value=101.), \
+                patch.object(self.module.rospy.Time, 'now', return_value=self.module.rospy.Time(123)):
+            monitor.publish_once()
+        self.assertTrue(self.ready[-1])
+        self.assertEqual(self.diagnostics[-1].status[0].message, 'HOST_CLOCK_REJECTED')
 
     def test_driver_invalid_utc_is_never_counted_as_measured_offset(self):
         monitor = self.monitor()
