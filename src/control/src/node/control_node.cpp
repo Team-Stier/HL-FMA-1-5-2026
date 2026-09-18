@@ -24,6 +24,7 @@
 #include "control/lateral/pure_pursuit.hpp"
 #include "control/lateral/stanley_controller.hpp"
 #include "control/longitudinal/fixed_speed_controller.hpp"
+#include "control/longitudinal/path_speed_profile.hpp"
 #include "control/vehicle/t870_command_mapper.hpp"
 
 namespace stier_control {
@@ -81,6 +82,8 @@ struct NodeConfig {
   double curvature_preview_distance_m{0.0};
   double maximum_steering_rate_rad_per_sec{0.0};
   FixedSpeedConfig fixed_speed;
+  bool adaptive_speed_enabled{true};
+  PathSpeedConfig path_speed;
   PurePursuitConfig pure_pursuit;
   StanleyConfig stanley;
   T870SteeringCommandConfig command_mapper;
@@ -141,6 +144,16 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
       requiredParam<int>(node, "maximum_speed_kph");
   if (!isValidFixedSpeedConfig(config.fixed_speed)) {
     throw std::runtime_error("invalid T870 target/maximum speed parameters");
+  }
+  node.param("adaptive_speed_enabled", config.adaptive_speed_enabled, true);
+  config.path_speed.wheelbase_m=config.wheelbase_m;
+  node.param("speed_profile/lateral_acceleration_mps2", config.path_speed.lateral_acceleration_mps2, 1.0);
+  node.param("speed_profile/preview_deceleration_mps2", config.path_speed.preview_deceleration_mps2, 0.25);
+  node.param("speed_profile/reaction_time_sec", config.path_speed.reaction_time_sec, 0.5);
+  node.param("speed_profile/preview_distance_m", config.path_speed.preview_distance_m, 40.0);
+  node.param("speed_profile/sample_interval_m", config.path_speed.sample_interval_m, 0.5);
+  if (!isValidPathSpeedConfig(config.path_speed)) {
+    throw std::runtime_error("invalid path speed profile parameters");
   }
 
   config.pure_pursuit.wheelbase_m = config.wheelbase_m;
@@ -559,12 +572,16 @@ class ControlNode {
     }
 
     erp42_msgs::DriveCmd command;
-    const double limited_kph = latest_mission_->speed_limit_mps * 3.6;
-    const uint16_t mission_limit_kph = static_cast<uint16_t>(std::floor(
-        std::min(limited_kph,
-                 static_cast<double>(std::numeric_limits<uint16_t>::max()))));
-    command.KPH = std::min(fixed_speed_controller_.commandKph(),
-                           mission_limit_kph);
+    const double ceiling_mps=std::min(latest_mission_->speed_limit_mps,
+        fixed_speed_controller_.commandKph()/3.6);
+    const double target_mps=config_.adaptive_speed_enabled
+        ? computePathSpeed(rear_axle_path, speed_mps, requested_steering_angle_rad,
+            steering_angle_rad, ceiling_mps, latest_mission_->remaining_stop_m,
+            config_.path_speed).speed_mps
+        : ceiling_mps;
+    // MissionState uses float32 m/s: 15 km/h can arrive as 14.9999994 km/h.
+    // Remove only serialization roundoff before integer wire quantization.
+    command.KPH=static_cast<uint16_t>(std::floor(target_mps*3.6+1e-6));
     if (command.KPH == 0U) {
       publishSafe("MISSION_SPEED_LIMIT_ZERO");
       return;
@@ -576,6 +593,9 @@ class ControlNode {
                        : erp42_msgs::DriveCmd::GEAR_REVERSE;
     command.EStop = 0U;
     command_publisher_.publish(command);
+    ROS_INFO_THROTTLE(2.0, "T870 speed command=%u km/h, mission=%.2f km/h, measured=%.2f km/h, steering=%.1f deg",
+        static_cast<unsigned>(command.KPH), latest_mission_->speed_limit_mps*3.6,
+        speed_mps*3.6, steering_angle_rad*180.0/kPi);
     previous_steering_angle_rad_ = steering_angle_rad;
     publishState("ACTIVE_" + config_.controller_mode);
 

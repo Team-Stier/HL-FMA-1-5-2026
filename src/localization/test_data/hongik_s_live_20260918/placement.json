@@ -1,0 +1,16 @@
+{
+  "source": "test_data/hongik_s_rddf",
+  "route": "3_s-static-obstacle",
+  "antenna_latitude": 37.5510307,
+  "antenna_longitude": 126.9247017,
+  "vehicle_yaw_deg": 7.784606537526161,
+  "lever_arm_m": [
+    0.65,
+    0.0
+  ],
+  "rear_axle_map_m": [
+    -34.479003464522094,
+    -13.284515350060762
+  ],
+  "rotation_deg": -65.59174194602669
+}

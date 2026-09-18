@@ -76,6 +76,16 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(self.node.data['signal']['value'], 'GREEN')
         self.assertNotEqual(self.node.data['signal']['value'], 'LEFT_ARROW')
 
+    def test_wheel_feedback_duplicate_alive_does_not_refresh_standstill(self):
+        self.node.on_feedback(NS(alive=255, speed=-.1, encoder=-3))
+        self.now = 10.1
+        self.node.on_feedback(NS(alive=255, speed=0., encoder=0))
+        self.assertEqual(self.node.data['wheel'],
+                         {'stamp': 10., 'speed': -.1, 'encoder': -3, 'alive': 255})
+        self.node.on_feedback(NS(alive=0, speed=0., encoder=0))
+        self.assertEqual(self.node.data['wheel'],
+                         {'stamp': 10.1, 'speed': 0., 'encoder': 0, 'alive': 0})
+
     def test_finish_lane_signs_are_kept_separate_from_traffic_signal(self):
         self.node.on_lane_signals(NS(header=self.header(), route_name='12',
                                      left='DOWN', right='X', confidence=.9))

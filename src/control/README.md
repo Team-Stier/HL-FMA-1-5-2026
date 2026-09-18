@@ -12,17 +12,23 @@ PP–Stanley 하이브리드는 아직 구현하지 않았다.
 |---|---:|
 | wheelbase | `0.75 m` |
 | 실제 road-wheel 조향 범위 | `-25 ~ +25 deg` |
-| 상위 기본 목표속도 | `5 km/h` |
-| 상위 운용 상한 | `10 km/h` |
+| 상위 기본 목표속도 상한 | `15 km/h` (곡률·조향·미션에 따라 감속) |
+| 상위 운용 절대 상한 | `15 km/h` |
 | Arduino ROS 목표/실측 ceiling | `15 km/h` |
 
 wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_required: false`가
 기본값이다. 내부 조향각은 REP-103에 따라 좌회전이 양수지만 Uno `DriveCmd.Deg`는
 좌회전이 음수이므로 `steering_command_sign: -1`을 사용한다.
 
-상위 control은 정상 운용 명령을 10 km/h 이하로 제한한다. 조사한 Mando White/Black
+상위 control은 정상 운용 명령을 15 km/h 이하로 제한한다. 조사한 Mando White/Black
 펌웨어는 별도 하위 속도·과속 정책을 갖는다. 상위 파라미터를 바꿔도 하위 제한이 바뀌지
 않는다. 탑재본과 별도 로컬 기어 수정본의 차이는 [통합 점검 기록](../../docs/integration_review_20260918.md)을 참고한다.
+
+`path_speed_profile`은 전방 최대 40m를 등간격으로 확인하고 곡률·요구 조향각·이번 주기
+출력 조향각·정지선 잔여 거리에 따라 속도를 낮춘다. feedback의 `steer`는 ADC이므로
+바퀴 각도로 해석하지 않는다. 15km/h는 실차에서 검증한 안전 최고속도가 아니라 명령 상한이다.
+기본 PP LD는 속도·곡률에 따라 2~4m 범위이며 `lookahead_m:=2`를 주면 2m로 고정된다.
+실행 인자, 가감속 가정, 검증 범위는 [로컬 속도·미션 변경](../../docs/local_mission_speed_20260918.md)을 참고한다.
 
 ## 입출력과 안전 정지
 
@@ -66,7 +72,7 @@ config/t870_path_tracking.yaml             전체 런타임 파라미터
 launch/control.launch                      실행 및 제어기 선택
 include/control/lateral/                   PP, Stanley 인터페이스
 src/lateral/                               PP, Stanley 계산 코드
-src/longitudinal/                          고정 목표속도/상한 정책
+src/longitudinal/                          절대 상한 + 경로/조향/정지선 기반 속도 정책
 src/vehicle/                               road-wheel rad → Uno Deg 변환
 src/node/control_node.cpp                  ROS 연결, 안전 검사, 제어기 선택
 test/unit/                                 알고리즘·속도·명령 변환 테스트
@@ -168,7 +174,8 @@ catkin_test_results --all build/test_results/control
 1. Arduino 출력이 잠긴 상태에서 topic, frame, 조향 부호와 timeout 정지를 확인한다.
 2. 리프트 상태에서 좌·우 조향, 전·후륜 방향, E-stop과 RC/ROS 전환을 확인한다.
 3. 시험 YAML의 목표속도를 `1~2 km/h`로 낮추고 PP와 Stanley를 각각 시험한다.
-4. 직선, 완만한 곡선, S자 순서로 진행하고 문제가 없을 때 기본 `5 km/h`로 올린다.
+4. 직선, 완만한 곡선, S자 순서로 낮은 시험 상한에서 시작한다. 기본 상한은 `15 km/h`지만,
+   `target_speed_kph:=5` 등으로 낮춰 실제 추종·감속 응답을 확인한 뒤 단계적으로 올린다.
 5. 동일 경로에서 CTE, heading error, 조향각, overshoot와 timeout 정지 시간을 비교한다.
 
 최소 기록 topic:

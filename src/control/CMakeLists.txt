@@ -44,6 +44,7 @@ target_compile_features(control_lateral PUBLIC cxx_std_14)
 
 add_library(control_longitudinal
   src/longitudinal/fixed_speed_controller.cpp
+  src/longitudinal/path_speed_profile.cpp
 )
 target_compile_features(control_longitudinal PUBLIC cxx_std_14)
 
@@ -89,6 +90,12 @@ if(CATKIN_ENABLE_TESTING)
   )
   if(TARGET test_fixed_speed_controller)
     target_link_libraries(test_fixed_speed_controller control_longitudinal)
+  endif()
+
+  catkin_add_gtest(test_path_speed_profile
+    test/unit/test_main.cpp test/unit/test_path_speed_profile.cpp)
+  if(TARGET test_path_speed_profile)
+    target_link_libraries(test_path_speed_profile control_longitudinal)
   endif()
 
   catkin_add_gtest(test_t870_command_mapper

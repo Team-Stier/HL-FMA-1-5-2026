@@ -5,6 +5,8 @@
   <arg name="calibration_required" default="false"/>
   <!-- Empty keeps the YAML's adaptive settings. A number pins both bounds. -->
   <arg name="lookahead_m" default=""/>
+  <arg name="target_speed_kph" default=""/>
+  <arg name="adaptive_speed_enabled" default=""/>
 
   <rosparam command="load" file="$(arg config)"/>
   <param name="control_node/lateral_controller"
@@ -14,6 +16,12 @@
   <group if="$(eval arg('lookahead_m') != '')">
     <param name="control_node/lookahead_min_m" value="$(arg lookahead_m)" type="double"/>
     <param name="control_node/lookahead_max_m" value="$(arg lookahead_m)" type="double"/>
+  </group>
+  <group if="$(eval arg('target_speed_kph') != '')">
+    <param name="control_node/target_speed_kph" value="$(arg target_speed_kph)" type="int"/>
+  </group>
+  <group if="$(eval arg('adaptive_speed_enabled') != '')">
+    <param name="control_node/adaptive_speed_enabled" value="$(arg adaptive_speed_enabled)" type="bool"/>
   </group>
 
   <node respawn="true" respawn_delay="3.0" pkg="control"

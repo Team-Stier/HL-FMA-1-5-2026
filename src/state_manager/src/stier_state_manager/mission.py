@@ -11,9 +11,10 @@ import math
 
 
 RULE_DEFAULTS = {
-    # One shared standstill definition is used by every mission.
+    # Parking/traffic share this threshold; the hill uses wheel standstill.
     "standstill_speed_mps": 0.5,
-    "hill_hold_s": 3.0,
+    "hill_hold_s": 3.5,
+    "hill_standstill_speed_mps": 0.05,
     "hill_hold_position_tolerance_m": 0.02,
     "parking_hold_s": 1.0,
     "sensor_timeout_s": 0.5,
@@ -21,6 +22,7 @@ RULE_DEFAULTS = {
     "parking_stable_observations": 3,
     "finish_sign_stable_observations": 3,
     "stop_tolerance_m": 0.2,
+    "traffic_tracking_stop_m": 0.5,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
@@ -36,8 +38,8 @@ RULE_DEFAULTS = {
 }
 
 SPEED_DEFAULTS = {
-    "normal": 2.0, "hill": 1.0, "static": 1.0,
-    "intersection": 1.0, "parking": 0.5,
+    "normal": 15.0 / 3.6, "hill": 1.0, "static": 5.0 / 3.6,
+    "intersection": 5.0 / 3.6, "parking": 0.5,
 }
 
 ROUTES = {
@@ -157,7 +159,8 @@ class MissionEngine:
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
                      "finish_sign_stable_observations",
                      "finish_runout_m", "hill_hold_position_tolerance_m",
-                     "traffic_force_departure_s", "parking_hold_s"):
+                     "traffic_force_departure_s", "parking_hold_s",
+                     "traffic_tracking_stop_m", "hill_standstill_speed_mps"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
         for name in ("parking_stable_observations", "finish_sign_stable_observations"):
@@ -479,7 +482,19 @@ class MissionEngine:
         top = zone_end if paired else marks["hill_top_s"]
         out["hill_target_s"] = stop
         zone_ok = zone_start <= raw_s <= zone_end
-        near_stop = abs(raw_s - stop) <= self.rules["stop_tolerance_m"]
+        # Start braking at the target, then keep the hold request latched.
+        # A small overshoot INSIDE the measured stop zone must not deadlock
+        # at a single GPS point; outside-zone stops cannot complete the mission.
+        if zone_ok and raw_s >= stop - self.rules["stop_tolerance_m"]:
+            state["hill_stop_latched"] = True
+        near_stop = state.get("hill_stop_latched", False)
+        wheel = snap.get("wheel")
+        standing = abs(snap["speed"]) <= self.rules["hill_standstill_speed_mps"]
+        if wheel is not None:
+            standing = (self._fresh(wheel, now)
+                        and _number(wheel.get("speed"))
+                        and abs(wheel["speed"]) <= self.rules["hill_standstill_speed_mps"]
+                        and wheel.get("encoder") == 0)
         if standing and zone_ok and near_stop:
             state.setdefault("first_stop_time", now)
         if (not state.get("hill_cleared") and state.get("first_stop_time") is not None
@@ -498,16 +513,19 @@ class MissionEngine:
                 return
         if "hill" not in self.completed_missions:
             out["remaining_stop_m"] = max(0.0, stop - s)
-            if raw_s > stop + self.rules["stop_tolerance_m"]:
+            if raw_s > zone_end:
                 self._once("hill_stop_missed", out["route"])
                 self._stop(out, "HILL_STOP_ZONE_MISSED", "FAULT")
                 return
             # Accept speed noise in both directions within the standstill range.
             # Position also catches slow drift hidden by the speed deadband.
             stationary = standing and zone_ok and near_stop
-            position = (raw_s, snap.get("x"), snap.get("y"))
+            # Fresh raw wheel observations distinguish physical rolling from
+            # GNSS position corrections. Legacy replay inputs without wheel
+            # feedback retain the original position-based dwell evidence.
+            position = (0.0, None, None) if wheel is not None else (raw_s, snap.get("x"), snap.get("y"))
             anchor = state.get("hill_hold_anchor")
-            drift = abs(raw_s - anchor[0]) if anchor else 0.0
+            drift = abs(position[0] - anchor[0]) if anchor else 0.0
             if anchor and all(_number(v) for v in position[1:] + anchor[1:]):
                 drift = max(drift, math.hypot(position[1] - anchor[1], position[2] - anchor[2]))
             if not stationary or drift > self.rules["hill_hold_position_tolerance_m"]:
@@ -587,17 +605,23 @@ class MissionEngine:
                 return
             elif not permitted:
                 out["reason"] = "WAIT_" + required
-                if waiting or front_s >= stop - self.rules["stop_tolerance_m"]:
+                if waiting or out["remaining_stop_m"] <= self.rules["traffic_tracking_stop_m"]:
                     # Once waiting at the line, pose jitter must not command
                     # another approach. Start the timer at first standstill.
                     state["traffic_wait_latched"] = True
                     standing = abs(snap["speed"]) <= self.rules["standstill_speed_mps"]
-                    if standing and state.get("signal_wait_since") is None:
+                    # Timeout is a recognition-loss policy, not permission to
+                    # ignore a recognized red/yellow or a nonpermitted arrow.
+                    recognized = (self._fresh(signal, now, snap["route"])
+                                  and signal.get("value") in ("RED", "YELLOW", "GREEN", "LEFT_ARROW"))
+                    if recognized or not standing:
+                        state["signal_wait_since"] = None
+                    if not recognized and standing and state.get("signal_wait_since") is None:
                         state["signal_wait_since"] = now
                     since = state.get("signal_wait_since")
                     waited = max(0.0, now - since) if since is not None else 0.0
                     out["traffic_wait_elapsed_s"] = waited
-                    if standing and waited >= self.rules["traffic_force_departure_s"]:
+                    if not recognized and standing and waited >= self.rules["traffic_force_departure_s"]:
                         state["authorized"] = True
                         state["intersection_entered"] = now
                         self._once("traffic_force_departure", snap["route"])

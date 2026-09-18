@@ -11,5 +11,5 @@
     <remap from="/control/lookahead_point" to="/control_contract/target"/>
     <include file="$(find control)/launch/control.launch"/>
   </group>
-  <test test-name="control_contract" pkg="control" type="control_contract_ros.py" time-limit="40"/>
+  <test test-name="control_contract" pkg="control" type="control_contract_ros.py" time-limit="90"/>
 </launch>

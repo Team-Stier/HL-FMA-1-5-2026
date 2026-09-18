@@ -12,6 +12,13 @@
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
   <arg name="lookahead_m" default=""/>
+  <arg name="target_speed_kph" default=""/>
+  <arg name="adaptive_speed_enabled" default=""/>
+  <arg name="normal_speed_kph" default=""/>
+  <arg name="hill_speed_kph" default=""/>
+  <arg name="static_speed_kph" default=""/>
+  <arg name="intersection_speed_kph" default=""/>
+  <arg name="parking_speed_kph" default=""/>
   <arg name="t_parking_side" default=""/>
   <arg name="parallel_parking_side" default=""/>
   <arg name="start_rviz" default="false"/>
@@ -24,6 +31,11 @@
     <param name="calibration_mode" value="$(arg calibration_mode)"/>
     <param name="t_parking_side" value="$(arg t_parking_side)" type="str"/>
     <param name="parallel_parking_side" value="$(arg parallel_parking_side)" type="str"/>
+    <param name="normal_speed_kph" value="$(arg normal_speed_kph)" type="str"/>
+    <param name="hill_speed_kph" value="$(arg hill_speed_kph)" type="str"/>
+    <param name="static_speed_kph" value="$(arg static_speed_kph)" type="str"/>
+    <param name="intersection_speed_kph" value="$(arg intersection_speed_kph)" type="str"/>
+    <param name="parking_speed_kph" value="$(arg parking_speed_kph)" type="str"/>
   </node>
   <include if="$(arg start_object_detection)"
            file="$(find object_detection)/launch/rddf_roi_detection.launch">
@@ -42,6 +54,8 @@
     <arg name="lateral_controller" value="$(arg lateral_controller)"/>
     <arg name="calibration_required" value="$(arg control_calibration_required)"/>
     <arg name="lookahead_m" value="$(arg lookahead_m)"/>
+    <arg name="target_speed_kph" value="$(arg target_speed_kph)"/>
+    <arg name="adaptive_speed_enabled" value="$(arg adaptive_speed_enabled)"/>
   </include>
   <node respawn="true" respawn_delay="3.0" if="$(arg calibration_mode)" pkg="state_manager" type="landmark_editor_node" name="landmark_editor" output="screen">
     <param name="config_file" value="$(arg config_file)"/>

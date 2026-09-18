@@ -9,6 +9,7 @@ import threading
 
 import rospy
 from geometry_msgs.msg import PoseStamped
+from erp42_msgs.msg import SerialFeedBack
 from mando_localization.msg import RddfMatch
 from nav_msgs.msg import Odometry, Path
 from std_msgs.msg import Bool, String
@@ -68,6 +69,10 @@ class StateManagerNode:
             side = rospy.get_param('~'+parameter, '')
             if side:
                 self.config.setdefault('parking_branches', {})[kind] = side
+        for kind in ('normal', 'hill', 'static', 'intersection', 'parking'):
+            kph = rospy.get_param('~'+kind+'_speed_kph', '')
+            if kph != '':
+                self.config.setdefault('speeds', {})[kind] = float(kph) / 3.6
         # The integrated launch owns one geometry; standalone package configs
         # remain usable when /vehicle has not been loaded.
         shared_vehicle = rospy.get_param('/vehicle', {})
@@ -89,6 +94,7 @@ class StateManagerNode:
         self.subscribers = [
             rospy.Subscriber('/route/map', RouteMap, self.on_route_map, queue_size=1),
             rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
+            rospy.Subscriber('/erp42_serial/feedback', SerialFeedBack, self.on_feedback, queue_size=1),
             rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
             rospy.Subscriber('/molit/localization/state', String, self.on_localization_state, queue_size=1),
             rospy.Subscriber('/molit/localization/rddf/current', RddfMatch,
@@ -342,6 +348,16 @@ class StateManagerNode:
         with self.lock:
             self.clock_now()
             self.data['clusters'] = observation
+
+    def on_feedback(self, msg):
+        with self.lock:
+            now = self.clock_now()
+            previous = self.data.get('wheel', {})
+            # alive marks a new hardware observation; repeating a packet does
+            # not refresh standstill evidence. No new global sensor gate.
+            if previous.get('alive') != msg.alive:
+                self.data['wheel'] = {'stamp': now, 'speed': msg.speed,
+                                      'encoder': msg.encoder, 'alive': msg.alive}
 
     def confident(self, value):
         return math.isfinite(value) and self.config.get('min_confidence', .8) <= value <= 1.0

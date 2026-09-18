@@ -37,6 +37,13 @@
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
   <arg name="lookahead_m" default=""/>
+  <arg name="target_speed_kph" default=""/>
+  <arg name="adaptive_speed_enabled" default=""/>
+  <arg name="normal_speed_kph" default=""/>
+  <arg name="hill_speed_kph" default=""/>
+  <arg name="static_speed_kph" default=""/>
+  <arg name="intersection_speed_kph" default=""/>
+  <arg name="parking_speed_kph" default=""/>
   <arg name="t_parking_side" default=""/>
   <arg name="parallel_parking_side" default=""/>
   <arg name="start_rviz" default="false"/>
@@ -82,6 +89,13 @@
     <arg name="lateral_controller" value="$(arg lateral_controller)"/>
     <arg name="control_calibration_required" value="$(arg control_calibration_required)"/>
     <arg name="lookahead_m" value="$(arg lookahead_m)"/>
+    <arg name="target_speed_kph" value="$(arg target_speed_kph)"/>
+    <arg name="adaptive_speed_enabled" value="$(arg adaptive_speed_enabled)"/>
+    <arg name="normal_speed_kph" value="$(arg normal_speed_kph)"/>
+    <arg name="hill_speed_kph" value="$(arg hill_speed_kph)"/>
+    <arg name="static_speed_kph" value="$(arg static_speed_kph)"/>
+    <arg name="intersection_speed_kph" value="$(arg intersection_speed_kph)"/>
+    <arg name="parking_speed_kph" value="$(arg parking_speed_kph)"/>
     <arg name="t_parking_side" value="$(arg t_parking_side)"/>
     <arg name="parallel_parking_side" value="$(arg parallel_parking_side)"/>
     <!-- Use one RViz process for the complete system. -->

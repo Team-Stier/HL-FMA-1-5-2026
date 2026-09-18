@@ -61,6 +61,8 @@ python3 -m unittest discover -s src/selector/test -v
 python3 -m unittest discover -s "${STIER_REPOSITORY}/src/localization/test" -p 'test_rddf_tracking.py' -v
 python3 -m unittest discover -s "${STIER_REPOSITORY}/src/localization/test" -p 'test_parking_leg_tracking.py' -v
 python3 "${STIER_REPOSITORY}/src/stier_bringup/test/test_launch_contract.py" -v
+python3 "${STIER_REPOSITORY}/src/stier_bringup/test/test_school_course_config.py" -v
+python3 "${STIER_REPOSITORY}/src/localization/test/test_prepare_test_rddf.py" -v
 PYTHONPATH="${STIER_REPOSITORY}/src/object_detection/src:${PYTHONPATH:-}" \
   python3 -m unittest discover -s "${STIER_REPOSITORY}/src/object_detection/test" -v
 catkin_make -j4 run_tests_control
@@ -72,7 +74,7 @@ g++ -O2 -std=c++14 \
   -Ldevel/lib -Wl,-rpath,"${STIER_TEST_WORKSPACE}/devel/lib" \
   -lpath_planner_core -lcontrol_lateral -o ./planner_control_regression
 ./planner_control_regression
-for stier_rddf in rddf test_data/hongik_rddf test_data/hongik_s_rddf; do
+for stier_rddf in rddf test_data/hongik_rddf test_data/hongik_s_rddf test_data/hongik_s_live_20260918; do
   ./planner_control_regression "${STIER_REPOSITORY}/src/localization/${stier_rddf}/yongin_3_s-static-obstacle.csv"
 done
 rostest state_manager mission_pipeline.test

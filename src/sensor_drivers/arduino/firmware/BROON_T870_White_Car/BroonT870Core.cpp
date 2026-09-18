@@ -610,9 +610,10 @@ SpeedPiResult updateSpeedPi(SpeedPiState& state, float requestedKph,
     if (state.rampedTargetKph > requestedKph)
       state.rampedTargetKph = requestedKph;
   } else if (state.rampedTargetKph > requestedKph) {
-    state.rampedTargetKph -= maximumTargetChange;
-    if (state.rampedTargetKph < requestedKph)
-      state.rampedTargetKph = requestedKph;
+    // Upper control already plans corner/stop approach deceleration. Do not
+    // keep commanding the old higher speed for seconds after a lower request.
+    // This changes the PI target, not motor polarity or physical brake mode.
+    state.rampedTargetKph = requestedKph;
   }
 
   if (measuredKph < 0.0f) measuredKph = -measuredKph;

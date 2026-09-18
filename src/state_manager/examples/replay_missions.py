@@ -19,10 +19,11 @@ from stier_state_manager.mission import MissionEngine, PARKING_ROUTES
 
 
 class SyntheticReplay:
-    def __init__(self, parking_branch, finish_branch):
+    def __init__(self, parking_branch, finish_branch, camera_enabled=True):
         if parking_branch not in ('left', 'right') or finish_branch not in ('left', 'right'):
             raise ValueError('Parking and finish branches must be left or right')
         self.parking_branch, self.finish_branch = parking_branch, finish_branch
+        self.camera_enabled = camera_enabled
         self.engine = MissionEngine({'rules': {'front_bumper_offset_m': .5},
                                      'finish_fallback_branch': finish_branch,
                                      'parking_branches': {
@@ -67,8 +68,10 @@ class SyntheticReplay:
                     'at_end': s >= length, 'speed': speed, 'yaw': yaw,
                     'finish_branch_s': 13.258,
                     'landmarks': {self.route: marks}, 'path_ready': selection.ready,
-                    'signal': {'stamp': self.now, 'route': self.route, 'value': signal},
-                    'lane': lanes, 'parking': spaces if parking else {}}
+                    'signal': ({'stamp': self.now, 'route': self.route, 'value': signal}
+                               if self.camera_enabled else {}),
+                    'lane': lanes if self.camera_enabled else {},
+                    'parking': spaces if parking else {}}
         decision = self.engine.update(snapshot)
         request = (self.route, decision['path_mode'], decision['direction'])
         if request != self.request:
@@ -102,6 +105,18 @@ class SyntheticReplay:
         self.epoch += 1
 
     def traffic(self, parking=False, left=False):
+        if not self.camera_enabled:
+            # Real mission logic, synthetic quarter-second standstill samples.
+            # No fake GREEN/LEFT_ARROW or vehicle command is injected.
+            for index in range(81):
+                event = self.step(s=9.5, speed=0.0, parking=parking)
+                if index < 80 and not event['stop_requested']:
+                    raise AssertionError('Camera-free traffic departed before 20 seconds')
+            if event['stop_requested'] or event['reason'] != 'TRAFFIC_FORCE_DEPARTURE_AFTER_TIMEOUT':
+                raise AssertionError('Camera-free traffic did not depart after 20 seconds')
+            self.step(s=16.0, parking=parking)
+            self.step(s=20.0, parking=parking)
+            return
         self.step(s=9.5, speed=0.0, signal='RED', parking=parking)
         if left:
             rejected = self.step(s=9.5, speed=0.0, signal='GREEN')
@@ -151,7 +166,7 @@ class SyntheticReplay:
 
     def run(self):
         self.step()
-        for _ in range(14):
+        for _ in range(16):
             self.step(s=5.0, speed=0.0)
         self.step(s=9.0)
         self.step(s=20.0)
@@ -190,23 +205,26 @@ class SyntheticReplay:
         if 'finish' not in self.last['completed_missions']:
             raise AssertionError('Synthetic mission replay did not finish')
         return {'simulation_only': True, 'fixture': 'SYNTHETIC_LOGICAL_MESSAGES_NOT_DRIVING_SIMULATION',
+                'camera_enabled': self.camera_enabled,
                 'parking_branch': self.parking_branch, 'finish_branch': self.finish_branch,
                 'vehicle_output': False, 'reverse_output_supported': True,
                 'completed_missions': self.last['completed_missions'],
                 'sections': sorted({event['section'] for event in self.events}), 'events': self.events}
 
 
-def replay(parking_branch='left', finish_branch='left'):
-    return SyntheticReplay(parking_branch, finish_branch).run()
+def replay(parking_branch='left', finish_branch='left', camera_enabled=True):
+    return SyntheticReplay(parking_branch, finish_branch, camera_enabled).run()
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--parking-branch', choices=('left', 'right'), default='left')
     parser.add_argument('--finish-branch', choices=('left', 'right'), default='left')
+    parser.add_argument('--without-camera', action='store_true',
+                        help='Exercise actual 20-second signal timeouts and configured finish fallback')
     parser.add_argument('--output', type=Path, help='Optional JSON trace destination')
     args = parser.parse_args()
-    result = replay(args.parking_branch, args.finish_branch)
+    result = replay(args.parking_branch, args.finish_branch, not args.without_camera)
     if args.output:
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print('SYNTHETIC message replay only; no ROS or vehicle output.')

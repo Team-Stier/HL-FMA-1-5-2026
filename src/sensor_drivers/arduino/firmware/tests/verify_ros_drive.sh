@@ -5,6 +5,7 @@ readonly STIER_ROS_LIB="${1:?provide absolute generated ros_lib path}"
 readonly STIER_ARDUINO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly STIER_FIRMWARE_TEST_DIR="$(mktemp -d /tmp/stier-firmware-test.XXXXXX)"
 echo "Host test artifacts: ${STIER_FIRMWARE_TEST_DIR}"
+bash "${STIER_ARDUINO_ROOT}/tests/verify_speed_profile.sh"
 for stier_car in White Black; do
   stier_sketch_dir="${STIER_ARDUINO_ROOT}/BROON_T870_${stier_car}_Car"
   g++ -std=c++17 -O2 -Wall -Wextra -Wno-unused-function \

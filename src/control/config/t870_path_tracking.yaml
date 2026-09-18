@@ -38,19 +38,28 @@ control_node:
   steering_command_sign: -1
   maximum_steering_rate_deg_per_sec: 45.0
 
-  # 상위 종방향 계층은 고정 목표속도와 절대 상한만 결정한다. 속도 PI, PWM 포화,
+  # 상위는 미션·곡률·조향각·정지선 접근에 따라 목표 속도를 정한다. 속도 PI, PWM 포화,
   # 출력 램프는 Uno 하위제어기가 담당한다. Uno는 ROS 목표를 15 km/h로 클램프하고
   # 별도 실측속도 ceiling도 15 km/h로 적용한다.
-  target_speed_kph: 5
-  maximum_speed_kph: 10
+  target_speed_kph: 15
+  maximum_speed_kph: 15
   require_ros_mode: true
+  adaptive_speed_enabled: true
+  # 아래 가감속 값은 초기 계획 가정이며 실차 접지력/제동력 인증값이 아니다.
+  # 새로운 정지 gate가 아니라 기존 주행 허가 안에서 속도만 조절한다.
+  speed_profile:
+    lateral_acceleration_mps2: 1.0
+    preview_deceleration_mps2: 0.25
+    reaction_time_sec: 0.5
+    preview_distance_m: 40.0
+    sample_interval_m: 0.5
 
   # Pure Pursuit 저속 시작값. 0.75 m wheelbase 기준이며 실차 기록으로 조정한다.
   lookahead_base_m: 1.00
   lookahead_speed_gain_sec: 0.50
   lookahead_curvature_gain_m: 1.00
   lookahead_min_m: 2.0
-  lookahead_max_m: 2.0
+  lookahead_max_m: 4.0
   minimum_target_distance_m: 0.20
   curvature_preview_distance_m: 2.00
 

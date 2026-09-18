@@ -1,6 +1,10 @@
 # 전체 시험 패키지 — 내려받기부터 학교 실행까지
 
-브랜치: `fix/integration-review-20260918` / 작성자: `choialsgh08-hash`.
+15km/h 적응형 속도·3.5초 정차 변경과 당일 GPS 배치는 새 인계 브랜치에 포함된다.
+카메라 없는 이번 시험은 [새 PC 인계 안내](pc_transfer_20260918.md)를 먼저 확인한다.
+아래는 카메라·양 차량 펌웨어까지 포함한 일반 설치 안내다.
+
+브랜치: `fix/school-test-ready-20260918` / 작성자: `choialsgh08-hash`.
 기준 main은 `62ee675f396a81bebbc98f5d4b0917dc27118ea3`이다.
 이 브랜치만 공유하며 main·다른 브랜치·Mando 저장소는 변경하지 않는다.
 
@@ -23,7 +27,7 @@ Ubuntu 20.04 + ROS Noetic 설치 PC가 기준이다. 새 터미널에서 사용�
 아래 목적지 이름이 이미 있으면 기존 폴더를 지우지 말고 새 이름을 지정한다.
 
 ```bash
-git clone --branch fix/integration-review-20260918 --single-branch \
+git clone --branch fix/school-test-ready-20260918 --single-branch \
   https://github.com/Team-Stier/HL-FMA2026-0917.git HL-FMA2026-school-test
 cd HL-FMA2026-school-test
 ```

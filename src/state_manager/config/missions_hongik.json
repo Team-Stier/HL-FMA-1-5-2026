@@ -6,7 +6,7 @@
   "input_timeout_s": 2.0,
   "min_confidence": 0.8,
   "rate_hz": 10,
-  "path_lookahead_m": 20.0,
+  "path_lookahead_m": 40.0,
   "dynamic_obstacle": {
     "route_token": "dynamic",
     "input_timeout_s": 2.0,
@@ -76,10 +76,12 @@
     }
   },
   "rules": {
-    "hill_hold_s": 3.0,
+    "hill_hold_s": 3.5,
+    "hill_standstill_speed_mps": 0.05,
     "standstill_speed_mps": 0.5,
     "parking_hold_s": 1.0,
     "stop_tolerance_m": 0.2,
+    "traffic_tracking_stop_m": 0.5,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
@@ -89,10 +91,10 @@
     "hill_hold_position_tolerance_m": 0.02
   },
   "speeds": {
-    "normal": 2.0,
+    "normal": 4.166666666666667,
     "hill": 1.0,
-    "static": 1.0,
-    "intersection": 1.0,
+    "static": 1.3888888888888888,
+    "intersection": 1.3888888888888888,
     "parking": 0.5
   },
   "tracker": {

@@ -43,7 +43,7 @@ class MissionTests(unittest.TestCase):
     def run_at(self, section=1, **kwargs):
         return self.engine.update(self.snap(section, **kwargs))
 
-    def poll(self, section=1, start=0.0, end=3.0, **kwargs):
+    def poll(self, section=1, start=0.0, end=3.5, **kwargs):
         """Provide continuous quarter-second observations across a fake hold."""
         result = None
         for index in range(int(round((end - start) * 4)) + 1):
@@ -62,20 +62,20 @@ class MissionTests(unittest.TestCase):
         section = 4 if kind == "t" else 9
         return self.run_at(section, now=start)
 
-    def test_hill_requires_three_seconds_of_continuous_standstill(self):
+    def test_hill_requires_three_and_half_seconds_of_continuous_standstill(self):
         self.assertTrue(self.run_at(now=0.0, s=5.0, speed=0.0)["stop_requested"])
-        self.poll(start=0.25, end=2.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=2.999, s=5.0, speed=0.0)["stop_requested"])
-        released = self.run_at(now=3.0, s=5.0, speed=0.0)
+        self.poll(start=0.25, end=3.25, s=5.0, speed=0.0)
+        self.assertTrue(self.run_at(now=3.499, s=5.0, speed=0.0)["stop_requested"])
+        released = self.run_at(now=3.5, s=5.0, speed=0.0)
         self.assertFalse(released["stop_requested"])
-        self.assertEqual(released["completed_missions"]["hill"], 3.0)
+        self.assertEqual(released["completed_missions"]["hill"], 3.5)
         self.assertEqual(self.run_at(now=4.0, s=20.0, at_end=True)["next_route"], "2")
 
     def test_hill_stop_accepts_lateral_offset_within_longitudinal_tolerance(self):
         for s in (4.9, 5.0, 5.1):
             with self.subTest(s=s):
                 self.engine = MissionEngine()
-                for i in range(13):
+                for i in range(15):
                     snap = self.snap(now=i*.25, s=s, raw_s=s,
                                      x=s, y=3.0, speed=-.01)
                     snap['landmarks']['1_left'].update(
@@ -84,7 +84,7 @@ class MissionTests(unittest.TestCase):
                 self.assertIn('hill', result['completed_missions'])
                 self.assertFalse(result['stop_requested'])
 
-    def test_hill_zone_does_not_expand_longitudinal_stop_tolerance(self):
+    def test_hill_target_overshoot_inside_zone_keeps_hold_instead_of_deadlocking(self):
         for s in (4.2, 5.8):
             self.engine = MissionEngine()
             snap = self.snap(s=s, raw_s=s, speed=0.0)
@@ -92,24 +92,61 @@ class MissionTests(unittest.TestCase):
                 hill_zone_start_s=4., hill_zone_end_s=6.)
             result = self.engine.update(snap)
             self.assertNotIn('hill', result['completed_missions'])
-            self.assertEqual(result['reason'] == 'HILL_STOP_ZONE_MISSED', s > 5.2)
+            self.assertEqual(result['stop_requested'], s > 5.2)
+            self.assertNotEqual(result['reason'], 'HILL_STOP_ZONE_MISSED')
 
     def test_hill_movement_resets_hold(self):
         self.run_at(now=0, s=5.0, speed=0.0)
         self.run_at(now=2, s=5.0, speed=0.6)
         self.run_at(now=3, s=5.0, speed=0.0)
-        self.poll(start=3.25, end=5.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=5.9, s=5.0, speed=0.0)["stop_requested"])
-        self.assertFalse(self.run_at(now=6, s=5.0, speed=0.0)["stop_requested"])
+        self.poll(start=3.25, end=6.25, s=5.0, speed=0.0)
+        self.assertTrue(self.run_at(now=6.499, s=5.0, speed=0.0)["stop_requested"])
+        self.assertFalse(self.run_at(now=6.5, s=5.0, speed=0.0)["stop_requested"])
+
+    def test_hill_wheel_standstill_completes_despite_small_gps_corrections(self):
+        for i in range(15):
+            now = i * .25
+            result = self.run_at(now=now, s=5.0, raw_s=5.0 + .04 * (i % 2),
+                                 x=5.0, y=.1 * (i % 2), speed=.1,
+                                 wheel={'stamp': now, 'speed': 0., 'encoder': 0})
+            if i < 14:
+                self.assertTrue(result['stop_requested'])
+                self.assertAlmostEqual(result['hill_hold_elapsed_s'], now)
+        self.assertEqual(result['completed_missions']['hill'], 3.5)
+        self.assertFalse(result['stop_requested'])
+
+    def test_hill_raw_encoder_motion_restarts_wheel_hold_even_at_zero_speed(self):
+        for i in range(23):
+            now = i * .25
+            result = self.run_at(now=now, s=5.0, speed=0.,
+                                 wheel={'stamp': now, 'speed': 0.,
+                                        'encoder': -1 if i == 7 else 0})
+            if i < 22:
+                self.assertTrue(result['stop_requested'])
+        self.assertEqual(result['completed_missions']['hill'], 5.5)
+
+    def test_hill_stale_wheel_observation_cannot_complete_dwell(self):
+        for i in range(17):
+            result = self.run_at(now=i*.25, s=5.0, speed=0.,
+                                 wheel={'stamp': 0., 'speed': 0., 'encoder': 0})
+        self.assertTrue(result['stop_requested'])
+        self.assertNotIn('hill', result['completed_missions'])
+        self.assertEqual(result['hill_hold_elapsed_s'], 0.)
+
+    def test_hill_overshoot_inside_zone_can_finish_full_hold(self):
+        marks = {'1_left': {'hill_zone_start_s': 4., 'hill_zone_end_s': 6.}}
+        result = self.poll(s=5.8, speed=0., landmarks=marks)
+        self.assertEqual(result['completed_missions']['hill'], 3.5)
+        self.assertFalse(result['stop_requested'])
 
     def test_localization_loss_restarts_hill_dwell(self):
         self.run_at(now=0, s=5.0, speed=0.0)
         lost = self.run_at(now=2, s=5.0, speed=0.0, healthy=False, reason="STALE_ODOM")
         self.assertEqual(lost["reason"], "STALE_ODOM")
         self.run_at(now=3, s=5.0, speed=0.0)
-        self.poll(start=3.25, end=5.75, s=5.0, speed=0.0)
-        self.assertTrue(self.run_at(now=5.9, s=5.0, speed=0.0)["stop_requested"])
-        self.assertFalse(self.run_at(now=6, s=5.0, speed=0.0)["stop_requested"])
+        self.poll(start=3.25, end=6.25, s=5.0, speed=0.0)
+        self.assertTrue(self.run_at(now=6.499, s=5.0, speed=0.0)["stop_requested"])
+        self.assertFalse(self.run_at(now=6.5, s=5.0, speed=0.0)["stop_requested"])
 
     def test_collision_restarts_hill_dwell(self):
         self.run_at(now=0, s=5.0, speed=0.0)
@@ -132,7 +169,7 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(self.engine.update(snap)["reason"], "HILL_STOP_OUTSIDE_RULE_ZONE")
 
     def test_hill_stop_cannot_be_silently_skipped(self):
-        result = self.run_at(s=6.0)
+        result = self.run_at(s=9.0)
         self.assertEqual(result["reason"], "HILL_STOP_ZONE_MISSED")
         self.assertIsNone(result["next_route"])
 
@@ -173,6 +210,36 @@ class MissionTests(unittest.TestCase):
             result = self.run_at(2, now=i*.1, s=9.9, speed=1.0)
         self.assertEqual(result['traffic_wait_elapsed_s'], 0.0)
         self.assertTrue(result['stop_requested'])
+
+    def test_known_red_interrupts_unrecognized_signal_countdown(self):
+        for i in range(321):
+            now = i * .1
+            signal = 'RED' if i == 120 else 'UNKNOWN'
+            result = self.run_at(2, now=now, s=9.6, speed=0.,
+                                 signal={'stamp': now, 'route': '2', 'value': signal})
+            self.assertTrue(result['stop_requested'])
+        result = self.run_at(2, now=32.2, s=9.6, speed=0.)
+        self.assertFalse(result['stop_requested'])
+        self.assertEqual(result['phase'], 'CROSSING')
+
+    def test_moving_restarts_unrecognized_signal_countdown(self):
+        for i in range(241):
+            now = i*.1
+            result = self.run_at(2, now=now, s=9.6, speed=1.0 if i == 100 else 0.)
+        self.assertTrue(result['stop_requested'])
+        self.assertAlmostEqual(result['traffic_wait_elapsed_s'], 13.9)
+
+    def test_missing_and_stale_signals_release_after_twenty_seconds_in_each_section(self):
+        for section in (2, 4, 7):
+            for signal in ({}, {'stamp': -2., 'route': str(section), 'value': 'RED'}):
+                with self.subTest(section=section, signal=signal):
+                    self.engine = MissionEngine()
+                    for i in range(81):
+                        result = self.run_at(section, now=i*.25, s=9.6, speed=0., signal=signal)
+                        if i < 80:
+                            self.assertTrue(result['stop_requested'])
+                    self.assertFalse(result['stop_requested'])
+                    self.assertFalse(result['virtual_stop']['active'])
 
     def test_signal_wait_green_authorizes_before_line_after_stopping(self):
         self.run_at(2, now=1, s=9.9, speed=0.0)
@@ -550,7 +617,7 @@ class MissionTests(unittest.TestCase):
         self.run_at(2, now=4)
         result = self.run_at(now=5, s=6)
         self.assertFalse(result["stop_requested"])
-        self.assertEqual(result["completed_missions"]["hill"], 3)
+        self.assertEqual(result["completed_missions"]["hill"], 3.5)
 
     def test_deadline_and_no_motion_only_report_and_preserve_safety(self):
         self.run_at(3, now=0, speed=0, run_started=True)
@@ -635,9 +702,9 @@ class MissionTests(unittest.TestCase):
         marks = {'1_left': {'hill_zone_start_s': 4.0, 'hill_zone_end_s': 5.0}}
         result = self.poll(s=4.5, raw_s=4.5, speed=0, landmarks=marks)
         self.assertEqual(result['hill_target_s'], 4.5)
-        self.assertEqual(result['completed_missions']['hill'], 3.0)
-        self.assertEqual(result['hill_hold_elapsed_s'], 3.0)
-        cleared = self.run_at(now=3.1, s=5.01, landmarks=marks)
+        self.assertEqual(result['completed_missions']['hill'], 3.5)
+        self.assertEqual(result['hill_hold_elapsed_s'], 3.5)
+        cleared = self.run_at(now=3.6, s=5.01, landmarks=marks)
         self.assertIn('hill_clearance', cleared['completed_missions'])
 
     def test_partial_or_reversed_hill_pair_cannot_fall_back_to_legacy(self):
@@ -658,11 +725,11 @@ class MissionTests(unittest.TestCase):
                 result = self.run_at(now=3, **values)
                 self.assertNotIn('hill', result['completed_missions'])
                 self.assertEqual(result['hill_hold_elapsed_s'], 0)
-                result = self.poll(start=3.25, end=6, **values)
+                result = self.poll(start=3.25, end=6.5, **values)
                 self.assertIn('hill', result['completed_missions'])
 
     def test_hill_accepts_signed_speed_within_standstill_range(self):
-        for speed in (-.5, -.1, 0., .1, .5):
+        for speed in (-.05, -.01, 0., .01, .05):
             with self.subTest(speed=speed):
                 self.engine = MissionEngine()
                 result = self.poll(s=5, raw_s=5, speed=speed)
@@ -670,7 +737,7 @@ class MissionTests(unittest.TestCase):
                 self.assertFalse(result['stop_requested'])
 
     def test_hill_rejects_speed_outside_standstill_range(self):
-        for speed in (-.501, .501):
+        for speed in (-.501, -.1, -.051, .051, .1, .501):
             with self.subTest(speed=speed):
                 self.engine = MissionEngine()
                 result = self.poll(s=5, raw_s=5, speed=speed)
