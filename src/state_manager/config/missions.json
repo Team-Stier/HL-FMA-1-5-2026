@@ -74,11 +74,11 @@
     "hill_hold_position_tolerance_m": 0.02
   },
   "speeds": {
-    "normal": 2.0,
+    "normal": 2.2222222222222223,
     "hill": 1.0,
     "static": 1.0,
     "intersection": 1.0,
-    "parking": 0.5
+    "parking": 1.6666666666666667
   },
   "tracker": {
     "max_cross_track_m": 2.0,

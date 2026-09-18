@@ -88,7 +88,7 @@ ROS 연결과 안전 조건은 `node/`, 횡제어 수식은 `lateral/`, 속도 �
 | `road_wheel_angle_at_command_limit_deg` | Uno 최대 명령과 실제 road-wheel 각도의 대응값이다. |
 | `steering_command_limit_deg`, `steering_command_sign` | Arduino 명령 범위·부호와 반드시 함께 맞춘다. |
 | `maximum_steering_rate_deg_per_sec` | 낮추면 부드럽고 느려지며, 높이면 곡선 반응과 기구 충격이 함께 커진다. |
-| `target_speed_kph`, `maximum_speed_kph` | target이 maximum을 넘으면 노드가 시작을 거부한다. 상한은 기본 10을 유지한다. |
+| `target_speed_kph`, `parking_target_speed_kph`, `parallel_parking_target_speed_kph`, `maximum_speed_kph` | 일반 목표는 8 km/h, T자 주차 5·6구간은 6 km/h, 평행주차는 5 km/h다. 각 미션의 `speed_limit_mps`를 넘지 않으며 target이 maximum을 넘으면 노드가 시작을 거부한다. |
 | `control_rate_hz`, `maximum_control_dt_sec` | 상위 제어 주기와 허용할 최대 timer 지연이다. CPU 지연과 조향 변화율을 함께 확인한다. |
 | `path_timeout_sec`, `mission_timeout_sec`, `odometry_timeout_sec`, `feedback_timeout_sec` | 각 topic의 실제 주기와 지연을 rosbag으로 확인한 뒤 변경한다. |
 | `expected_frame_id`, `vehicle_frame_id` | 전자는 입력 검증, 후자는 디버그 점의 frame 표시에 사용한다. |
