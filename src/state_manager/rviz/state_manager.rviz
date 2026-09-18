@@ -48,6 +48,12 @@ Visualization Manager:
         Y: 0
         Z: 0.15
       Pose Style: None
+    - Class: rviz/PointStamped
+      Name: PP lookahead target (magenta)
+      Enabled: true
+      Topic: /control/lookahead_point
+      Color: 255; 0; 255
+      Radius: 0.20
     - Class: rviz/MarkerArray
       Name: Inspection / observed RDDF / candidate paths / input freshness
       Enabled: true
