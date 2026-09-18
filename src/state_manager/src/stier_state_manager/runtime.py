@@ -291,7 +291,7 @@ class MissionRuntime:
                       and self.routes[name].section == route.section + 1
                       and math.hypot(self.routes[name].start[0]-route.end[0],
                                      self.routes[name].start[1]-route.end[1]) <= 2.5]
-        if bounds_reach_end and len(successors) == 1:
+        if bounds_reach_end and len(successors) == 1 and route.section not in (10, 11):
             end = route.length
             samples = route.slice(start, end)
             successor = successors[0]
@@ -316,6 +316,13 @@ class MissionRuntime:
                 distinct[-1] = point
             else:
                 distinct.append(point)
+        if (self.rddf_bounds and self.rddf_bounds[0] == route.name
+                and route.section in (10, 11) and len(distinct) >= 2):
+            a, b = distinct[-2:]
+            heading = math.atan2(b[1]-a[1], b[0]-a[0])
+            for distance in (.5, 1.0, 1.5, 2.0, 2.5, 3.0):
+                distinct.append((b[0] + distance*math.cos(heading),
+                                 b[1] + distance*math.sin(heading), b[2]))
         return distinct
 
     def step(self, now, data, selector_status=None):

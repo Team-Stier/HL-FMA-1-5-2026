@@ -30,12 +30,15 @@ class RddfInitializer:
         root = Path(rospy.get_param('~package_directory'))
         directory = Path(self.p['rddf_directory'])
         self.routes = RddfRouteMap(directory if directory.is_absolute() else root/directory)
+        self.gps_route_name = self.p.get('gps_route_name')
+        if self.gps_route_name is not None and self.gps_route_name not in self.routes.routes:
+            raise ValueError('initialization/gps_route_name references an unknown route')
         reference = rospy.get_param('~reference')
         if (abs(reference['latitude_deg']-self.routes.origin['lat']) > 1e-10 or
                 abs(reference['longitude_deg']-self.routes.origin['lng']) > 1e-10):
             raise ValueError('RDDF origin and GPS datum differ')
         for k,v in self.p.items():
-            if k != 'rddf_directory' and (isinstance(v,bool) or not isinstance(v,(int,float)) or
+            if k not in ('rddf_directory', 'gps_route_name') and (isinstance(v,bool) or not isinstance(v,(int,float)) or
                                          not math.isfinite(v) or v <= 0):
                 raise ValueError('invalid initialization/'+k)
         self.lever = rospy.get_param('~lever_arm')
@@ -144,7 +147,7 @@ class RddfInitializer:
                 if not valid: raise ValueError('GPS 품질 또는 측정 시각 확인 대기')
                 self.last_gps_stamp=stamp
                 x,y=self.routes.project_gps(m.latitude,m.longitude)
-                candidate=self.match(x,y)
+                candidate=self.match(x,y,self.gps_route_name)
                 if candidate['accepted']:
                     yaw=candidate['yaw'];lx,ly=self.lever['x_m'],self.lever['y_m']
                     candidate=self.match(x-math.cos(yaw)*lx+math.sin(yaw)*ly,

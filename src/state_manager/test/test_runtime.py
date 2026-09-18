@@ -151,6 +151,25 @@ class RuntimeTests(unittest.TestCase):
         runtime.progress_s = 1.0
         self.assertGreater(runtime.rddf_points(10.0, None)[-1][0], 10.0)
 
+    def test_parallel_rddf_extends_current_gear_leg_not_next_route(self):
+        routes = {
+            '10_parallel-left-in': Route(
+                '10_parallel-left-in', [(0, 0, 0), (10, 0, 0)]),
+            '11-parallel-left-out': Route(
+                '11-parallel-left-out', [(10, 0, 0), (20, 0, 0)]),
+        }
+        runtime = MissionRuntime(
+            routes, dict(self.config, start_route='10_parallel-left-in'))
+        runtime.active_source_routes = (
+            '10_parallel-left-in', '11-parallel-left-out')
+        runtime.rddf_bounds = ('10_parallel-left-in', 0.0, 10.0)
+
+        points = runtime.rddf_points(10.0, None)
+
+        self.assertEqual(points[-1][0], 13.0)
+        self.assertTrue(all(point[0] <= 13.0 for point in points))
+        self.assertEqual(runtime.rddf_bounds, ('10_parallel-left-in', 0.0, 10.0))
+
     def test_localization_match_is_progress_authority(self):
         runtime = MissionRuntime(self.routes, self.config)
         data = self.data(1, x=50, runtime=runtime)

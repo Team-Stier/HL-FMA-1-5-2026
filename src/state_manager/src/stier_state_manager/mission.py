@@ -266,6 +266,14 @@ class MissionEngine:
             state["dwell_since"] = now
         return now - state["dwell_since"] >= duration
 
+    def _parking_gear_change_hold(self, snap, state, out, standing, reason,
+                                  phase="WAIT_GEAR_CHANGE"):
+        """Stop and hold before every parking direction or route change."""
+        held = self._dwell(state, snap["now"], standing,
+                           self.rules["parking_hold_s"])
+        self._stop(out, reason, phase)
+        return held
+
     def _landmarks(self, snapshot, section, length):
         landmarks = snapshot.get("landmarks", {})
         if not isinstance(landmarks, dict):
@@ -667,10 +675,8 @@ class MissionEngine:
             out["phase"] = "SPACE_SELECTED"
 
     def _t_reverse_handoff(self, snap, state, out, standing):
-        held = self._dwell(state, snap["now"], standing,
-                           self.rules["parking_hold_s"])
-        self._stop(out, "T_PARKING_REVERSE_HOLD", "WAIT_GEAR_CHANGE")
-        if held:
+        if self._parking_gear_change_hold(
+                snap, state, out, standing, "T_PARKING_REVERSE_HOLD"):
             self._next(out, PARKING_ROUTES["t"][self.branches["t"]][0])
 
     def _parallel_parking(self, snap, state, out, standing):
@@ -710,10 +716,8 @@ class MissionEngine:
         if index + 1 < len(legs):
             out["remaining_stop_m"] = max(0.0, end_s - raw_s)
             if raw_s >= end_s - self.rules["stop_tolerance_m"]:
-                held = self._dwell(state, snap["now"], standing,
-                                   self.rules["parking_hold_s"])
-                self._stop(out, "PARALLEL_GEAR_CHANGE", "WAIT_GEAR_CHANGE")
-                if held:
+                if self._parking_gear_change_hold(
+                        snap, state, out, standing, "PARALLEL_GEAR_CHANGE"):
                     state["parallel_leg_index"] = index + 1
                     next_start, next_direction = legs[index + 1]
                     next_end = (legs[index + 2][0]
@@ -732,9 +736,9 @@ class MissionEngine:
         if snap["section"] == 10:
             out["remaining_stop_m"] = max(0.0, snap["length"] - raw_s)
             if raw_s >= snap["length"] - self.rules["stop_tolerance_m"]:
-                self._stop(out, "PARALLEL_ENTRY_COMPLETE", "PARKED")
-                if self._dwell(state, snap["now"], standing,
-                               self.rules["parking_hold_s"]):
+                if self._parking_gear_change_hold(
+                        snap, state, out, standing,
+                        "PARALLEL_ENTRY_COMPLETE", "PARKED"):
                     self._complete("parking:parallel:entry", snap["now"])
                     self._next(out, PARKING_ROUTES["parallel"][side][1])
             else:
@@ -768,9 +772,9 @@ class MissionEngine:
             if snap.get("at_end"):
                 state["t_exit_handoff_pending"] = True
             if state.get("t_exit_handoff_pending"):
-                self._stop(out, "T_PARKING_ENTRY_COMPLETE", "WAIT_GEAR_CHANGE")
-                if self._dwell(state, snap["now"], standing,
-                               self.rules["parking_hold_s"]):
+                if self._parking_gear_change_hold(
+                        snap, state, out, standing,
+                        "T_PARKING_ENTRY_COMPLETE"):
                     self._complete("parking:t:entry", snap["now"])
                     self._next(out, PARKING_ROUTES["t"][side][1])
             return

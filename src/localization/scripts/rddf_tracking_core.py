@@ -181,6 +181,19 @@ class RddfTracker:
     def _progress(candidate):
         return float(candidate['index']) + float(candidate.get('fraction', 0.0))
 
+    def _active_match(self, x, y):
+        if self._section(self.active_source) not in (10, 11):
+            return self.route_map.match(x, y, self.maximum, self.margin,
+                                        route_name=self.active_source)
+        center = int(math.floor(self.active_progress or 0.0))
+        radius = max(1, int(math.ceil(self.rollback_segments)))
+        last = len(self.route_map.routes[self.active_source]) - 2
+        matches = [self.route_map.match(
+            x, y, self.maximum, 0.0, route_name=self.active_source,
+            segment_index=index)
+            for index in range(max(0, center-radius), min(last, center+radius)+1)]
+        return min(matches, key=lambda candidate: candidate.get('distance', math.inf))
+
     def _initial_match(self, x, y, yaw):
         result = current_rddf_match(self.route_map, (x, y), True,
                                     self.maximum, self.margin)
@@ -282,8 +295,7 @@ class RddfTracker:
         return None
 
     def _tracked_match(self, x, y, yaw):
-        active = self.route_map.match(x, y, self.maximum, self.margin,
-                                      route_name=self.active_source)
+        active = self._active_match(x, y)
         raw_progress = self._progress(active)
         rolled_back = (self.active_progress is not None
                        and raw_progress+self.rollback_segments < self.active_progress)
