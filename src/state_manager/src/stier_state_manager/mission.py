@@ -36,8 +36,8 @@ RULE_DEFAULTS = {
 }
 
 SPEED_DEFAULTS = {
-    "normal": 2.0, "hill": 1.0, "static": 1.0,
-    "intersection": 1.0, "parking": 0.5,
+    "normal": 8.0 / 3.6, "hill": 1.0, "static": 1.0,
+    "intersection": 1.0, "parking": 6.0 / 3.6,
 }
 
 ROUTES = {
