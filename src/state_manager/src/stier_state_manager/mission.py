@@ -21,7 +21,6 @@ RULE_DEFAULTS = {
     "parking_stable_observations": 3,
     "finish_sign_stable_observations": 3,
     "stop_tolerance_m": 0.2,
-    "traffic_tracking_stop_m": 0.5,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
@@ -158,8 +157,7 @@ class MissionEngine:
         for name in ("sensor_timeout_s", "max_update_gap_s", "parking_stable_observations",
                      "finish_sign_stable_observations",
                      "finish_runout_m", "hill_hold_position_tolerance_m",
-                     "traffic_force_departure_s", "parking_hold_s",
-                     "traffic_tracking_stop_m"):
+                     "traffic_force_departure_s", "parking_hold_s"):
             if self.rules[name] <= 0:
                 raise ValueError("mission rule must be positive: " + name)
         for name in ("parking_stable_observations", "finish_sign_stable_observations"):
@@ -584,7 +582,7 @@ class MissionEngine:
                 return
             elif not permitted:
                 out["reason"] = "WAIT_" + required
-                if waiting or out["remaining_stop_m"] <= self.rules["traffic_tracking_stop_m"]:
+                if waiting or front_s >= stop - self.rules["stop_tolerance_m"]:
                     # Once waiting at the line, pose jitter must not command
                     # another approach. Start the timer at first standstill.
                     state["traffic_wait_latched"] = True
