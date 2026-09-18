@@ -10,6 +10,8 @@
   "dynamic_obstacle": {
     "route_token": "dynamic",
     "estop_hold_s": 3.5,
+    "start_s": 23.0,
+    "end_s": 87.0,
     "input_timeout_s": 2.0,
     "lookahead_m": 2.0,
     "corridor_half_width_m": 0.65,

@@ -24,6 +24,7 @@ class RuntimeTests(unittest.TestCase):
                                    'deceleration_mps2': 1.0, 'reaction_s': .2, 'margin_m': .1},
                        'stop_buffer_m': .05,
                        'dynamic_obstacle': {'route_token': 'dynamic', 'input_timeout_s': 2.0,
+                                            'start_s': 0.0, 'end_s': 10.0,
                                             'lookahead_m': 10.0, 'corridor_half_width_m': .65},
                        'landmarks': {'1_right': {'hill_start_s': 1, 'hill_stop_s': 4, 'hill_top_s': 8},
                                      '2': {'stop_line_s': 5}}}
@@ -319,15 +320,39 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(result['stop_requested'], result)
         self.assertEqual(result['dynamic_obstacle']['reason'], 'DYNAMIC_OBSTACLE_CLEAR')
 
-    def cluster_data(self, now, points):
-        data = self.data(now)
+    def cluster_data(self, now, points, x=0.0, runtime=None):
+        data = self.data(now, x=x, runtime=runtime)
         data['clusters'] = {'stamp': now, 'receipt_stamp': now, 'frame': 'map',
                             'valid': True, 'reason': 'OK', 'clusters': [points]}
         return data
 
+    def test_dynamic_obstacle_is_limited_to_configured_station_zone(self):
+        self.config['start_route'] = '8_dynamic-obstacle'
+        self.config['dynamic_obstacle']['start_s'] = 3.0
+        self.config['dynamic_obstacle']['end_s'] = 7.0
+        runtime = MissionRuntime(self.routes, self.config)
+
+        before = runtime.step(
+            1.0, self.cluster_data(1.0, [(2.5, 0.0)], 2.0, runtime),
+            self.candidate(runtime, 1.0))
+        self.assertFalse(before['dynamic_obstacle']['required'])
+        self.assertFalse(before['stop_requested'], before)
+
+        inside = runtime.step(
+            1.1, self.cluster_data(1.1, [(5.0, 0.0)], 4.0, runtime),
+            self.candidate(runtime, 1.1))
+        self.assertTrue(inside['emergency_stop_requested'])
+
+        after = runtime.step(
+            1.2, self.cluster_data(1.2, [(8.5, 0.0)], 8.0, runtime),
+            self.candidate(runtime, 1.2))
+        self.assertFalse(after['dynamic_obstacle']['required'])
+        self.assertFalse(after['stop_requested'], after)
+
     def test_dynamic_route_cluster_on_rddf_requests_estop(self):
         self.config['start_route'] = '8_dynamic-obstacle'
         self.config['dynamic_obstacle'] = {'route_token': 'dynamic', 'input_timeout_s': .5,
+                                           'start_s': 0.0, 'end_s': 10.0,
                                            'lookahead_m': 10.0, 'corridor_half_width_m': .65}
         runtime = MissionRuntime(self.routes, self.config)
         data = self.cluster_data(1, [(2.0, -.2), (2.2, .2)])

@@ -121,11 +121,17 @@ class MissionRuntime:
         """Return an E-Stop request only for a cluster on a dynamic RDDF route."""
         config = self.config.get('dynamic_obstacle', {})
         token = str(config.get('route_token', 'dynamic')).strip().lower()
-        required = bool(token) and token in str(tracked.get('route', '')).lower()
-        result = {'required': required, 'valid': not required, 'active': False,
+        dynamic_route = bool(token) and token in str(tracked.get('route', '')).lower()
+        result = {'required': False, 'valid': True, 'active': False,
                   'reason': 'NOT_DYNAMIC_ROUTE', 'clearance_m': -1.0}
-        if not required:
+        if not dynamic_route:
             return result
+        start_s = float(config['start_s'])
+        end_s = float(config['end_s'])
+        if not start_s <= tracked['s'] <= end_s:
+            result['reason'] = 'OUTSIDE_DYNAMIC_ZONE'
+            return result
+        result.update(required=True, valid=False)
         observation = data.get('clusters', {})
         timeout = float(config.get('input_timeout_s', self.config.get('input_timeout_s', 2.0)))
         if (not observation.get('valid')
@@ -142,7 +148,7 @@ class MissionRuntime:
             return result
         route = self.active_route
         minimum_s = max(0.0, tracked['s'])
-        maximum_s = min(route.length, tracked['s'] + lookahead)
+        maximum_s = min(route.length, end_s, tracked['s'] + lookahead)
         nearest = None
         for cluster in observation.get('clusters', []):
             points = list(cluster)
@@ -384,6 +390,9 @@ class MissionRuntime:
             'valid': False, 'active': False, 'reason': reason, 'clearance_m': -1.0}
         decision['dynamic_obstacle'] = dynamic_obstacle
         dynamic_hold_s = float(self.config.get('dynamic_obstacle', {}).get('estop_hold_s', 3.5))
+        if not dynamic_obstacle.get('required'):
+            self.dynamic_estop_since = None
+            self.dynamic_estop_served = False
         if dynamic_obstacle.get('active') and self.dynamic_estop_since is None:
             if not self.dynamic_estop_served:
                 self.dynamic_estop_since = now
