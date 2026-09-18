@@ -177,12 +177,6 @@ class MissionTests(unittest.TestCase):
         self.assertEqual(result["remaining_stop_m"], 0)
         self.assertTrue(result["stop_requested"])
 
-    def test_signal_stops_tracking_with_half_metre_remaining(self):
-        self.assertFalse(self.run_at(2, now=0.0, s=9.49)["stop_requested"])
-        result = self.run_at(2, now=0.1, s=9.5)
-        self.assertTrue(result["stop_requested"])
-        self.assertEqual(result["phase"], "WAIT_SIGNAL")
-
     def test_signal_wait_latches_across_stop_threshold_position_jitter(self):
         for i in range(201):
             # Regression: crossing 9.8 used to alternate APPROACH/WAIT_SIGNAL

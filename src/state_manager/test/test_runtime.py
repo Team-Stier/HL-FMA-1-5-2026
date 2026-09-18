@@ -380,11 +380,11 @@ class RuntimeTests(unittest.TestCase):
     def planned_prefix(self, runtime, now, signal):
         return self.candidate(runtime, now)
 
-    def test_red_approach_path_stops_before_front_bumper_and_buffer(self):
+    def test_red_approach_keeps_full_steering_path(self):
         runtime = self.traffic_runtime()
         signal = {'stamp': 1, 'route': '2', 'value': 'RED'}
         candidate = self.planned_prefix(runtime, 1, signal)
-        self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 4.45)
+        self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 10.0)
         result = runtime.step(1, dict(self.data(1), signal=signal), candidate)
         self.assertFalse(result['stop_requested'], result)
         self.assertTrue(result['virtual_stop']['active'])
@@ -422,7 +422,7 @@ class RuntimeTests(unittest.TestCase):
                            {'stamp': 1, 'route': 'wrong', 'value': required},
                            {'stamp': 1, 'route': name, 'value': 'GREEN' if name == '7' else 'LEFT_ARROW'}):
                 with self.subTest(name=name, signal=signal):
-                    self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 4.45)
+                    self.assertAlmostEqual(runtime.rddf_points(1, signal)[-1][0], 10.0)
             self.assertEqual(runtime.rddf_points(1, {'stamp': 1, 'route': name, 'value': required})[-1][0], 10)
 
     def test_traffic_without_marker_produces_no_path_even_on_green(self):

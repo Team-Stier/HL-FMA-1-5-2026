@@ -266,11 +266,10 @@ class MissionRuntime:
         return wall
 
     def rddf_points(self, now, signal):
-        """Generate only the allowed RDDF prefix; green restores full lookahead.
+        """Keep the steering RDDF continuous across an active traffic stop.
 
-        Evaluate the current observation, not last tick's decision, so a red
-        update cannot publish another unrestricted path. Missing calibration
-        produces no traffic path. The normal mission gate still checks health.
+        The traffic mission controls longitudinal stopping with remaining_stop_m
+        and stop_requested. Missing landmark calibration still produces no path.
         """
         route = self.active_route
         start = max(0.0, self.progress_s - 1.0)
@@ -282,8 +281,6 @@ class MissionRuntime:
         if wall:
             if not wall['valid']:
                 return []
-            if wall['active']:
-                end = min(end, wall['target_s'])
         if end <= start:
             return []
         # Preserve original corners as well as interpolated endpoints.
@@ -293,8 +290,7 @@ class MissionRuntime:
         parking = (5, 6, 10, 11)
         remaining = self.progress_s + max(20.0, self.config.get('path_lookahead_m', 20.0)) - route.length
         if (end >= route.length and remaining > 0 and route.section not in parking
-                and route.direction == 1 and not self.rddf_bounds
-                and not (wall and wall['active'])):
+                and route.direction == 1 and not self.rddf_bounds):
             successors = [r for r in self.routes.values()
                           if r.section == route.section + 1 and r.section not in parking
                           and r.section != 3 and r.direction == 1
