@@ -76,9 +76,9 @@
   },
   "speeds": {
     "normal": 2.2222222222222223,
-    "hill": 1.0,
-    "static": 1.0,
-    "intersection": 1.0,
+    "hill": 2.2222222222222223,
+    "static": 2.2222222222222223,
+    "intersection": 2.2222222222222223,
     "parking": 1.6666666666666667
   },
   "tracker": {

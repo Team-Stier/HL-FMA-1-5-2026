@@ -43,6 +43,12 @@ class MissionTests(unittest.TestCase):
     def run_at(self, section=1, **kwargs):
         return self.engine.update(self.snap(section, **kwargs))
 
+    def test_normal_and_parking_speed_limits(self):
+        normal = self.run_at(8, now=0.0, s=1.0)
+        parking = self.run_at(5, now=0.1, s=1.0)
+        self.assertAlmostEqual(normal["speed_limit"] * 3.6, 8.0)
+        self.assertAlmostEqual(parking["speed_limit"] * 3.6, 6.0)
+
     def poll(self, section=1, start=0.0, end=3.0, **kwargs):
         """Provide continuous quarter-second observations across a fake hold."""
         result = None
