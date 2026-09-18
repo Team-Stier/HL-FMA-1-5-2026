@@ -69,6 +69,39 @@ class RuntimeTests(unittest.TestCase):
         self.assertGreater(points[-1][0], 10.0)
         self.assertLessEqual(points[-1][0], 14.45 + 1e-6)
 
+    def test_rounded_cusp_does_not_add_reverse_micrometre_segment(self):
+        for yaw in (0.0, 0.69, 2.35, -2.8):
+            with self.subTest(yaw=yaw):
+                cosine, sine = math.cos(yaw), math.sin(yaw)
+                route = Route('10_parallel-right-in',
+                              [(x*cosine, x*sine, yaw)
+                               for x in (0.0, 1.0, 2.0, 1.0, 0.0)])
+                runtime = MissionRuntime(
+                    {route.name: route}, dict(self.config, start_route=route.name))
+                runtime.rddf_bounds = (route.name, 0.0, 2.0+0.5e-6)
+
+                points = runtime.rddf_points(10.0, {})
+
+                self.assertGreater(len(points), 2)
+                self.assertTrue(all(
+                    math.hypot(b[0]-a[0], b[1]-a[1]) > 1e-6
+                    for a, b in zip(points, points[1:])))
+
+    def test_rddf_keeps_real_reversal_and_removes_only_duplicate_positions(self):
+        route = Route('10_parallel-right-in',
+                      [(x, 0.0, 0.0) for x in (0.0, 1.0, 1.0, 2.0, 1.9, 1.0)])
+        runtime = MissionRuntime(
+            {route.name: route}, dict(self.config, start_route=route.name))
+
+        points = runtime.rddf_points(10.0, {})
+
+        self.assertEqual(points[0][:2], (0.0, 0.0))
+        self.assertEqual(points[-1][:2], (1.0, 0.0))
+        self.assertTrue(any(b[0] < a[0] for a, b in zip(points, points[1:])))
+        self.assertTrue(all(
+            math.hypot(b[0]-a[0], b[1]-a[1]) > 1e-6
+            for a, b in zip(points, points[1:])))
+
     def test_prevalidated_next_rddf_handoff_keeps_drive_and_traffic_stop(self):
         runtime = MissionRuntime(self.routes, self.config)
         self.run_step(runtime, 10)
