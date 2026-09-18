@@ -65,6 +65,7 @@
     "standstill_speed_mps": 0.5,
     "parking_hold_s": 1.0,
     "stop_tolerance_m": 0.2,
+    "traffic_tracking_stop_m": 0.5,
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
