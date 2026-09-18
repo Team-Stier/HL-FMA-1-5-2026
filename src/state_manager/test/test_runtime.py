@@ -139,7 +139,7 @@ class RuntimeTests(unittest.TestCase):
             result = runtime.step(10.1, data, previous)
             self.assertTrue(result['stop_requested'], (failure, result))
 
-    def test_rddf_preview_does_not_append_parking(self):
+    def test_rddf_preview_appends_localization_active_successor(self):
         routes = dict(self.routes)
         routes['4'] = Route('4', [(0, 0, 0), (10, 0, 0)])
         routes['5_T-left-in'] = Route('5_T-left-in', [(10, 0, 0), (20, 0, 0)], -1)
@@ -147,8 +147,9 @@ class RuntimeTests(unittest.TestCase):
         config['landmarks'] = dict(self.config['landmarks'], **{'4': {'stop_line_s': 5}})
         runtime = MissionRuntime(routes, config)
         runtime.engine.states['4'] = {'authorized': True}
-        runtime.progress_s = 9.0
-        self.assertLessEqual(runtime.rddf_points(10.0, None)[-1][0], 10.0)
+        runtime.active_source_routes = ('4', '5_T-left-in')
+        runtime.progress_s = 1.0
+        self.assertGreater(runtime.rddf_points(10.0, None)[-1][0], 10.0)
 
     def test_localization_match_is_progress_authority(self):
         runtime = MissionRuntime(self.routes, self.config)
