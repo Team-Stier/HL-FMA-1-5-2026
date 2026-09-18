@@ -108,10 +108,35 @@ PurePursuitResult computePurePursuit(
       std::min(config.lookahead_max_m, speed_lookahead_m / curvature_scale));
 
   Point2d target;
+  double nearest_distance = std::numeric_limits<double>::infinity();
+  std::size_t next_index = path_in_rear_axle_frame.size();
+  Point2d projection;
+  for (std::size_t i = 1; i < path_in_rear_axle_frame.size(); ++i) {
+    const auto& a = path_in_rear_axle_frame[i - 1];
+    const auto& b = path_in_rear_axle_frame[i];
+    if (!isFinitePoint(a) || !isFinitePoint(b)) continue;
+    const double dx = b.x - a.x;
+    const double dy = b.y - a.y;
+    const double length_squared = dx * dx + dy * dy;
+    if (length_squared <= 1e-12) continue;
+    const double t = std::max(
+        0.0, std::min(1.0, -(a.x * dx + a.y * dy) / length_squared));
+    const Point2d point{a.x + t * dx, a.y + t * dy};
+    const double distance = std::hypot(point.x, point.y);
+    if (distance < nearest_distance) {
+      nearest_distance = distance;
+      projection = point;
+      next_index = i;
+    }
+  }
+  if (!std::isfinite(nearest_distance)) return result;
+
   bool found_target = false;
-  for (std::size_t index = 1; index < path_in_rear_axle_frame.size();
+  for (std::size_t index = next_index; index < path_in_rear_axle_frame.size();
        ++index) {
-    if (firstForwardIntersection(path_in_rear_axle_frame[index - 1],
+    if (firstForwardIntersection(index == next_index
+                                     ? projection
+                                     : path_in_rear_axle_frame[index - 1],
                                  path_in_rear_axle_frame[index],
                                  result.lookahead_m, &target)) {
       found_target = true;
@@ -122,26 +147,7 @@ PurePursuitResult computePurePursuit(
   if (!found_target) {
     // Project onto the nearest segment, then advance along the path instead
     // of aiming at its far end when the lookahead circle cannot reach it.
-    double nearest_distance = std::numeric_limits<double>::infinity();
-    std::size_t next_index = path_in_rear_axle_frame.size();
-    for (std::size_t i = 1; i < path_in_rear_axle_frame.size(); ++i) {
-      const auto& a = path_in_rear_axle_frame[i - 1];
-      const auto& b = path_in_rear_axle_frame[i];
-      if (!isFinitePoint(a) || !isFinitePoint(b)) continue;
-      const double dx = b.x - a.x, dy = b.y - a.y;
-      const double length_squared = dx * dx + dy * dy;
-      if (length_squared <= 1e-12) continue;
-      const double t = std::max(0.0, std::min(1.0,
-          -(a.x * dx + a.y * dy) / length_squared));
-      const Point2d projection{a.x + t * dx, a.y + t * dy};
-      const double distance = std::hypot(projection.x, projection.y);
-      if (distance < nearest_distance) {
-        nearest_distance = distance;
-        target = projection;
-        next_index = i;
-      }
-    }
-    if (!std::isfinite(nearest_distance)) return result;
+    target = projection;
     double remaining = result.lookahead_m;
     for (std::size_t i = next_index; i < path_in_rear_axle_frame.size(); ++i) {
       const auto& point = path_in_rear_axle_frame[i];

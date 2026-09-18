@@ -83,5 +83,18 @@ TEST(PurePursuit, RejectsNonFiniteRuntimeInput) {
                    .valid);
 }
 
+TEST(PurePursuit, CircleTargetMustBeAfterNearestProjection) {
+  auto config = t870Config();
+  config.lookahead_min_m = config.lookahead_max_m = 1.0;
+  const auto result = computePurePursuit(
+      {{0.5, 2.0}, {0.5, 0.0}, {0.0, 0.0}, {0.5, -0.5}, {3.0, -0.5}},
+      0.5, 0.0, config);
+
+  ASSERT_TRUE(result.valid);
+  EXPECT_NEAR(result.target.x, std::sqrt(0.75), 1e-9);
+  EXPECT_NEAR(result.target.y, -0.5, 1e-9);
+  EXPECT_LT(result.steering_angle_rad, 0.0);
+}
+
 }  // namespace
 }  // namespace stier_control
