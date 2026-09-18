@@ -232,6 +232,25 @@ class PathPlannerNode {
                              road_left_bound_m_, road_right_bound_m_, 0.0,
                              "STATIC_AVOIDANCE"});
       }
+      if (source.name == "3_s-static-obstacle") {
+        // Keep a full planning horizon through the LOCAL-to-RDDF seam.
+        // Route 4 starts at the same point, so omit its duplicate first pose.
+        const auto successor = std::find_if(
+            message->routes.begin(), message->routes.end(),
+            [](const planning_interfaces::Route& route) {
+              return route.name == "4";
+            });
+        if (successor != message->routes.end()) {
+          for (std::size_t index = 1U;
+               index < successor->path.poses.size(); ++index) {
+            const geometry_msgs::PoseStamped& pose =
+                successor->path.poses[index];
+            waypoints.push_back({pose.pose.position.x, pose.pose.position.y,
+                                 road_left_bound_m_, road_right_bound_m_, 0.0,
+                                 "STATIC_AVOIDANCE"});
+          }
+        }
+      }
       path_planner::ReferencePath reference;
       std::string error;
       if (!reference.initialize(waypoints, &error)) {
