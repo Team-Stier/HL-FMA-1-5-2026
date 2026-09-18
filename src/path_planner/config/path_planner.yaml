@@ -20,7 +20,7 @@ vehicle:
   rear_axle_to_center_m: 0.38
 
 planner:
-  horizon_m: 8.0
+  horizon_m: 12.0
   sample_interval_m: 0.10
   lateral_sample_interval_m: 0.25
   maximum_lateral_offset_m: 1.50
