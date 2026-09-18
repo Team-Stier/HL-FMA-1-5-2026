@@ -72,15 +72,14 @@ class MissionRuntime:
         changed = route_name != self.active_route_name
         if changed:
             previous = self.active_route
-            eligible = (self.request == (previous.name, 'RDDF', 1)
+            eligible = (self.request is not None
+                        and self.request[:2] == (previous.name, 'RDDF')
                         and route_name in (self.active_source_routes or ())
                         and route.section == previous.section + 1
-                        and previous.section not in (3, 5, 6, 10, 11)
-                        and route.section not in (3, 5, 6, 10, 11)
-                        and route.direction == 1
                         and math.hypot(previous.end[0]-route.start[0],
                                        previous.end[1]-route.start[1]) <= 2.5)
-            self.prefetch_handoff_request = ((self.decision_id + 1, route_name, 'RDDF', 1)
+            self.prefetch_handoff_request = ((self.decision_id + 1, route_name,
+                                              'RDDF', route.direction)
                                              if eligible else None)
         self.active_route_name = route_name
         self.active_route = route
@@ -278,47 +277,31 @@ class MissionRuntime:
         if self.rddf_bounds and self.rddf_bounds[0] == route.name:
             start = max(start, self.rddf_bounds[1])
             end = min(end, self.rddf_bounds[2])
-        wall = self.traffic_constraint(now, signal)
-        if wall:
-            if not wall['valid']:
-                return []
-            if wall['active']:
-                end = min(end, wall['target_s'])
         if end <= start:
             return []
         # Preserve original corners as well as interpolated endpoints.
         samples = route.slice(start, end)
-        # Extend ordinary forward RDDF paths past the seam before handoff.
-        # Parking legs and LOCAL planning retain their own path boundaries.
-        parking = (5, 6, 10, 11)
-        remaining = self.progress_s + max(20.0, self.config.get('path_lookahead_m', 20.0)) - route.length
-        if (end >= route.length and remaining > 0 and route.section not in parking
-                and route.direction == 1 and not self.rddf_bounds
-                and not (wall and wall['active'])):
-            successors = [r for r in self.routes.values()
-                          if r.section == route.section + 1 and r.section not in parking
-                          and r.section != 3 and r.direction == 1
-                          and (self.active_source_routes is None
-                               or r.name in self.active_source_routes)
-                          and math.hypot(r.start[0]-route.end[0],
-                                         r.start[1]-route.end[1]) <= 2.5]
-            if len(successors) == 1:
-                successor = successors[0]
-                next_end = min(successor.length, remaining)
-                next_wall = self.engine.traffic_constraint(
-                    successor.name, successor.section, successor.length, now, signal)
-                if next_wall and not next_wall['valid']:
-                    next_end = 0.0
-                elif next_wall and next_wall['active']:
-                    next_end = min(next_end, next_wall['stop_line_s'] -
-                                   self.engine.rules['front_bumper_offset_m'] -
-                                   self.config.get('stop_buffer_m', .05))
-                if next_end > 0:
-                    extension = successor.slice(0.0, next_end)
-                    if math.hypot(samples[-1][0]-extension[0][0],
-                                  samples[-1][1]-extension[0][1]) < 1e-6:
-                        extension = extension[1:]
-                    samples.extend(extension)
+        bounds_reach_end = (not self.rddf_bounds
+                            or (self.rddf_bounds[0] == route.name
+                                and self.rddf_bounds[2] >= route.length - 1e-6))
+        source_names = (self.active_source_routes if self.active_source_routes is not None
+                        else self.routes)
+        successors = [self.routes[name] for name in source_names
+                      if name in self.routes and name != route.name
+                      and self.routes[name].section == route.section + 1
+                      and math.hypot(self.routes[name].start[0]-route.end[0],
+                                     self.routes[name].start[1]-route.end[1]) <= 2.5]
+        if bounds_reach_end and len(successors) == 1:
+            end = route.length
+            samples = route.slice(start, end)
+            successor = successors[0]
+            next_end = successor.length
+            if next_end > 0:
+                extension = successor.slice(0.0, next_end)
+                if math.hypot(samples[-1][0]-extension[0][0],
+                              samples[-1][1]-extension[0][1]) < 1e-6:
+                    extension = extension[1:]
+                samples.extend(extension)
         points = [samples[0]]
         for a, b in zip(samples, samples[1:]):
             steps = max(1, int(math.ceil(math.hypot(b[0]-a[0], b[1]-a[1]) / .5)))

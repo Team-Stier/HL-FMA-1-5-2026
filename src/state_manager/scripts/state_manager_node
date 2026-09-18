@@ -404,25 +404,23 @@ class StateManagerNode:
 
     def prefetch_rddf(self, now):
         runtime = self.runtime
-        if runtime is None or runtime.request != (runtime.active_route_name, 'RDDF', 1):
+        if (runtime is None or runtime.request is None
+                or runtime.request[:2] != (runtime.active_route_name, 'RDDF')):
             return
         route = runtime.active_route
-        if route.section in (3, 5, 6, 10, 11):
-            return
         successors = [runtime.routes[name] for name in (runtime.active_source_routes or ())
                       if name in runtime.routes and name != route.name]
         if len(successors) != 1:
             return
         successor = successors[0]
-        if (successor.section != route.section + 1 or successor.section in (3, 5, 6, 10, 11)
-                or successor.direction != 1
+        if (successor.section != route.section + 1 or successor.section == 3
                 or math.hypot(route.end[0]-successor.start[0],
                               route.end[1]-successor.start[1]) > 2.5):
             return
         config = dict(runtime.config, start_route=successor.name)
         preview = MissionRuntime(runtime.source_routes, config)
         preview.active_source_routes = (successor.name,)
-        preview.request = (successor.name, 'RDDF', 1)
+        preview.request = (successor.name, 'RDDF', successor.direction)
         preview.decision_id = runtime.decision_id + 1
         self.rddf_candidate(now, preview, self.prefetch_pub)
 
