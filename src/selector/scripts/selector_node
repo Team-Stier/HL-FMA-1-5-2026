@@ -14,8 +14,7 @@ class SelectorNode:
             timeout=rospy.get_param('~input_timeout', 0.5),
             future_tolerance=rospy.get_param('~future_tolerance', 0.05),
             frame_id=rospy.get_param('~frame_id', 'map'),
-            max_pose_spacing_m=rospy.get_param('~max_pose_spacing_m', 2.0),
-            max_path_heading_error_rad=rospy.get_param('~max_path_heading_error_rad', 1.0))
+            max_pose_spacing_m=rospy.get_param('~max_pose_spacing_m', 2.0))
         self.state = None
         self.candidates = {}
         self.messages = {}

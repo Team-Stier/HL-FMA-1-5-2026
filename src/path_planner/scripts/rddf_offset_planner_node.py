@@ -52,7 +52,15 @@ def nearest_obstacle_side(path, clusters, corridor_m, lookahead_m):
 def offset_path(path, offset_m):
     shifted = []
     for index, point in enumerate(path):
-        if index + 1 < len(path):
+        # The RDDF's first point is a projection of the vehicle onto the path
+        # and can be only a few centimetres from the next point.  Use the first
+        # complete segment for both leading points so their offset normals
+        # cannot invert that short prefix.
+        if index == 0 and len(path) > 2:
+            point_for_yaw, other = path[1], path[2]
+            yaw = math.atan2(other[1] - point_for_yaw[1],
+                             other[0] - point_for_yaw[0])
+        elif index + 1 < len(path):
             other = path[index + 1]
             yaw = math.atan2(other[1] - point[1], other[0] - point[0])
         else:

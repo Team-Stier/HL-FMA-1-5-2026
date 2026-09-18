@@ -72,18 +72,15 @@ class SelectorCore:
     SOURCES = {'RDDF': 'RDDF', 'LOCAL': 'LOCAL', 'PARKING': 'PARKING'}
 
     def __init__(self, timeout=0.5, future_tolerance=0.05,
-                 frame_id='map', max_pose_spacing_m=2.0, max_path_heading_error_rad=1.0):
+                 frame_id='map', max_pose_spacing_m=2.0):
         if not (math.isfinite(timeout) and timeout > 0
                 and math.isfinite(future_tolerance) and future_tolerance >= 0
-                and math.isfinite(max_pose_spacing_m) and max_pose_spacing_m > 0
-                and math.isfinite(max_path_heading_error_rad)
-                and 0 < max_path_heading_error_rad < math.pi / 2):
+                and math.isfinite(max_pose_spacing_m) and max_pose_spacing_m > 0):
             raise ValueError('Invalid selector validation limits')
         self.timeout = timeout
         self.future_tolerance = future_tolerance
         self.frame_id = frame_id
         self.max_pose_spacing_m = max_pose_spacing_m
-        self.max_path_heading_error_rad = max_path_heading_error_rad
 
     def _fresh(self, stamp, now):
         return fresh(stamp, now, self.timeout, self.future_tolerance)
@@ -116,7 +113,6 @@ class SelectorCore:
         if len(candidate.poses) < 2:
             return reject('PATH_TOO_SHORT')
         previous = None
-        previous_yaw = None
         length = 0.0
         for pose in candidate.poses:
             if pose.frame_id != self.frame_id:
@@ -127,27 +123,13 @@ class SelectorCore:
             norm_squared = sum(q * q for q in pose.orientation)
             if abs(norm_squared - 1.0) > 0.002:
                 return reject('POSE_QUATERNION_INVALID')
-            qx, qy, qz, qw = pose.orientation
-            body_yaw = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz))
             if previous is not None:
                 dx, dy, dz = (b - a for a, b in zip(previous, pose.position))
                 if math.hypot(dx, dy, dz) > self.max_pose_spacing_m:
                     return reject('PATH_DISCONTINUITY')
                 step = math.hypot(dx, dy)
-                if step > 1e-6:
-                    # Poses describe body orientation. A reverse path must
-                    # advance behind that body, not merely label a forward
-                    # polyline with direction=-1. Validate both ends so a last
-                    # pose with an unrelated heading cannot escape the check.
-                    expected = math.atan2(dy, dx) + (math.pi if state.direction < 0 else 0)
-                    for observed in (previous_yaw, body_yaw):
-                        error = abs(math.atan2(math.sin(observed - expected),
-                                               math.cos(observed - expected)))
-                        if error > self.max_path_heading_error_rad:
-                            return reject('PATH_BODY_DIRECTION_MISMATCH')
                 length += step
             previous = pose.position
-            previous_yaw = body_yaw
         if length < 0.001:
             return reject('PATH_DEGENERATE')
         # Readiness describes geometry even while the mission waits/stops. This

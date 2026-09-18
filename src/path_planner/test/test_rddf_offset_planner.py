@@ -43,6 +43,15 @@ class RddfOffsetPlannerTest(unittest.TestCase):
             MODULE.nearest_obstacle_side(self.path, [cluster(4.0, 2.0)], 1.0, 8.0),
             0)
 
+    def test_short_projected_prefix_does_not_reverse_after_offset(self):
+        path = [(0.0, 0.0, 0.0), (0.001, 0.01, 0.0), (0.1, 0.5, 0.0)]
+        shifted = MODULE.offset_path(path, 0.5)
+        source_dx = path[1][0] - path[0][0]
+        source_dy = path[1][1] - path[0][1]
+        shifted_dx = shifted[1][0] - shifted[0][0]
+        shifted_dy = shifted[1][1] - shifted[0][1]
+        self.assertGreater(source_dx*shifted_dx + source_dy*shifted_dy, 0.0)
+
 
 if __name__ == '__main__':
     unittest.main()

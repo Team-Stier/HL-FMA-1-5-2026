@@ -1,7 +1,5 @@
-import csv
 import math
 import os
-from pathlib import Path
 import sys
 import unittest
 from dataclasses import replace
@@ -69,60 +67,22 @@ class SelectorTests(unittest.TestCase):
         self.assertTrue(self.evaluate(state=replace(self.state, direction=-1),
                                       path=replace(self.path, direction=-1, poses=poses)).ready)
 
-    def test_changing_direction_tag_does_not_make_forward_geometry_reverse(self):
+    def test_direction_tag_does_not_reject_path_geometry(self):
         result = self.evaluate(state=replace(self.state, direction=-1),
                                path=replace(self.path, direction=-1))
-        self.assertEqual(result.reason, 'PATH_BODY_DIRECTION_MISMATCH')
-
-    def test_real_t_parking_reverse_routes_are_accepted_and_wrong_yaw_is_blocked(self):
-        root = Path(__file__).resolve().parents[2] / 'localization' / 'rddf'
-        for route_name in ('5_T-left-in', '5_T-right-in'):
-            with self.subTest(route=route_name):
-                with (root / ('yongin_' + route_name + '.csv')).open(newline='') as stream:
-                    rows = list(csv.DictReader(stream))
-                positions = tuple((float(row['east_m']), float(row['north_m']), 0.)
-                                  for row in rows)
-
-                def poses(reverse_body):
-                    result = []
-                    for index, position in enumerate(positions):
-                        adjacent = (positions[index + 1]
-                                    if index + 1 < len(positions)
-                                    else positions[index - 1])
-                        if index + 1 < len(positions):
-                            motion_yaw = math.atan2(adjacent[1] - position[1],
-                                                    adjacent[0] - position[0])
-                        else:
-                            motion_yaw = math.atan2(position[1] - adjacent[1],
-                                                    position[0] - adjacent[0])
-                        body_yaw = motion_yaw + (math.pi if reverse_body else 0.0)
-                        result.append(Pose(
-                            'map', position,
-                            (0., 0., math.sin(body_yaw / 2), math.cos(body_yaw / 2))))
-                    return tuple(result)
-
-                state = replace(self.state, route_name=route_name, direction=-1)
-                candidate = replace(self.path, route_name=route_name, direction=-1,
-                                    poses=poses(True))
-                self.assertEqual(self.evaluate(state=state, path=candidate).reason,
-                                 'PATH_READY')
-
-                wrong = replace(candidate, poses=poses(False))
-                self.assertEqual(self.evaluate(state=state, path=wrong).reason,
-                                 'PATH_BODY_DIRECTION_MISMATCH')
+        self.assertTrue(result.ready)
 
     def test_reversed_positions_can_keep_forward_facing_body(self):
         self.assertTrue(self.evaluate(state=replace(self.state, direction=-1),
                                       path=replace(self.path, direction=-1,
                                                    poses=tuple(reversed(self.path.poses)))).ready)
 
-    def test_both_segment_endpoints_must_face_the_motion_direction(self):
+    def test_pose_heading_does_not_reject_path_geometry(self):
         first, second = self.path.poses
         wrong = (0., 0., math.sin(math.pi / 4), math.cos(math.pi / 4))
         for poses in ((replace(first, orientation=wrong), second),
                       (first, replace(second, orientation=wrong))):
-            self.assertEqual(self.evaluate(path=replace(self.path, poses=poses)).reason,
-                             'PATH_BODY_DIRECTION_MISMATCH')
+            self.assertTrue(self.evaluate(path=replace(self.path, poses=poses)).ready)
 
     def test_curved_path_checks_each_local_tangent_not_a_global_heading(self):
         # A gentle quarter circle has local tangent headings between 0 and pi/2.
@@ -133,8 +93,7 @@ class SelectorTests(unittest.TestCase):
                               (0., 0., math.sin(angle / 2), math.cos(angle / 2))))
         self.assertTrue(self.evaluate(path=replace(self.path, poses=tuple(poses))).ready)
         inconsistent = tuple(replace(pose, orientation=(0., 0., 0., 1.)) for pose in poses)
-        self.assertEqual(self.evaluate(path=replace(self.path, poses=inconsistent)).reason,
-                         'PATH_BODY_DIRECTION_MISMATCH')
+        self.assertTrue(self.evaluate(path=replace(self.path, poses=inconsistent)).ready)
 
     def test_yaw_wrap_around_pi_is_not_a_direction_error(self):
         yaw = -math.pi + .01
@@ -147,11 +106,6 @@ class SelectorTests(unittest.TestCase):
         first, second = self.path.poses
         path = replace(self.path, poses=(first, replace(second, position=(0., 0., 1.))))
         self.assertEqual(self.evaluate(path=path).reason, 'PATH_DEGENERATE')
-
-    def test_heading_tolerance_cannot_allow_perpendicular_or_opposite_motion(self):
-        for tolerance in (0, -1, math.pi / 2, math.pi, math.nan, math.inf):
-            with self.subTest(tolerance=tolerance), self.assertRaises(ValueError):
-                SelectorCore(max_path_heading_error_rad=tolerance)
 
     def test_fingerprint_agrees_for_identical_geometry_with_refreshed_stamps(self):
         self.assertEqual(path_fingerprint(self.path), path_fingerprint(

@@ -404,10 +404,13 @@ class StateManagerNode:
 
     def prefetch_rddf(self, now):
         runtime = self.runtime
-        if (runtime is None or runtime.request is None
-                or runtime.request[:2] != (runtime.active_route_name, 'RDDF')):
+        if runtime is None or runtime.request is None:
             return
         route = runtime.active_route
+        if (runtime.request[0] != runtime.active_route_name
+                or (runtime.request[1] != 'RDDF'
+                    and not (route.section == 3 and runtime.request[1] == 'LOCAL'))):
+            return
         successors = [runtime.routes[name] for name in (runtime.active_source_routes or ())
                       if name in runtime.routes and name != route.name]
         if len(successors) != 1:

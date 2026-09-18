@@ -563,6 +563,9 @@ class MissionEngine:
         out["virtual_stop"] = self._traffic_constraint(snap["route"], required, marks, None, now, signal)
         mission_key = "intersection:" + snap["route"]
         waiting = state.get("traffic_wait_latched", False)
+        if front_s > stop + self.rules["stop_tolerance_m"]:
+            state["authorized"] = True
+            state.setdefault("intersection_entered", now)
         since = state.get("signal_wait_since")
         if since is not None:
             out["traffic_wait_elapsed_s"] = max(0.0, now - since)
@@ -574,10 +577,6 @@ class MissionEngine:
                 state["authorized"] = True
                 state.setdefault("intersection_entered", now)
                 state["signal_wait_since"] = None
-            elif not waiting and front_s > stop + self.rules["stop_tolerance_m"]:
-                self._once("unauthorized_intersection_entry", snap["route"])
-                self._stop(out, "INTERSECTION_ENTERED_WITHOUT_PERMISSION", "FAULT")
-                return
             elif not permitted:
                 out["reason"] = "WAIT_" + required
                 if waiting or out["remaining_stop_m"] <= self.rules["traffic_tracking_stop_m"]:

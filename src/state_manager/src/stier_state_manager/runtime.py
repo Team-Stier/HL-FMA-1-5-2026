@@ -47,6 +47,8 @@ class MissionRuntime:
         self.rddf_bounds = None
         self.active_source_routes = None
         self.prefetch_handoff_request = None
+        self.dynamic_estop_since = None
+        self.dynamic_estop_served = False
         self.last_time = None
         self.clock_fault = False
         self.vehicle_ok = validate_vehicle(config)
@@ -73,7 +75,9 @@ class MissionRuntime:
         if changed:
             previous = self.active_route
             eligible = (self.request is not None
-                        and self.request[:2] == (previous.name, 'RDDF')
+                        and self.request[0] == previous.name
+                        and (self.request[1] == 'RDDF'
+                             or (previous.section == 3 and self.request[1] == 'LOCAL'))
                         and route_name in (self.active_source_routes or ())
                         and route.section == previous.section + 1
                         and math.hypot(previous.end[0]-route.start[0],
@@ -291,7 +295,11 @@ class MissionRuntime:
                       and self.routes[name].section == route.section + 1
                       and math.hypot(self.routes[name].start[0]-route.end[0],
                                      self.routes[name].start[1]-route.end[1]) <= 2.5]
-        if bounds_reach_end and len(successors) == 1 and route.section not in (10, 11):
+        direction_change = (bounds_reach_end and successors
+                            and all(successor.direction != route.direction
+                                    for successor in successors))
+        if (bounds_reach_end and len(successors) == 1
+                and route.section not in (10, 11) and not direction_change):
             end = route.length
             samples = route.slice(start, end)
             successor = successors[0]
@@ -316,8 +324,8 @@ class MissionRuntime:
                 distinct[-1] = point
             else:
                 distinct.append(point)
-        if (self.rddf_bounds and self.rddf_bounds[0] == route.name
-                and route.section in (10, 11) and len(distinct) >= 2):
+        bounded_leg = self.rddf_bounds and self.rddf_bounds[0] == route.name
+        if (bounded_leg or direction_change) and len(distinct) >= 2:
             a, b = distinct[-2:]
             heading = math.atan2(b[1]-a[1], b[0]-a[0])
             for distance in (.5, 1.0, 1.5, 2.0, 2.5, 3.0):
@@ -375,6 +383,17 @@ class MissionRuntime:
             'required': bool(dynamic_token) and dynamic_token in str(tracked['route']).lower(),
             'valid': False, 'active': False, 'reason': reason, 'clearance_m': -1.0}
         decision['dynamic_obstacle'] = dynamic_obstacle
+        dynamic_hold_s = float(self.config.get('dynamic_obstacle', {}).get('estop_hold_s', 3.5))
+        if dynamic_obstacle.get('active') and self.dynamic_estop_since is None:
+            if not self.dynamic_estop_served:
+                self.dynamic_estop_since = now
+        dynamic_estop_active = (self.dynamic_estop_since is not None
+                                and now - self.dynamic_estop_since < dynamic_hold_s)
+        if self.dynamic_estop_since is not None and not dynamic_estop_active:
+            self.dynamic_estop_since = None
+            self.dynamic_estop_served = True
+        if not dynamic_obstacle.get('active') and self.dynamic_estop_since is None:
+            self.dynamic_estop_served = False
         if (decision.get('path_mode') == 'RDDF'
                 and all(isinstance(decision.get(key), (int, float))
                         and math.isfinite(decision[key])
@@ -410,7 +429,7 @@ class MissionRuntime:
                         finished='finish' in decision.get('completed_missions', {}),
                         progress=tracked['progress'], distance_m=tracked['s'], safety=safety,
                         tracking=tracked)
-        if dynamic_obstacle.get('active'):
+        if dynamic_estop_active:
             safety.update(stop=True, sensor_valid=True, reason='DYNAMIC_OBSTACLE_ON_RDDF',
                           clearance_m=dynamic_obstacle['clearance_m'])
             decision.update(emergency_stop_requested=True, stop_requested=True,

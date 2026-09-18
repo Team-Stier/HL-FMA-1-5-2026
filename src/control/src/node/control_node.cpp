@@ -79,6 +79,7 @@ struct NodeConfig {
   double wheelbase_m{0.0};
   double rear_axle_to_pose_reference_m{0.0};
   double curvature_preview_distance_m{0.0};
+  double parking_entry_lookahead_m{0.0};
   double maximum_steering_rate_rad_per_sec{0.0};
   FixedSpeedConfig fixed_speed;
   PurePursuitConfig pure_pursuit;
@@ -131,6 +132,8 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
       requiredParam<double>(node, "rear_axle_to_pose_reference_m");
   config.curvature_preview_distance_m =
       requiredParam<double>(node, "curvature_preview_distance_m");
+  config.parking_entry_lookahead_m =
+      requiredParam<double>(node, "parking_entry_lookahead_m");
   config.maximum_steering_rate_rad_per_sec = degreesToRadians(
       requiredParam<double>(node, "maximum_steering_rate_deg_per_sec"));
 
@@ -205,6 +208,7 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
       !positiveFinite(config.feedback_timeout_sec) ||
       !positiveFinite(config.maximum_control_dt_sec) ||
       !positiveFinite(config.curvature_preview_distance_m) ||
+      !positiveFinite(config.parking_entry_lookahead_m) ||
       !positiveFinite(config.maximum_steering_rate_rad_per_sec) ||
       !std::isfinite(config.rear_axle_to_pose_reference_m)) {
     throw std::runtime_error("invalid control timing or geometry parameter");
@@ -518,9 +522,16 @@ class ControlNode {
       try {
         const double preview_curvature_m_inv = maximumPreviewCurvature(
             rear_axle_path, config_.curvature_preview_distance_m);
+        PurePursuitConfig pure_pursuit_config = config_.pure_pursuit;
+        if (latest_mission_->section == 5U || latest_mission_->section == 10U) {
+          pure_pursuit_config.lookahead_min_m =
+              config_.parking_entry_lookahead_m;
+          pure_pursuit_config.lookahead_max_m =
+              config_.parking_entry_lookahead_m;
+        }
         pure_pursuit = computePurePursuit(
             rear_axle_path, speed_mps, preview_curvature_m_inv,
-            config_.pure_pursuit);
+            pure_pursuit_config);
       } catch (const std::exception& error) {
         ROS_WARN_THROTTLE(1.0, "Pure Pursuit exception: %s", error.what());
         publishSafe("PURE_PURSUIT_EXCEPTION");
