@@ -487,9 +487,10 @@ class PathPlannerNode {
             std::chrono::steady_clock::now() - started)
             .count();
     if (elapsed_ms > planning_deadline_ms_) {
-      resetPlanner();
-      publishStatus(now, false, "PLANNING_DEADLINE_EXCEEDED");
-      return;
+      ROS_WARN_THROTTLE(
+          2.0,
+          "Frenet planning took %.2f ms (warning threshold %.2f ms)",
+          elapsed_ms, planning_deadline_ms_);
     }
     if (!result.valid || result.path.size() < 3U) {
       resetPlanner();
