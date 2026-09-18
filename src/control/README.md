@@ -20,9 +20,9 @@ wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_r
 기본값이다. 내부 조향각은 REP-103에 따라 좌회전이 양수지만 Uno `DriveCmd.Deg`는
 좌회전이 음수이므로 `steering_command_sign: -1`을 사용한다.
 
-상위 control은 정상 운용 명령을 10 km/h 이하로 제한한다. Arduino는 ROS 목표를
-15 km/h로 클램프하고 실측속도 15 km/h까지 PI 추종한다. 15 km/h를 초과한 주기만
-구동 PWM을 0으로 제한하며 fault를 래치하지 않는다. RC 모드는 이 속도 정책과 무관하다.
+상위 control은 정상 운용 명령을 10 km/h 이하로 제한한다. 조사한 Mando White/Black
+펌웨어는 별도 하위 속도·과속 정책을 갖는다. 상위 파라미터를 바꿔도 하위 제한이 바뀌지
+않는다. 탑재본과 별도 로컬 기어 수정본의 차이는 [통합 점검 기록](../../docs/integration_review_20260918.md)을 참고한다.
 
 ## 입출력과 안전 정지
 
@@ -45,15 +45,18 @@ wheelbase와 조향 범위는 현장 실측값을 사용하므로 `calibration_r
 path·mission·odometry·feedback timeout, frame 불일치, 잘못된 수치, RC 모드에서는
 `KPH=0`, `Deg=0`, `brake=1`, `Gear=중립`, `EStop=0`을 발행한다. 이는 정상 정지다.
 `/vehicle/emergency_stop=true`, State Manager의
-`MissionState.emergency_stop_requested=true`, 또는 Arduino feedback의 EStop 활성
-상태에서 명령의 `EStop=1`을 사용한다. 신호등·경사로 정지는 일반
+`MissionState.emergency_stop_requested=true`에서 명령의 `EStop=1`을 사용한다.
+Arduino feedback의 EStop만 활성인 경우 일반 제동을 유지하되 명령 EStop을 되먹임하지
+않는다. 그래야 외부 요청 해제 후 EStop이 통신 루프로 영구 유지되지 않는다. 신호등·경사로 정지는 일반
 `stop_requested`이므로 `EStop=0`인 제동 정지다. 미션 속도 상한과 전·후진 방향은
 `MissionState`를 직접 적용한다. `control_node`는 TF를 조회하지 않으므로
 path와 Odometry가 같은 `expected_frame_id`이고 child frame이 `vehicle_frame_id`여야 한다.
 Vehicle Safety Gate는 없으며 Control이 `/erp42_serial/drive`를 직접 발행한다.
 
 후진은 Pure Pursuit에서만 지원한다. Control은 후방 경로를 추종 좌표로 변환하고
-`Gear=2`를 보낸다. Arduino는 전진↔후진 전환 전에 엔코더 0속도를 3회 연속 확인한다.
+`Gear=2`를 보낸다. Control은 유한한 signed feedback speed를 받고 횡제어 계산에는
+절댓값을 사용한다. 조사한 기존 Mando main은 ROS Gear를 처리하지 않으며, 별도 로컬
+펌웨어 수정본에 3회 연속 새로운 0속도 관측 후 기어 전환을 구현했다. 탑재 확인이 필요하다.
 Stanley를 선택한 상태의 후진 요청은 정지 명령으로 처리한다.
 
 ## 코드 위치
@@ -109,6 +112,9 @@ rosbag/launch 문서도 함께 수정한다.
 
 직선 진동은 base/speed gain을 먼저 보고, 곡선 진입이 늦을 때 curvature gain을 조정한다.
 한 번에 하나의 값만 바꾸고 같은 경로·속도로 비교한다.
+현재 YAML은 `lookahead_min_m=lookahead_max_m=2`이므로 base만 바꿔도 LD는 바뀌지 않는다.
+`roslaunch control control.launch lookahead_m:=1`로 두 bounds를 함께 변경할 수 있다.
+통합 launch에도 같은 인자를 전달한다. `/vehicle/wheelbase_m`이 있으면 개별 YAML보다 우선한다.
 
 ### Stanley
 

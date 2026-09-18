@@ -64,6 +64,16 @@ class StateManagerNode:
             rospy.logwarn('Calibration overlay missing: %s; using base mission configuration', calibration_file)
         if rospy.get_param('~calibration_mode', False):
             self.config['calibration_mode'] = True
+        for kind, parameter in (('t', 't_parking_side'), ('parallel', 'parallel_parking_side')):
+            side = rospy.get_param('~'+parameter, '')
+            if side:
+                self.config.setdefault('parking_branches', {})[kind] = side
+        # The integrated launch owns one geometry; standalone package configs
+        # remain usable when /vehicle has not been loaded.
+        shared_vehicle = rospy.get_param('/vehicle', {})
+        for key in ('width_m', 'front_m', 'rear_m'):
+            if key in shared_vehicle:
+                self.config.setdefault('vehicle', {})[key] = shared_vehicle[key]
         start_branch = self.config.get('start_branch', 'right')
         if start_branch not in ('left', 'right'):
             raise ValueError('start_branch must be left or right')
@@ -457,6 +467,7 @@ class StateManagerNode:
         state.finished = decision.get('finished', False)
         state.parking_leg_index = decision.get('parking_leg_index', -1)
         state.parking_leg_phase = decision.get('parking_leg_phase', '')
+        state.parking_leg_start_s = decision.get('rddf_start_s', -1.0)
         state.parking_leg_target_s = decision.get('parking_leg_target_s') if decision.get('parking_leg_target_s') is not None else -1.0
         safety = SafetyStatus()
         safety.header = state.header

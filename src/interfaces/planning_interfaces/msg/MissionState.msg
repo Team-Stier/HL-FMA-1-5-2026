@@ -24,4 +24,6 @@ string reason
 # Accepted parking leg. -1 means no calibrated planner leg has been accepted.
 int32 parking_leg_index
 string parking_leg_phase
+# RDDF station interval of the current gear leg; -1 when not applicable.
+float64 parking_leg_start_s
 float64 parking_leg_target_s

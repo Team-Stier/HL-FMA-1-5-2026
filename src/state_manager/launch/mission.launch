@@ -11,6 +11,9 @@
   <arg name="start_control" default="true"/>
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
+  <arg name="lookahead_m" default=""/>
+  <arg name="t_parking_side" default=""/>
+  <arg name="parallel_parking_side" default=""/>
   <arg name="start_rviz" default="false"/>
   <node respawn="true" respawn_delay="3.0" pkg="mando_localization" type="rddf_route_provider.py" name="rddf_route_provider" output="screen">
     <param name="rddf_directory" value="$(arg rddf_directory)"/>
@@ -19,6 +22,8 @@
     <param name="config_file" value="$(arg config_file)"/>
     <param name="calibration_file" value="$(arg calibration_file)"/>
     <param name="calibration_mode" value="$(arg calibration_mode)"/>
+    <param name="t_parking_side" value="$(arg t_parking_side)" type="str"/>
+    <param name="parallel_parking_side" value="$(arg parallel_parking_side)" type="str"/>
   </node>
   <include if="$(arg start_object_detection)"
            file="$(find object_detection)/launch/rddf_roi_detection.launch">
@@ -36,6 +41,7 @@
            file="$(find control)/launch/control.launch">
     <arg name="lateral_controller" value="$(arg lateral_controller)"/>
     <arg name="calibration_required" value="$(arg control_calibration_required)"/>
+    <arg name="lookahead_m" value="$(arg lookahead_m)"/>
   </include>
   <node respawn="true" respawn_delay="3.0" if="$(arg calibration_mode)" pkg="state_manager" type="landmark_editor_node" name="landmark_editor" output="screen">
     <param name="config_file" value="$(arg config_file)"/>

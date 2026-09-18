@@ -69,6 +69,40 @@ class RuntimeTests(unittest.TestCase):
         self.assertGreater(points[-1][0], 10.0)
         self.assertLessEqual(points[-1][0], 14.45 + 1e-6)
 
+    def test_rounded_cusp_does_not_add_a_reverse_micrometre_segment(self):
+        # School CSV XY is rounded to six decimals after rigid rotation, while
+        # gear stations retain their original precision. A leg endpoint can
+        # land just beyond the cusp and reverse the final quaternion.
+        for yaw in (0., .69, 2.35, -2.8):
+            with self.subTest(yaw=yaw):
+                c, s = math.cos(yaw), math.sin(yaw)
+                route = Route('10_parallel-right-in',
+                              [(x*c, x*s, yaw) for x in (0., 1., 2., 1., 0.)])
+                runtime = MissionRuntime({route.name: route},
+                                         dict(self.config, start_route=route.name))
+                runtime.rddf_bounds = (route.name, 0., 2.+.5e-6)
+                points = runtime.rddf_points(10., {})
+                self.assertGreater(len(points), 2)
+                for a, b in zip(points, points[1:]):
+                    self.assertGreater(math.hypot(b[0]-a[0], b[1]-a[1]), 1e-6)
+                    tangent = math.atan2(b[1]-a[1], b[0]-a[0])
+                    self.assertAlmostEqual(math.atan2(math.sin(tangent-yaw),
+                                                     math.cos(tangent-yaw)), 0.)
+                # Keep the requested terminal XY, not a new parking station.
+                self.assertAlmostEqual(points[-1][0], (2.-.5e-6)*c)
+                self.assertAlmostEqual(points[-1][1], (2.-.5e-6)*s)
+
+    def test_rddf_keeps_real_reversal_and_removes_only_duplicate_positions(self):
+        route = Route('10_parallel-right-in',
+                      [(x, 0., 0.) for x in (0., 1., 1., 2., 1.9, 1.)])
+        runtime = MissionRuntime({route.name: route}, dict(self.config, start_route=route.name))
+        points = runtime.rddf_points(10., {})
+        self.assertEqual(points[0][:2], (0., 0.))
+        self.assertEqual(points[-1][:2], (1., 0.))
+        self.assertTrue(any(b[0] < a[0] for a, b in zip(points, points[1:])))
+        self.assertTrue(all(math.hypot(b[0]-a[0], b[1]-a[1]) > 1e-6
+                            for a, b in zip(points, points[1:])))
+
     def test_prevalidated_next_rddf_handoff_keeps_drive_and_traffic_stop(self):
         runtime = MissionRuntime(self.routes, self.config)
         self.run_step(runtime, 10)

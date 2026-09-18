@@ -1,7 +1,14 @@
-# HL-FMA2026-stier
+# HL-FMA2026-0917
+
+**이 브랜치 전체 시험 패키지:** [새 PC에서 내려받아 준비·실행하기](docs/branch_test_quickstart.md).
+ROS 통합 코드, RDDF, 신호등 모델, 하얀차·검은차 후진 펌웨어와 회귀시험을 함께 제공한다.
+공유 브랜치는 `fix/integration-review-20260918`이며 `main`과 다른 브랜치는 변경하지 않는다.
 
 [현재 패키지 사용 현황·입출력·Mermaid 아키텍처](docs/architecture.md)를 먼저 확인한다.
 이 문서는 구현된 패키지와 아직 미통합·미사용 상태인 패키지를 구분한다.
+
+학교 실차 준비: [실행 안내](docs/school_test_20260918.md),
+[5차 교차 검토·반복 시험 기록](docs/five_pass_review_20260918.md).
 
 [전체 시스템 아키텍처 탐색기](src/localization/docs/system-architecture.html)는 기존 Localization 중심 구조를 탐색하는 자료입니다. 현재 미션 통합 구조는 아래 아키텍처와 [State Manager 안내서](src/state_manager/README.md)를 기준으로 합니다.
 HL Mando Future Mobility Award 2026 자율주행 경진대회 출전을 위한 자율주행 SW
@@ -24,8 +31,8 @@ HL Mando Future Mobility Award 2026 자율주행 경진대회 출전을 위한 �
 
 ```bash
 cd ~
-git clone https://github.com/Team-Stier/HL-FMA2026-stier.git
-cd ~/HL-FMA2026-stier
+git clone --branch fix/integration-review-20260918 --single-branch https://github.com/Team-Stier/HL-FMA2026-0917.git
+cd ~/HL-FMA2026-0917
 ```
 
 ### 2. 시스템 및 ROS 의존성 설치
@@ -41,6 +48,7 @@ sudo apt install \
   ros-noetic-mavros-msgs \
   ros-noetic-nmea-msgs \
   ros-noetic-rplidar-ros \
+  ros-noetic-robot-localization \
   ros-noetic-rosserial-arduino \
   ros-noetic-rosserial-python \
   ros-noetic-rqt-image-view \
@@ -63,7 +71,7 @@ rosdep update
 저장소에 선언된 나머지 의존성을 설치한다.
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 source /opt/ros/noetic/setup.bash
 rosdep install --from-paths src --ignore-src -r -y
 ```
@@ -71,7 +79,7 @@ rosdep install --from-paths src --ignore-src -r -y
 ### 3. 워크스페이스 빌드
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 source /opt/ros/noetic/setup.bash
 catkin_make
 source devel/setup.bash
@@ -80,7 +88,7 @@ source devel/setup.bash
 새 터미널을 열 때마다 다음 세 줄을 다시 실행한다.
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 source /opt/ros/noetic/setup.bash
 source devel/setup.bash
 ```
@@ -90,7 +98,7 @@ source devel/setup.bash
 udev 규칙은 실행 PC마다 한 번 설치한다. 설치 후 센서를 뺐다가 다시 연결해야 한다.
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 ./src/sensor_drivers/lidar/scripts/install_udev_rules.sh
 ./src/sensor_drivers/cam/scripts/install_udev_rules.sh
 ./src/sensor_drivers/gps/scripts/install_udev_rules.sh
@@ -255,19 +263,23 @@ Planner 응답은 사용할 수 없다. 요청한 `LOCAL` 경로가 없으면 �
 | 1-L/R | 앞·뒤 정지구역 마커의 RDDF 중앙에서 연속 3초 이상 정차, 최초 정지부터 정상부 통과 30초 및 0.5 m 이상 밀림 감시 |
 | 2 | 비허용 신호에서 정지선 가상 벽으로 RDDF 제한, 초록불에 RDDF 직진 |
 | 3 | S자 코스의 정적 장애물 회피; `LOCAL` 경로 요구 |
-| 4 | 초록불에 교차로 통과하면서 다음 T자 주차 후보를 LiDAR로 미리 평가 |
-| 5-L/R → 6-L/R | 비어 있는 T자 후보 선택, 주차 확인 정차 후 같은 쪽 탈출 경로 사용 |
+| 4 | 신호 허가 후 교차로 통과, 끝에서 정차 후 설정된 T자 후진 RDDF 요청 |
+| 5-L/R → 6-L/R | 설정된 T자 분기의 후진 주차, 확인 정차 후 같은 쪽 전진 탈출 RDDF 사용 |
 | 7 | 가상 벽 앞에서 대기, 좌회전 화살표 신호에 RDDF 좌회전 |
 | 8 | RDDF 이름의 `dynamic` 조건에서 DBSCAN 군집이 전방 RDDF 주행 폭과 겹치면 E-Stop, 사라지면 RDDF 추종 재개 |
-| 9 | RDDF 추종과 함께 다음 평행주차 좌우 후보를 미리 평가 |
+| 9 | RDDF 추종 후 설정된 평행주차 좌우 분기로 연결 |
 | 10-L/R → 11-L/R | 선택한 평행주차 RDDF를 구간별 전진·후진으로 추종하고 전환점에서 정차 후 기어 변경 |
 | 12 | 카메라의 좌·우 `DOWN/X`에서 `DOWN`인 쪽을 선택하고, 실패 시 config fallback으로 13번 연결 |
 | 13-L/R | 선택된 RDDF 끝에서 마지막 방향으로 3 m 연장한 경로까지 추종한 뒤 정지 |
 
-주차 좌우 분기는 `missions.json`에서 선택한다. T자·평행주차 모두 기록된 RDDF를 사용하고,
+주차 좌우 분기는 `missions.json` 또는 `t_parking_side` / `parallel_parking_side` launch
+인자로 선택한다. T자·평행주차 모두 기록된 RDDF를 사용하고,
 평행주차의 전환 누적거리는 `parallel_parking_profiles`에 기록한다. 차량이 전환점에서
-실제로 멈춘 뒤 새 방향과 요청 ID의 RDDF를 받는다. 후진 명령 인터페이스와 Arduino
-0속도 기어 전환 인터록은 연결됐지만 실차 방향 검증은 필요하다.
+실제로 멈춘 뒤 새 방향과 요청 ID의 RDDF를 받는다. 상위 후진 명령 인터페이스는 연결됐다.
+다만 조사한 Mando main 펌웨어에는 ROS Gear 처리가 없었다. 이 브랜치에 포함한
+[차량별 펌웨어 수정본](src/sensor_drivers/arduino/firmware/ROS_GEAR_INTEGRATION.md)과
+빌드·회귀시험 결과, 실차에서 남은 확인 사항은 [통합 점검 기록](docs/integration_review_20260918.md)을
+참고한다. 보드 탑재본을 확인하지 않고 후진까지 통합 완료됐다고 간주하지 않는다.
 
 ### 규정과 전이 처리
 
@@ -385,7 +397,7 @@ roslaunch state_manager mission.launch start_rviz:=true
 ### 공통 환경 준비
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 source /opt/ros/noetic/setup.bash
 catkin_make
 source devel/setup.bash

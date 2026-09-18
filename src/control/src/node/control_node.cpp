@@ -127,6 +127,7 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
   config.maximum_control_dt_sec =
       requiredParam<double>(node, "maximum_control_dt_sec");
   config.wheelbase_m = requiredParam<double>(node, "wheelbase_m");
+  node.getParam("/vehicle/wheelbase_m", config.wheelbase_m);
   config.rear_axle_to_pose_reference_m =
       requiredParam<double>(node, "rear_axle_to_pose_reference_m");
   config.curvature_preview_distance_m =
@@ -486,8 +487,7 @@ class ControlNode {
       publishSafe("NOT_IN_ROS_MODE");
       return;
     }
-    if (!std::isfinite(latest_feedback_->speed) ||
-        latest_feedback_->speed < 0.0) {
+    if (!std::isfinite(latest_feedback_->speed)) {
       publishSafe("INVALID_SPEED_FEEDBACK");
       return;
     }
@@ -509,7 +509,8 @@ class ControlNode {
         point.x = -point.x;
       }
     }
-    const double speed_mps = latest_feedback_->speed;
+    // Localization consumes signed body velocity; lateral gain uses magnitude.
+    const double speed_mps = std::abs(latest_feedback_->speed);
 
     double requested_steering_angle_rad = 0.0;
     PurePursuitResult pure_pursuit;
@@ -579,7 +580,9 @@ class ControlNode {
     publishState("ACTIVE_" + config_.controller_mode);
 
     if (pure_pursuit.valid) {
-      publishPoint(pure_pursuit.target, lookahead_publisher_);
+      Point2d body_target = pure_pursuit.target;
+      if (latest_mission_->direction < 0) body_target.x = -body_target.x;
+      publishPoint(body_target, lookahead_publisher_);
     }
     if (stanley.valid) {
       publishPoint(stanley.target, stanley_projection_publisher_);

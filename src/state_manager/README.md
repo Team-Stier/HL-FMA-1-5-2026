@@ -143,6 +143,11 @@ RDDF match로 어느 행이든 직접 시작하며 앞 행의 완료 기록을 �
 원본 LiDAR로 주차 공간 후보를 계산하지 않는다. T자·평행주차 모두 설정된 분기의
 RDDF만으로 동작한다.
 
+전체 launch 또는 `mission.launch`의 `t_parking_side:=left/right`,
+`parallel_parking_side:=left/right` 인자로 설정 파일을 수정하지 않고 선택할 수도 있다.
+평행주차의 현재 leg 시작/끝 station과 방향은 `MissionState`로 Localization에 전달한다.
+새 메시지 적용 후 관련 노드를 모두 재빌드/재시작해야 한다.
+
 RDDF의 주차 `reverse` 표시는 **시작 차체 방향** 메타데이터다. T 주차는
 4번 끝에서 현재 경로의 정지 명령을 유지한 채 0.5 m/s 이하를 연속 1초 확인한 후
 정확한 `5_T-*-in`을 요청한다. 전환된 5번 전체를 `RDDF/REVERSE_ENTRY(-1)`로

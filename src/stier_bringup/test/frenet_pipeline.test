@@ -1,0 +1,36 @@
+<launch>
+  <arg name="course" default="hongik_s"/>
+  <arg name="lookahead" default="2"/>
+  <arg name="rddf_directory" default="$(eval find('mando_localization') + ('/rddf' if arg('course') == 'yongin' else '/test_data/' + arg('course') + '_rddf'))"/>
+  <arg name="mission_config" default="$(eval find('state_manager') + ('/config/missions.json' if arg('course') == 'yongin' else '/config/missions_hongik.json'))"/>
+  <rosparam command="load" file="$(find stier_bringup)/config/vehicle.yaml"/>
+  <!-- Real planning/control nodes, synthetic observations; no device driver. -->
+  <group>
+    <remap from="/erp42_serial/drive" to="/parking_contract/drive"/>
+    <include file="$(find state_manager)/launch/mission.launch">
+      <arg name="rddf_directory" value="$(arg rddf_directory)"/>
+      <arg name="config_file" value="$(arg mission_config)"/>
+      <arg name="calibration_file" value=""/>
+      <arg name="start_object_detection" value="false"/>
+      <arg name="start_local_planner" value="true"/>
+      <arg name="start_traffic_light" value="false"/>
+      <arg name="lookahead_m" value="$(arg lookahead)"/>
+    </include>
+  </group>
+  <node pkg="mando_localization" type="rddf_tracker_node.py" name="frenet_tracker" output="screen" required="true">
+    <rosparam command="load" file="$(find mando_localization)/config/localization_interfaces.yaml"/>
+    <rosparam command="load" file="$(find mando_localization)/config/rddf_tracking.yaml" ns="tracking"/>
+    <param name="package_directory" value="$(find mando_localization)"/>
+    <param name="initialization/rddf_directory" value="$(arg rddf_directory)"/>
+  </node>
+  <test test-name="frenet_pipeline_$(arg course)_ld$(arg lookahead)" pkg="stier_bringup"
+        type="frenet_pipeline_ros.py" time-limit="100">
+    <param name="before" value="2" type="str"/>
+    <param name="after" value="4" type="str"/>
+    <param name="start_remaining_m" value="3.0"/>
+    <param name="course" value="$(arg course)"/>
+    <param name="lookahead" value="$(arg lookahead)"/>
+    <param name="rddf_directory" value="$(arg rddf_directory)"/>
+    <param name="mission_config" value="$(arg mission_config)"/>
+  </test>
+</launch>

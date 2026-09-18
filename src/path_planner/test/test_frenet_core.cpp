@@ -91,6 +91,18 @@ void blockedRoadAndReset() {
   const auto clear = planner.plan(ref, input(ref)); CHECK(clear.valid);
   for (const auto& p : clear.path) CHECK(std::abs(p.d) < 1e-6);
 }
+void shortClearTailCanReachLocalizationHandoff() {
+  const auto ref = reference(); lp::FrenetPlanner planner(config());
+  auto value = input(ref);
+  value.pose = {19.25, 0., 0.};
+  value.projection = ref.projectPose(value.pose, 0., ref.length(), 2.);
+  const auto result = planner.plan(ref, value);
+  CHECK(result.valid); CHECK(result.reason == "RDDF_CLEAR");
+  CHECK(result.path.size() >= 2);
+  CHECK(std::abs(result.path.back().x-20.) < 1e-8);
+  value.obstacles = {obstacle(19.8, 0., .4, 4.)};
+  CHECK(!planner.plan(ref, value).valid);
+}
 void invalidConfigAndHeading() {
   auto cfg = config(); cfg.vehicle.width_m = 0;
   std::string reason; CHECK(!lp::isValid(cfg, &reason));
@@ -179,10 +191,11 @@ int main() {
       {"clear_curved_reference", clearCurvedReferenceKeepsVertices},
       {"hongik_obstacle_regression", hongikObstacleRegression},
       {"blocked_reset", blockedRoadAndReset}, {"config_heading", invalidConfigAndHeading},
+      {"short_tail_handoff", shortClearTailCanReachLocalizationHandoff},
       {"same_station", sameStationComparison}, {"jump", discontinuityDetection}};
   for (const auto& test : tests) {
     try { test.second(); std::cout << "PASS " << test.first << '\n'; }
     catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
   }
-  std::cout << "8 scenario groups passed; no ROS or hardware started\n";
+  std::cout << "9 scenario groups passed; no ROS or hardware started\n";
 }

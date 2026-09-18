@@ -127,12 +127,16 @@ GPS를 활성화한 세션에서 GPS가 끊긴 경우에는 아래 예산을 적
 quaternion, twist 검사와 Supervisor `valid` 조건은 계속 적용합니다.
 
 ```text
-seconds_since_absolute <= 200.0 s
+seconds_since_absolute <= 2000.0 s
 AND
 dead_reckoning_distance <= 1000.0 m
 ```
 
 두 값이 모두 한계 이하여야 `DEAD_RECKONING`, `valid=true`입니다. 어느 하나라도 한계를 초과하면 `FAULT`, `valid=false`입니다. 정확히 경계값과 같을 때는 아직 허용하고 `>`에서 차단합니다.
+
+위 수치는 통합 커밋 `fe4ef2f`의 현재 설정을 설명합니다. 2,000초(약 33분) 또는
+1,000 m 동안 누적 오차가 충분히 작다는 보장은 아닙니다. 2026-09-18 통합 점검에서는
+실행 설정을 변경하지 않고, 200초로 남아 있던 문서/설정 회귀시험만 실제 값에 맞췄습니다.
 
 ## Output Gate의 이중 안전 검사
 

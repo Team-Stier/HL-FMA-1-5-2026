@@ -126,6 +126,11 @@ class PathPlannerNode {
                         0.0);
     private_node_.param("vehicle/rear_axle_to_center_m",
                         planner_config_.vehicle.rear_axle_to_center_m, 0.0);
+    node_.getParam("/vehicle/length_m", planner_config_.vehicle.length_m);
+    node_.getParam("/vehicle/width_m", planner_config_.vehicle.width_m);
+    node_.getParam("/vehicle/wheelbase_m", planner_config_.vehicle.wheelbase_m);
+    node_.getParam("/vehicle/rear_axle_to_center_m",
+                   planner_config_.vehicle.rear_axle_to_center_m);
     private_node_.param("planner/horizon_m", planner_config_.horizon_m,
                         planner_config_.horizon_m);
     private_node_.param("planner/sample_interval_m",
@@ -414,6 +419,15 @@ class PathPlannerNode {
       nav_msgs::Path empty;
       empty.header = status.header;
       visualization_publisher_.publish(empty);
+      // Selector consumes /path/local, not the visualization or this status.
+      // Replace the previously accepted candidate when this cycle is invalid.
+      planning_interfaces::PlannedPath invalid;
+      invalid.header = status.header;
+      invalid.decision_id = status.decision_id;
+      invalid.route_name = status.route_name;
+      invalid.direction = status.direction;
+      invalid.path = empty;
+      path_publisher_.publish(invalid);
     }
   }
 
@@ -487,9 +501,11 @@ class PathPlannerNode {
             std::chrono::steady_clock::now() - started)
             .count();
     if (elapsed_ms > planning_deadline_ms_) {
-      resetPlanner();
-      publishStatus(now, false, "PLANNING_DEADLINE_EXCEEDED");
-      return;
+      // A timing-budget warning must not discard an otherwise valid path or
+      // erase its continuity history. Preserve the original planning stamp:
+      // Selector still rejects a result that actually became stale.
+      ROS_WARN_THROTTLE(2.0, "Frenet planning took %.2f ms (warning budget %.2f ms)",
+                        elapsed_ms, planning_deadline_ms_);
     }
     if (!result.valid || result.path.size() < 3U) {
       resetPlanner();

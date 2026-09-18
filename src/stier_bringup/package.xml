@@ -15,4 +15,9 @@
   <exec_depend>state_manager</exec_depend>
 
   <test_depend>roslaunch</test_depend>
+  <test_depend>rostest</test_depend>
+  <test_depend>rospy</test_depend>
+  <test_depend>control</test_depend>
+  <test_depend>selector</test_depend>
+  <test_depend>path_planner</test_depend>
 </package>

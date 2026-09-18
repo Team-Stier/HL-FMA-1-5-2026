@@ -4,9 +4,11 @@ BROON T870 Arduino의 차량별 펌웨어와 분리해, PC에서 실행하는 ro
 `ros/`에 둔다. Catkin 패키지 이름은 기존 명령과 호환되도록
 `vehicle_interface_bringup`을 유지한다.
 
-하얀차·검은차 Arduino 펌웨어는 이 디렉터리로 옮기거나 수정하지 않는다. 두 펌웨어 모두
-동일한 ROS 메시지와 직렬 연결을 사용하며, 한 ROS Master에서는 실제 연결한 차량의
-Arduino 하나만 실행한다.
+이 시험 패키지 브랜치는 별도 Mando clone 없이 사용할 수 있도록 하얀차·검은차 펌웨어의
+검증된 수정본을 [`firmware/`](firmware/ROS_GEAR_INTEGRATION.md)에 함께 제공한다.
+원래 Mando 저장소는 수정하지 않으며, Catkin 패키지 `ros/`와 펌웨어 소스는 분리한다.
+두 펌웨어 모두 동일한 ROS 메시지와 직렬 연결을 사용하며, 한 ROS Master에서는
+실제 연결한 차량의 Arduino 하나만 실행한다.
 
 ## 포트 설정
 

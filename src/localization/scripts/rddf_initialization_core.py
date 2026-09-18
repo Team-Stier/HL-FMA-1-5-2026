@@ -140,6 +140,7 @@ class RddfRouteMap:
         array.setflags(write=False)
         self.routes[name] = array
         segment_ids = []
+        station = 0.0
         for index in range(len(points) if closed else len(points) - 1):
             start = array[index]
             with np.errstate(over="ignore", invalid="ignore"):
@@ -156,7 +157,9 @@ class RddfRouteMap:
             self._segments.append({
                 "route": name, "index": indices[index], "start": start,
                 "vector": vector, "yaw": yaw,
+                "start_s": station, "end_s": station + math.sqrt(length_squared),
             })
+            station += math.sqrt(length_squared)
         if not segment_ids:
             raise ValueError("RDDF route has no nonzero segment: {}".format(path))
         self._adjacent.extend(zip(segment_ids[:-1], segment_ids[1:]))
@@ -175,7 +178,7 @@ class RddfRouteMap:
         return east, north
 
     def match(self, x, y, max_distance_m, ambiguity_distance_m=0.5, route_name=None,
-              segment_index=None):
+              segment_index=None, station_range=None, direction=None):
         """Snap to a segment, rejecting similarly close incompatible branches.
 
         Candidates within ``best distance + ambiguity_distance_m`` compete, up
@@ -206,6 +209,13 @@ class RddfRouteMap:
             vector_to_query = np.asarray((x, y)) - self._starts
             fractions = np.clip(np.sum(vector_to_query * self._vectors, axis=1)
                                 / self._length_squared, 0.0, 1.0)
+            if station_range is not None:
+                starts = np.asarray([s['start_s'] for s in self._segments])
+                lengths = np.sqrt(self._length_squared)
+                lower, upper = station_range
+                fractions = np.clip(fractions,
+                    np.clip((lower-starts)/lengths, 0., 1.),
+                    np.clip((upper-starts)/lengths, 0., 1.))
             projected = self._starts + fractions[:, None] * self._vectors
             distances = np.linalg.norm(projected - (x, y), axis=1)
         if not np.isfinite(distances).all():
@@ -215,13 +225,23 @@ class RddfRouteMap:
                                  distances, np.inf)
         if segment_index is not None:
             distances = np.where(np.arange(len(distances)) == selected[0], distances, np.inf)
+        if station_range is not None:
+            # At a reversal, the adjacent leg shares the endpoint but must not
+            # participate. Otherwise yaw chooses the opposite travel segment.
+            distances = np.where([
+                s['end_s'] > lower + 1e-8 and s['start_s'] < upper - 1e-8
+                for s in self._segments], distances, np.inf)
         best_id = int(np.argmin(distances))
 
         def result_for(segment_id):
             segment = self._segments[segment_id]
+            yaw = segment['yaw']
+            if direction is not None:
+                yaw = math.atan2(direction * segment['vector'][1],
+                                 direction * segment['vector'][0])
             return {"route": segment["route"], "index": int(segment["index"]),
                     "x": float(projected[segment_id, 0]), "y": float(projected[segment_id, 1]),
-                    "yaw": float(segment["yaw"]), "distance": float(distances[segment_id]),
+                    "yaw": float(yaw), "distance": float(distances[segment_id]),
                     "fraction": float(fractions[segment_id])}
 
         best = result_for(best_id)

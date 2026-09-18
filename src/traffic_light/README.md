@@ -37,7 +37,7 @@ GPU를 쓸 경우 PC의 CUDA 환경과 맞는 PyTorch를 먼저 설치한다. �
 Ultralytics 버전을 설치한다.
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 python3 -m pip install -r src/traffic_light/requirements.txt
 source /opt/ros/noetic/setup.bash
 rosdep install --from-paths src --ignore-src -r -y
@@ -58,7 +58,7 @@ rostopic hz /usb_cam/image_raw
 강제한다. 기본 `auto`는 Ultralytics의 자동 선택을 사용한다.
 
 ```bash
-cd ~/HL-FMA2026-stier
+cd ~/HL-FMA2026-0917
 source /opt/ros/noetic/setup.bash
 source devel/setup.bash
 roslaunch traffic_light traffic_light.launch device:=0

@@ -14,9 +14,9 @@
 - 동일 s 위치의 이전 경로와 비교하는 비용 및 기준선 복귀.
 - pose·map/odom 불연속 감지와 명시적 `reset()` 함수.
 
-이번 분리는 기존 여섯 C++ 코어와 여덟 header를 그대로 복사한다. 파일별 SHA-256은
-배포 스냅샷의 `handoff_manifest.json`에 기록한다. ROS wrapper를 복사하지 않았다는 이유로
-wrapper가 하던 안전 검사가 자동으로 이 라이브러리에 들어온 것은 아니다.
+이 패키지는 분리 배포한 C++ 코어에 현재 통합용 ROS wrapper를 포함한다.
+분리 당시 `handoff_manifest.json`은 원본 스냅샷 기록이며 이후 통합 수정본의 checksum이
+아니다. ROS wrapper의 입력 검사가 C++ 라이브러리 안에 자동으로 포함되는 것은 아니다.
 
 ## 호출 계약
 
@@ -36,7 +36,7 @@ wrapper가 하던 안전 검사가 자동으로 이 라이브러리에 들어온
 
 공개 구조체는 저수준 수치 API다. 호출자는 finite/range/frame/stamp/크기/센서 유효성 검사를
 해야 한다. ROS wrapper에서 수행하던 ObjectInfo 음수 count, 원래 stamp·receipt timeout,
-치수 교정 flag, TF 시각/유효성, 계산 deadline 검사가 코어에 자동 포함돼 있지는 않다.
+치수 교정 flag, TF 시각/유효성 검사가 코어에 자동 포함돼 있지는 않다.
 
 ## 통합자가 보존해야 하는 안전 동작
 
@@ -47,8 +47,11 @@ wrapper가 하던 안전 검사가 자동으로 이 라이브러리에 들어온
 - 측정 시각의 장애물을 연속적인 odom에 보관한다. 최종 후보를 **최신 유효 map→odom 변환의
   역변환**으로 odom에 옮기고 `pathHasCollision`으로 최신 관측과 다시 검사한다.
   이 library는 TF를 조회하지 않는다. map 충돌 검사와 이 재검사를 혼동하지 않는다.
-- 최종 `sweptPathWithinReferenceBounds`와 시간 초과/출력 finite 검사를 유지한다.
-  계산 deadline은 외부에서 측정해 초과 결과를 버린다. 한 번의 `plan`이 스스로 wall-clock deadline에 중단되지는 않는다.
+- 최종 `sweptPathWithinReferenceBounds`와 입력/출력 시각·finite 검사를 유지한다.
+  현재 ROS wrapper의 `planning_deadline_ms`는 **계산 시간 경고 기준**이다. 이 수치를
+  넘었다는 이유만으로 유효 경로를 버리거나 이전 계획 상태를 초기화하지 않는다.
+  계획 시작 시각은 그대로 발행하므로 실제로 오래된 후보는 Selector의 기존 유효시간
+  검사에서 제외된다. 한 번의 `plan`이 wall-clock deadline에 중단되는 것은 아니다.
 - `valid=false`/빈 경로가 실제 제어기 정지로 이어지는지, 경로 소비자 timeout 및 MCU watchdog/E-stop은 별도 검증한다.
 - GPS가 천천히 치우치거나 연석이 가려지면 점프 검사/관측만으로 해결되지 않는다.
   측량·위치·추종·치수 오차를 고려한 주행 가능 경계와 여유거리 관리가 필요하다.
@@ -81,9 +84,11 @@ source devel/setup.bash
 roslaunch path_planner path_planner.launch
 ```
 
-기본 설정은 `calibration_required: true`라 경로를 발행하지 않는다. 실측 차량 치수와
-RDDF 좌우 주행 가능 경계를 `config/path_planner.yaml`에 넣고 검증한 뒤
-`roslaunch path_planner path_planner.launch calibration_required:=false`로 실행한다.
+현재 통합 설정은 `calibration_required: false`다. 공통 `/vehicle` 파라미터가 있으면
+개별 `vehicle/*` 설정보다 우선한다. 현재 RDDF 좌우 폭 각 2 m는 설정값이며 실측 연석
+경계라는 뜻은 아니다. 실제 시험 전 치수와 주행 가능한 경계를 확인해야 한다.
+실패 시 빈 `/path/local` 후보도 발행하여 Selector가 이전 경로를 계속 사용하지 않도록 한다.
+관련 통합 수정 및 검증 범위는 [통합 점검 기록](../../docs/integration_review_20260918.md)을 참고한다.
 
 ### Localization/RDDF 없이 운동장에서 Frenet 실차 시험
 

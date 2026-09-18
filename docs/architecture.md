@@ -1,6 +1,6 @@
 # 시스템 아키텍처와 패키지 사용 현황
 
-이 문서는 2026-09-17 현재 소스와 `stier_bringup/full_vehicle.launch`의 실제 연결을 기준으로
+이 문서는 2026-09-18 로컬 수정본과 `stier_bringup/full_vehicle.launch`의 실제 연결을 기준으로
 작성했다. 첫 번째 그림은 센서부터 차량까지 실제 전체 흐름을 생략 없이 표시한다.
 사용하지 않는 카메라 차로 추종은 그림에 넣지 않는다.
 
@@ -28,7 +28,7 @@ flowchart TB
 
     subgraph INPUT[1. 센서 · 경로 입력과 1차 처리]
         direction LR
-        CAMERA[USB Camera]:::sensor --> TL[Traffic Light<br/>launch 기본 OFF]:::gated
+        CAMERA[USB Camera]:::sensor --> TL[Traffic Light<br/>launch 기본 ON]:::active
         MOTION[GPS · IMU · Encoder]:::sensor --> LOC[Localization<br/>Odometry · valid · TF<br/>RDDF match · 순서 연속성]:::active
         LIDAR[2D LiDAR]:::sensor --> OD[Object Detection<br/>RDDF ROI + DBSCAN]:::active
         FILES[RDDF CSV]:::sensor --> LOADER[RDDF 파일 로더<br/>rddf_route_provider]:::active
@@ -37,7 +37,7 @@ flowchart TB
     subgraph PLAN[2. 미션 판단 · 경로 후보 생성]
         direction LR
         SM[State Manager<br/>Mission FSM · mode/branch 요청<br/>RDDF 구간 절단]:::active
-        LP[Path Planner<br/>Frenet 정적장애물 회피<br/>실측 보정 전 출력 잠금]:::gated
+        LP[Path Planner<br/>Frenet 정적장애물 회피<br/>3번 구간 LOCAL 요청 시 실행]:::active
     end
 
     SEL[3. Selector<br/>요청 모드에 맞는 경로 하나 선택]:::active
@@ -117,11 +117,14 @@ Selector는 경로를 새로 만들거나 RDDF를 자르지 않는다. State Man
 | 출력 | `/path/local` | `planning_interfaces/PlannedPath` | Selector용 지역 회피 경로 |
 | 출력 | `/path_planner/status` | `planning_interfaces/PathStatus` | 준비 여부와 거부 이유 |
 
-실측 차량 길이·폭·축거·후륜축 기준점과 RDDF 좌우 주행 가능 폭은 저장소에 없다.
-따라서 `path_planner/config/path_planner.yaml`의 `calibration_required` 기본값은 `true`다.
-이 상태에서도 모든 ROS 연결과 진단은 동작하지만 `/path/local`은 발행하지 않는다.
-실측값을 채우고 검증한 뒤 `local_planner_calibration_required:=false` launch 인자를
-명시해야 한다.
+현재 `path_planner/config/path_planner.yaml`의 `calibration_required`는 `false`다.
+통합 launch에서는 `/vehicle`의 차체 길이·폭·축거·후륜축 기준점을 Planner와 Control에
+공통 적용한다. 좌우 주행 가능 폭은 현재 각 2 m인 설정값이며 실제 연석 측정값이 아니다.
+`calibration_required:=true`일 때는 실패 상태와 빈 경로로 기존 후보를 무효화한다.
+
+평행주차에서는 MissionState의 `parking_leg_start_s/parking_leg_target_s/direction`을
+Localization에 전달하여 되짚는 전·후진 구간 중 현재 leg에만 위치를 투영한다.
+전체 경로의 단일 방향으로 차량 yaw를 판단하지 않는다.
 
 PP 연결은 다음 코드·설정으로 확인된다.
 
@@ -141,7 +144,7 @@ PP 연결은 다음 코드·설정으로 확인된다.
 | 1 | RDDF | 경사로 정지구역 3초 정차 |
 | 2, 4 | RDDF | GREEN과 정지선으로 직진 허가 결정 |
 | 3 | LOCAL | DBSCAN 장애물을 사용한 Frenet 정적 회피 경로 필수 |
-| 5, 6 | RDDF | 설정된 T자 `in`은 전체 후진, 5→6 전환 때 2초 정차 후 `out`은 전체 전진 |
+| 5, 6 | RDDF | 설정된 T자 `in`은 전체 후진, 5→6 전환 때 `parking_hold_s`(현재 1초) 정차 후 `out`은 전체 전진 |
 | 7 | RDDF | LEFT_ARROW와 정지선으로 좌회전 허가 결정 |
 | 8 | RDDF | DBSCAN이 stale/invalid면 일반 정지, 군집이 설정한 lookahead·경로 반폭 안에 있으면 E-Stop 요청(차량 치수 불필요) |
 | 9 | RDDF | `parking_branches.parallel`에 설정된 평행주차 분기로 접근 |
@@ -201,5 +204,6 @@ roslaunch state_manager mission.launch start_traffic_light:=true traffic_light_d
 
 1. `path_planner.yaml`에 실측 차량 치수와 3구간 좌우 주행 가능 폭을 기록한다.
 2. rosbag 또는 정지 차량에서 빈 관측·단일 장애물·전폭 차단 시나리오를 검증한다.
-3. 계산 시간이 `planning_deadline_ms` 안에 들어오는지 실차 PC에서 확인한다.
+3. 실차 PC에서 계산 시간을 측정한다. `planning_deadline_ms` 초과는 경고이며, 실제 경로
+   시각에 대한 Selector 유효시간 검사는 유지된다.
 4. Traffic Light 의존성을 설치하고 카메라 노출·GPU/CPU 지연·confidence를 측정한다.

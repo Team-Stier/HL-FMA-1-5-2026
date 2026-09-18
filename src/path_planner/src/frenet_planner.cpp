@@ -246,7 +246,7 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
   const double start_s = input.projection.s;
   const double end_s = std::min(reference.length(), start_s + config_.horizon_m);
   const double available_horizon = end_s - start_s;
-  if (available_horizon < std::max(1.0, 4.0 * config_.sample_interval_m)) {
+  if (available_horizon <= 1.0e-6) {
     result.reason = "insufficient reference path ahead";
     return result;
   }
@@ -280,6 +280,10 @@ PlannerResult FrenetPlanner::plan(const ReferencePath& reference,
       return result;
     }
     result.path.clear();
+  }
+  if (available_horizon < std::max(1.0, 4.0 * config_.sample_interval_m)) {
+    result.reason = "insufficient reference path for avoidance";
+    return result;
   }
   const double start_longitudinal_scale =
       1.0 - start_reference.curvature * input.projection.d;

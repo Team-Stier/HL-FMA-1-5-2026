@@ -36,6 +36,9 @@
   <arg name="start_control" default="true"/>
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
+  <arg name="lookahead_m" default=""/>
+  <arg name="t_parking_side" default=""/>
+  <arg name="parallel_parking_side" default=""/>
   <arg name="start_rviz" default="false"/>
 
   <include file="$(find sensor_bringup)/launch/sensors.launch">
@@ -78,6 +81,9 @@
     <arg name="start_control" value="$(arg start_control)"/>
     <arg name="lateral_controller" value="$(arg lateral_controller)"/>
     <arg name="control_calibration_required" value="$(arg control_calibration_required)"/>
+    <arg name="lookahead_m" value="$(arg lookahead_m)"/>
+    <arg name="t_parking_side" value="$(arg t_parking_side)"/>
+    <arg name="parallel_parking_side" value="$(arg parallel_parking_side)"/>
     <!-- Use one RViz process for the complete system. -->
     <arg name="start_rviz" value="$(arg start_rviz)"/>
   </include>

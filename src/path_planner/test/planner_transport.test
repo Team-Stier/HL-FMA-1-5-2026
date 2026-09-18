@@ -1,0 +1,18 @@
+<launch>
+  <arg name="planning_deadline_ms" default="80.0"/>
+  <arg name="test_case" default="normal"/>
+  <group ns="planner_contract">
+    <remap from="/route/map" to="/planner_contract/map"/>
+    <remap from="/mission/state" to="/planner_contract/mission"/>
+    <remap from="/molit/localization/odometry" to="/planner_contract/odom"/>
+    <remap from="/dbscan_clusters" to="/planner_contract/clusters"/>
+    <remap from="/path/local" to="/planner_contract/path"/>
+    <remap from="/path_planner/status" to="/planner_contract/status"/>
+    <remap from="/path/local_visualization" to="/planner_contract/visualization"/>
+    <include file="$(find path_planner)/launch/path_planner.launch"/>
+    <param name="path_planner/planning_deadline_ms" value="$(arg planning_deadline_ms)" type="double"/>
+  </group>
+  <test test-name="planner_transport_$(arg test_case)" pkg="path_planner" type="planner_transport_ros.py" time-limit="30">
+    <param name="test_case" value="$(arg test_case)"/>
+  </test>
+</launch>

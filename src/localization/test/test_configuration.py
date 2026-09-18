@@ -321,7 +321,9 @@ class ConfigurationContractTest(unittest.TestCase):
             30.0,
             policy["absolute_sources"]["max_global_consistency_distance_m"],
         )
-        self.assertEqual(200.0, policy["dead_reckoning"]["max_duration_sec"])
+        # Pin the deployed config from fe4ef2f; this does not certify that the
+        # team's 2000 s outage budget is suitable for the competition course.
+        self.assertEqual(2000.0, policy["dead_reckoning"]["max_duration_sec"])
         self.assertEqual(1000.0, policy["dead_reckoning"]["max_distance_m"])
         self.assertEqual("first_exceeded", policy["dead_reckoning"]["limit_policy"])
         self.assertFalse(policy["output_gate"]["publish_last_pose_when_invalid"])

@@ -83,5 +83,27 @@ TEST(PurePursuit, RejectsNonFiniteRuntimeInput) {
                    .valid);
 }
 
+TEST(PurePursuit, CircleTargetMustBeAfterNearestProjection) {
+  auto config = t870Config();
+  config.lookahead_min_m = config.lookahead_max_m = 1.0;
+  // Old prefix enters the circle at (0.5,+sqrt(.75)), but the
+  // downstream target is (sqrt(.75),-0.5).
+  const auto result = computePurePursuit(
+      {{.5, 2.}, {.5, 0.}, {0., 0.}, {.5, -.5}, {3., -.5}},
+      .5, 0., config);
+  ASSERT_TRUE(result.valid);
+  EXPECT_NEAR(result.target.x, std::sqrt(.75), 1e-9);
+  EXPECT_NEAR(result.target.y, -.5, 1e-9);
+  EXPECT_LT(result.steering_angle_rad, 0.0);
+}
+
+TEST(PurePursuit, ShortParkingLegRemainsTrackableInsideLookahead) {
+  auto config = t870Config();
+  config.lookahead_min_m = config.lookahead_max_m = 2.0;
+  const auto result = computePurePursuit({{0.,0.}, {.3,.1}}, -.3, 0., config);
+  ASSERT_TRUE(result.valid);
+  EXPECT_NEAR(result.target.x, .3, 1e-9);
+}
+
 }  // namespace
 }  // namespace stier_control

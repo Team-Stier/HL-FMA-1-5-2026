@@ -3,12 +3,18 @@
        default="$(find control)/config/t870_path_tracking.yaml"/>
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="calibration_required" default="false"/>
+  <!-- Empty keeps the YAML's adaptive settings. A number pins both bounds. -->
+  <arg name="lookahead_m" default=""/>
 
   <rosparam command="load" file="$(arg config)"/>
   <param name="control_node/lateral_controller"
          value="$(arg lateral_controller)"/>
   <param name="control_node/calibration_required"
          value="$(arg calibration_required)"/>
+  <group if="$(eval arg('lookahead_m') != '')">
+    <param name="control_node/lookahead_min_m" value="$(arg lookahead_m)" type="double"/>
+    <param name="control_node/lookahead_max_m" value="$(arg lookahead_m)" type="double"/>
+  </group>
 
   <node respawn="true" respawn_delay="3.0" pkg="control"
         type="control_node"

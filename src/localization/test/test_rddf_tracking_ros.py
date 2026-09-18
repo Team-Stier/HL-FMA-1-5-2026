@@ -65,6 +65,12 @@ class PublicTopicTest(unittest.TestCase):
             validity.publish(Bool(valid))
 
         self.assertFalse(await_reason('NO_GLOBAL').matched)
+        # Before acquisition, a far-away pose cannot choose a route.
+        far = await_reason('TOO_FAR', lambda: publish(point=(1e6, 1e6)))
+        self.assertFalse(far.matched)
+        self.assertEqual(far.route_name, '')
+        self.assertEqual(far.segment_index, -1)
+        self.assertTrue(far.has_nearest)
         matched = await_reason('MATCHED', publish)
         self.assertEqual(matched.route_name, expected)
         self.assertTrue(matched.has_nearest)
@@ -74,13 +80,20 @@ class PublicTopicTest(unittest.TestCase):
         for reason, publisher in [
                 ('LOCALIZATION_INVALID', lambda: publish(valid=False)),
                 ('FRAME_MISMATCH', lambda: publish(frame='odom')),
-                ('STALE_GLOBAL', lambda: publish(age=2.)),
-                ('TOO_FAR', lambda: publish(point=(1e6, 1e6)))]:
+                ('STALE_GLOBAL', lambda: publish(age=2.))]:
             message = await_reason(reason, publisher)
             self.assertFalse(message.matched)
             self.assertEqual(message.route_name, '')
             self.assertEqual(message.segment_index, -1)
-            self.assertEqual(message.has_nearest, reason == 'TOO_FAR')
+            self.assertFalse(message.has_nearest)
+        # After acquisition, deployed behavior retains route identity even
+        # off-route. This is not an assertion that the pose is drivable.
+        off_route = await_reason('MATCHED_OFF_ROUTE',
+                                 lambda: publish(point=(1e6, 1e6)),
+                                 source=matched.source_route_name)
+        self.assertTrue(off_route.matched)
+        self.assertTrue(off_route.has_nearest)
+        self.assertGreater(off_route.nearest.distance_m, 1000.)
         await_reason('MATCHED', publish)
         self.assertFalse(await_reason('STALE_GLOBAL').has_nearest)
         # Cross-route teleporting belongs to startup/unit tests. Once this

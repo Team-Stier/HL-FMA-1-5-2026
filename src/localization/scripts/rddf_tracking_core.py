@@ -90,6 +90,7 @@ class RddfTracker:
         self.active_progress = None
         self.requested_successor = None
         self.initialized_source = None
+        self.parking_leg = None
 
     def _observe_time(self, now):
         if self.last_now is not None and now < self.last_now:
@@ -98,6 +99,7 @@ class RddfTracker:
             self.active_progress = None
             self.requested_successor = None
             self.initialized_source = None
+            self.parking_leg = None
         self.last_now = now
 
     def update_pose(self, x, y, stamp, received, frame_id, yaw=None):
@@ -116,6 +118,17 @@ class RddfTracker:
             self.active_source = None
             self.active_progress = None
         self.requested_successor = requested
+
+    def update_parking_leg(self, source, index, start_s, end_s, direction):
+        """Mission owns gear choice; Localization still owns XY projection.
+
+        Keep the last accepted leg during a transient WAIT_INPUT. This is a
+        route/leg identity, not an alternative localization measurement.
+        """
+        if self._section(source) not in (10, 11):
+            self.parking_leg = None
+        elif index >= 0 and 0.0 <= start_s < end_s and direction in (-1, 1):
+            self.parking_leg = (source, (start_s, end_s), direction)
 
     @staticmethod
     def _section(name):
@@ -282,8 +295,11 @@ class RddfTracker:
         return None
 
     def _tracked_match(self, x, y, yaw):
+        leg = self.parking_leg
+        options = ({'station_range': leg[1], 'direction': leg[2]}
+                   if leg and leg[0] == self.active_source else {})
         active = self.route_map.match(x, y, self.maximum, self.margin,
-                                      route_name=self.active_source)
+                                      route_name=self.active_source, **options)
         raw_progress = self._progress(active)
         rolled_back = (self.active_progress is not None
                        and raw_progress+self.rollback_segments < self.active_progress)

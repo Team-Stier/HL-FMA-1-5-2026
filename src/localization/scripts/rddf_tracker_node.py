@@ -11,6 +11,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool, String
 from mando_localization.msg import RddfCandidate, RddfMatch
+from planning_interfaces.msg import MissionState
 from rddf_initialization_core import RddfRouteMap
 from rddf_tracking_core import RddfTracker
 
@@ -67,6 +68,8 @@ class RddfTrackerNode:
                              self.successor_callback, queue_size=1),
             rospy.Subscriber('/mando_localization/internal/initialization/status', String,
                              self.initialization_callback, queue_size=1),
+            rospy.Subscriber('/mission/state', MissionState,
+                             self.mission_callback, queue_size=1),
         ]
         self.timer = rospy.Timer(rospy.Duration(1.0/rate), self.publish, reset=True)
 
@@ -96,6 +99,12 @@ class RddfTrackerNode:
     def successor_callback(self, message):
         with self.lock:
             self.tracker.update_successor_request(message.data)
+
+    def mission_callback(self, message):
+        with self.lock:
+            self.tracker.update_parking_leg(message.route_name,
+                message.parking_leg_index, message.parking_leg_start_s,
+                message.parking_leg_target_s, message.direction)
 
     def initialization_callback(self, message):
         try:

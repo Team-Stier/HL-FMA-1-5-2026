@@ -6,6 +6,8 @@ frame_id: map
 planning_rate_hz: 5.0
 input_timeout_s: 0.5
 future_tolerance_s: 0.05
+# Legacy parameter name: timing warning only, not a stop/empty-path threshold.
+# Input freshness and Selector path timestamp checks remain authoritative.
 planning_deadline_ms: 80.0
 
 # RDDF 중심선부터 실제 주행 가능 경계까지의 거리다. 차체 반폭을 뺀 값이 아니다.

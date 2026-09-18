@@ -6,6 +6,8 @@
     <rosparam command="load" file="$(find mando_localization)/config/relocalization_policy.yaml"/>
     <rosparam command="load" file="$(find mando_localization)/config/gps_reference.yaml"/>
     <param name="initialization/required" value="true"/>
+    <!-- This fixture tests expiry in seconds, independently of field tuning. -->
+    <param name="dead_reckoning/max_duration_sec" value="2.0"/>
   </node>
   <node pkg="mando_localization" type="localization_output_gate_node"
         name="startup_test_output_gate" output="screen">

@@ -1,0 +1,15 @@
+<launch>
+  <!-- No serial driver. Every input and actuator output is isolated. -->
+  <group ns="control_contract">
+    <remap from="/path/final" to="/control_contract/path"/>
+    <remap from="/mission/state" to="/control_contract/mission"/>
+    <remap from="/molit/localization/odometry" to="/control_contract/odom"/>
+    <remap from="/erp42_serial/feedback" to="/control_contract/feedback"/>
+    <remap from="/erp42_serial/drive" to="/control_contract/drive"/>
+    <remap from="/vehicle/emergency_stop" to="/control_contract/estop"/>
+    <remap from="/control/state" to="/control_contract/state"/>
+    <remap from="/control/lookahead_point" to="/control_contract/target"/>
+    <include file="$(find control)/launch/control.launch"/>
+  </group>
+  <test test-name="control_contract" pkg="control" type="control_contract_ros.py" time-limit="40"/>
+</launch>

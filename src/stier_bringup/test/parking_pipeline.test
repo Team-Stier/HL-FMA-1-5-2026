@@ -1,0 +1,37 @@
+<launch>
+  <arg name="kind" default="parallel"/>
+  <arg name="side" default="left"/>
+  <arg name="course" default="yongin"/>
+  <arg name="rddf_directory" default="$(eval find('mando_localization') + ('/rddf' if arg('course') == 'yongin' else '/test_data/' + arg('course') + '_rddf'))"/>
+  <arg name="mission_config" default="$(eval find('state_manager') + ('/config/missions.json' if arg('course') == 'yongin' else '/config/missions_hongik.json'))"/>
+  <!-- Real nodes, synthetic localization/feedback, no drivers or actuators. -->
+  <rosparam command="load" file="$(find stier_bringup)/config/vehicle.yaml"/>
+  <group>
+    <remap from="/erp42_serial/drive" to="/parking_contract/drive"/>
+    <include file="$(find state_manager)/launch/mission.launch">
+      <arg name="rddf_directory" value="$(arg rddf_directory)"/>
+      <arg name="config_file" value="$(arg mission_config)"/>
+      <arg name="calibration_file" value=""/>
+      <arg name="start_object_detection" value="false"/>
+      <arg name="start_local_planner" value="false"/>
+      <arg name="start_traffic_light" value="false"/>
+      <arg name="t_parking_side" value="$(arg side)"/>
+      <arg name="parallel_parking_side" value="$(arg side)"/>
+      <arg name="lookahead_m" value="2"/>
+    </include>
+  </group>
+  <node pkg="mando_localization" type="rddf_tracker_node.py" name="parking_tracker" output="screen" required="true">
+    <rosparam command="load" file="$(find mando_localization)/config/localization_interfaces.yaml"/>
+    <rosparam command="load" file="$(find mando_localization)/config/rddf_tracking.yaml" ns="tracking"/>
+    <param name="package_directory" value="$(find mando_localization)"/>
+    <param name="initialization/rddf_directory" value="$(arg rddf_directory)"/>
+  </node>
+  <test test-name="parking_pipeline_$(arg course)_$(arg kind)_$(arg side)" pkg="stier_bringup"
+        type="parking_pipeline_ros.py" time-limit="100">
+    <param name="kind" value="$(arg kind)"/>
+    <param name="side" value="$(arg side)"/>
+    <param name="course" value="$(arg course)"/>
+    <param name="rddf_directory" value="$(arg rddf_directory)"/>
+    <param name="mission_config" value="$(arg mission_config)"/>
+  </test>
+</launch>

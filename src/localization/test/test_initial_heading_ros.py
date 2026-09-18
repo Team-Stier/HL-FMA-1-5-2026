@@ -72,7 +72,12 @@ class InitialHeadingRosTest(unittest.TestCase):
                 ready.publish(Bool(t < 15.))
                 msg = SerialFeedBack()
                 msg.alive, alive = alive, (alive+1) % 256
-                msg.speed = 2. if 4. <= t < 15. else 0.
+                # Establish straight motion before the 4 s turn. Feedback has
+                # no Header and yaw-hold uses causal receipt history; starting
+                # both on the same tick makes the first gyro sample depend on
+                # cross-topic delivery order. The encoder-yaw-hold ROS test
+                # separately covers the stop/restart boundary itself.
+                msg.speed = 2. if 3. <= t < 15. else 0.
                 msg.encoder = 100 if msg.speed else 0
                 feedback.publish(msg)
             if tick == 120:
@@ -118,7 +123,8 @@ class InitialHeadingRosTest(unittest.TestCase):
                 a, b = normalized[key], calibrated[key]
                 self.assertEqual(a.header.stamp, b.header.stamp)
                 self.assertEqual(a.header.frame_id, b.header.frame_id)
-                self.assertEqual(a.angular_velocity, b.angular_velocity)
+                self.assertEqual(a.angular_velocity, b.angular_velocity,
+                                 'IMU relative stamp %.3f' % (a.header.stamp.to_sec()-EPOCH))
                 self.assertEqual(a.linear_acceleration, b.linear_acceleration)
                 self.assertEqual(a.angular_velocity_covariance, b.angular_velocity_covariance)
                 self.assertEqual(a.linear_acceleration_covariance, b.linear_acceleration_covariance)

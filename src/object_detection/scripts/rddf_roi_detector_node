@@ -270,6 +270,11 @@ class RddfRoiDetector:
             _positive("self_filter/left_extent_m",
                       rospy.get_param("~roi/self_filter/left_extent_m")),
         )
+        shared = rospy.get_param('/vehicle', {})
+        if all(key in shared for key in ('rear_m', 'front_m', 'width_m')):
+            # Same two-centimetre self-return margin as the standalone YAML.
+            self.vehicle_extents = (shared['rear_m']+.02, shared['front_m']+.02,
+                                    shared['width_m']/2+.02, shared['width_m']/2+.02)
         dbscan([], self.eps, self.min_samples)
         if self.max_depth < 0:
             raise ValueError("max_successor_depth must be nonnegative")

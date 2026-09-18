@@ -63,6 +63,10 @@ target_link_libraries(control_node
 add_dependencies(control_node ${catkin_EXPORTED_TARGETS})
 
 if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  catkin_install_python(PROGRAMS test/control_contract_ros.py
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+  add_rostest(test/control_contract.test DEPENDENCIES control_node)
   catkin_add_gtest(test_pure_pursuit
     test/unit/test_main.cpp
     test/unit/test_pure_pursuit.cpp

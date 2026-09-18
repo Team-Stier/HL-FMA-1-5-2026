@@ -64,6 +64,12 @@ install(FILES
 install(FILES README.md DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  catkin_install_python(PROGRAMS test/planner_transport_ros.py
+    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+  add_rostest(test/planner_transport.test DEPENDENCIES path_planner_node)
+  add_rostest(test/planner_transport.test ARGS planning_deadline_ms:=0.000001 test_case:=slow_budget
+    DEPENDENCIES path_planner_node)
   add_executable(path_planner_core_test test/test_frenet_core.cpp)
   target_compile_features(path_planner_core_test PRIVATE cxx_std_14)
   target_link_libraries(path_planner_core_test PRIVATE path_planner_core)
