@@ -326,7 +326,14 @@ class MissionRuntime:
             for i in range(1, steps+1):
                 t = i / steps
                 points.append((a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), a[2]+t*yaw_delta))
-        return points
+        distinct = [points[0]]
+        for point in points[1:]:
+            previous = distinct[-1]
+            if math.hypot(point[0]-previous[0], point[1]-previous[1]) <= 1e-6:
+                distinct[-1] = point
+            else:
+                distinct.append(point)
+        return distinct
 
     def step(self, now, data, selector_status=None):
         if selector_status is not None:
