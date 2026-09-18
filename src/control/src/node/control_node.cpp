@@ -80,8 +80,6 @@ struct NodeConfig {
   double rear_axle_to_pose_reference_m{0.0};
   double curvature_preview_distance_m{0.0};
   double maximum_steering_rate_rad_per_sec{0.0};
-  int parking_target_speed_kph{0};
-  int parallel_parking_target_speed_kph{0};
   FixedSpeedConfig fixed_speed;
   PurePursuitConfig pure_pursuit;
   StanleyConfig stanley;
@@ -138,23 +136,10 @@ NodeConfig loadConfig(const ros::NodeHandle& node) {
 
   config.fixed_speed.target_speed_kph =
       requiredParam<int>(node, "target_speed_kph");
-  config.parking_target_speed_kph =
-      requiredParam<int>(node, "parking_target_speed_kph");
-  config.parallel_parking_target_speed_kph =
-      requiredParam<int>(node, "parallel_parking_target_speed_kph");
   config.fixed_speed.maximum_speed_kph =
       requiredParam<int>(node, "maximum_speed_kph");
   if (!isValidFixedSpeedConfig(config.fixed_speed)) {
     throw std::runtime_error("invalid T870 target/maximum speed parameters");
-  }
-  if (config.parking_target_speed_kph <= 0 ||
-      config.parking_target_speed_kph > config.fixed_speed.maximum_speed_kph) {
-    throw std::runtime_error("invalid parking target speed parameter");
-  }
-  if (config.parallel_parking_target_speed_kph <= 0 ||
-      config.parallel_parking_target_speed_kph >
-          config.fixed_speed.maximum_speed_kph) {
-    throw std::runtime_error("invalid parallel parking target speed parameter");
   }
 
   config.pure_pursuit.wheelbase_m = config.wheelbase_m;
@@ -577,13 +562,8 @@ class ControlNode {
     const uint16_t mission_limit_kph = static_cast<uint16_t>(std::floor(
         std::min(limited_kph,
                  static_cast<double>(std::numeric_limits<uint16_t>::max()))));
-    uint16_t target_speed_kph = fixed_speed_controller_.commandKph();
-    if (latest_mission_->mission == "T_PARKING") {
-      target_speed_kph = config_.parking_target_speed_kph;
-    } else if (latest_mission_->mission == "PARALLEL_PARKING") {
-      target_speed_kph = config_.parallel_parking_target_speed_kph;
-    }
-    command.KPH = std::min(target_speed_kph, mission_limit_kph);
+    command.KPH = std::min(fixed_speed_controller_.commandKph(),
+                           mission_limit_kph);
     if (command.KPH == 0U) {
       publishSafe("MISSION_SPEED_LIMIT_ZERO");
       return;

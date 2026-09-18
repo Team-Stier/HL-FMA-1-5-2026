@@ -42,8 +42,6 @@ control_node:
   # 출력 램프는 Uno 하위제어기가 담당한다. Uno는 ROS 목표를 15 km/h로 클램프하고
   # 별도 실측속도 ceiling도 15 km/h로 적용한다.
   target_speed_kph: 8
-  parking_target_speed_kph: 6
-  parallel_parking_target_speed_kph: 5
   maximum_speed_kph: 10
   require_ros_mode: true
 
