@@ -20,6 +20,7 @@ from geometry_msgs.msg import TwistWithCovarianceStamped
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool
 from ublox_msgs.msg import NavPVT
+from mando_localization.msg import RddfMatch
 from mando_localization.srv import SetInitialHeading, SetInitialHeadingResponse
 
 
@@ -33,6 +34,8 @@ class CalibratedIMU:
             self.core.initial_heading = None
         self.heading_transaction = None
         self.p = self.core.p
+        self.rddf_heading_force_routes = set(
+            str(route) for route in rospy.get_param('~rddf_heading_force_routes', []))
         self.topics = rospy.get_param('~topics')
         self.frames = rospy.get_param('~frames')
         for key in ('imu_normalized', 'imu_calibrated', 'gps_navpvt', 'encoder_twist', 'encoder_state'):
@@ -62,6 +65,8 @@ class CalibratedIMU:
                              self.twist_callback, queue_size=100),
             rospy.Subscriber(self.topics['encoder_state'], SerialFeedBack,
                              self.feedback_callback, queue_size=100),
+            rospy.Subscriber(self.topics['current_rddf'], RddfMatch,
+                             self.rddf_callback, queue_size=10),
             rospy.Subscriber(rospy.get_param('~internal_topics/clock_ready'), Bool,
                              self.clock_callback, queue_size=5),
         ]
@@ -77,6 +82,15 @@ class CalibratedIMU:
         if self.p['direction_mode'] == 'forward_start':
             rospy.logwarn('Initial yaw alignment assumes forward straight motion until calibrated; '
                           'Gear is not a verified direction signal.')
+
+    def rddf_callback(self, message):
+        with self.lock:
+            if (message.matched and message.route_name in self.rddf_heading_force_routes
+                    and self._mount()):
+                if self.core.force_body_yaw(message.nearest.heading_rad, self.mount):
+                    rospy.loginfo_throttle(
+                        1.0, 'Forced yaw to RDDF %s: %.3f deg',
+                        message.route_name, math.degrees(message.nearest.heading_rad))
 
     def set_initial_heading(self, request):
         with self.lock:

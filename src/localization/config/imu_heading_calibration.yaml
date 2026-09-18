@@ -9,6 +9,10 @@ encoder_yaw_hold:
   history_max_samples: 500
   # Header 없는 feedback의 PC 수신 시각 이력 상한. 시간 역행 시 초기화한다.
 
+# LiDAR 기반 미션 진입 전에는 현재 RDDF 접선이 정상 차량 방향이다.
+# 별도 속도·오차 gate 없이 해당 구간에서 보정 IMU yaw를 즉시 맞춘다.
+rddf_heading_force_routes: ["2", "7"]
+
 imu_heading_calibration:
   enabled: true
   # GNSS 기반 yaw 보정 사용 여부. false이면 새 보정을 수행하지 않는다.
