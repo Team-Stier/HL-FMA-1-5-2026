@@ -3,6 +3,7 @@
 import hashlib
 import os
 
+import cv2
 import rospy
 import rospkg
 from cv_bridge import CvBridge, CvBridgeError
@@ -43,6 +44,8 @@ class TrafficLightNode:
             YOLO(model_path), confidence=confidence,
             image_size=image_size, device=device)
         self.bridge = CvBridge()
+        self.image_pub = rospy.Publisher(
+            '/perception/traffic_light/image_annotated', Image, queue_size=1)
         self.route_name_override = str(rospy.get_param('~route_name', '')).strip()
         self.active_route = ''
 
@@ -90,6 +93,7 @@ class TrafficLightNode:
         self.lane_pub.publish(lanes)
 
     def _image_callback(self, msg):
+        frame, detections = None, []
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             detections = self.detector.detect(frame)
@@ -98,6 +102,42 @@ class TrafficLightNode:
             rospy.logerr_throttle(2.0, 'traffic-light inference failed: %s', error)
             decision = FrameDecision('UNKNOWN', 0.0, 'UNKNOWN', 'UNKNOWN', 0.0)
         self._publish(msg.header, decision)
+        # Reuse this inference; visualization must not change signal decisions.
+        if frame is not None and self.image_pub.get_num_connections() > 0:
+            try:
+                annotated = frame.copy()
+                for box in detections:
+                    # OpenCV colors use BGR channel order.
+                    color = {
+                        'red': (0, 0, 255),
+                        'yellow': (0, 255, 255),
+                        'green': (0, 255, 0),
+                        'left_arrow': (0, 255, 0),
+                        'down_arrow': (0, 255, 0),
+                        'x_sign': (0, 0, 255),
+                    }.get(box.class_name, (180, 180, 180))
+                    p1 = (int(box.x_min), int(box.y_min))
+                    p2 = (int(box.x_max), int(box.y_max))
+                    cv2.rectangle(annotated, p1, p2, color, 2)
+                    cv2.putText(annotated,
+                                '%s %.2f' % (box.class_name, box.confidence),
+                                (max(0, p1[0]), max(18, p1[1]-6)),
+                                cv2.FONT_HERSHEY_SIMPLEX, .6, color, 2)
+                cv2.putText(annotated, 'Signal: %s | L: %s R: %s' % (
+                    decision.signal, decision.lane_left, decision.lane_right),
+                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX, .6, (0, 255, 0), 2)
+                # Avoid cv_bridge's OpenCV type-name lookup: pip OpenCV and
+                # Noetic cv_bridge can disagree on CV_8UC3 (type 16).
+                image = Image()
+                image.height, image.width = annotated.shape[:2]
+                image.encoding = 'bgr8'
+                image.is_bigendian = 0
+                image.step = image.width * 3
+                image.data = annotated.tobytes(order='C')
+                image.header = msg.header
+                self.image_pub.publish(image)
+            except (CvBridgeError, cv2.error, ValueError, OverflowError) as error:
+                rospy.logwarn_throttle(2.0, 'traffic visualization failed: %s', error)
         rospy.loginfo_throttle(
             1.0, 'traffic signal=%s %.2f finish=(%s,%s) %.2f route=%s',
             decision.signal, decision.signal_confidence,

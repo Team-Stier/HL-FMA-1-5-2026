@@ -7,9 +7,9 @@ ROS Noetic 패키지다. 학습 데이터셋, 학습 영상, Ultralytics 실행 
 ## 포함 모델
 
 - 파일: `models/traffic_light_7class_best.pt`
-- 원본: `seventh_7class_aug/weights/best.pt`
-- 크기: 5,464,531 bytes
-- SHA-256: `caaf2ab7a3f1aa6500a9907ab1a2044119e3051857d990a54ee0097603e6966f`
+- 원본: 용인 주행 rosbag 파인튜닝 V4 (`traffic_light_7class_finetuned_v4.pt`)
+- 크기: 5,488,147 bytes
+- SHA-256: `b59bafce683edab9e5f52a28ac0ec0398017689b556db61c3c4415f4056cc540`
 - 클래스: `red`, `yellow`, `green`, `left_arrow`, `speed_20`, `down_arrow`, `x_sign`
 
 일반 신호 중 confidence가 가장 높은 검출을 `RED`, `YELLOW`, `GREEN`, `LEFT_ARROW`로
