@@ -36,7 +36,7 @@
   <arg name="start_control" default="true"/>
   <arg name="lateral_controller" default="pure_pursuit"/>
   <arg name="control_calibration_required" default="false"/>
-  <arg name="start_rviz" default="false"/>
+  <arg name="start_rviz" default="true"/>
 
   <include file="$(find sensor_bringup)/launch/sensors.launch">
     <arg name="enable_lidar" value="$(arg enable_lidar)"/>

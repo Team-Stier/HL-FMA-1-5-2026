@@ -10,7 +10,7 @@
   "dynamic_obstacle": {
     "route_token": "dynamic",
     "input_timeout_s": 2.0,
-    "lookahead_m": 2.0,
+    "lookahead_m": 3.0,
     "corridor_half_width_m": 0.65,
     "maximum_cluster_extent_m": 5.0,
     "maximum_cluster_count": 100,

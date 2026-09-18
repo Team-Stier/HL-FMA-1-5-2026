@@ -486,8 +486,7 @@ class ControlNode {
       publishSafe("NOT_IN_ROS_MODE");
       return;
     }
-    if (!std::isfinite(latest_feedback_->speed) ||
-        latest_feedback_->speed < 0.0) {
+    if (!std::isfinite(latest_feedback_->speed)) {
       publishSafe("INVALID_SPEED_FEEDBACK");
       return;
     }
@@ -509,7 +508,8 @@ class ControlNode {
         point.x = -point.x;
       }
     }
-    const double speed_mps = latest_feedback_->speed;
+    // Gear selects travel direction; lateral controllers need speed magnitude.
+    const double speed_mps = std::abs(latest_feedback_->speed);
 
     double requested_steering_angle_rad = 0.0;
     PurePursuitResult pure_pursuit;
