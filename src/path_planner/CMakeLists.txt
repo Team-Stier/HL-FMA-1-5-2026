@@ -21,7 +21,9 @@ catkin_package(
                  std_msgs std_srvs tf2 tf2_geometry_msgs visualization_msgs
 )
 
-catkin_install_python(PROGRAMS test/frenet_field_test_node.py
+catkin_install_python(PROGRAMS
+  scripts/rddf_offset_planner_node.py
+  test/frenet_field_test_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

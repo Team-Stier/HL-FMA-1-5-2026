@@ -2,13 +2,19 @@
   <arg name="config_file" default="$(find path_planner)/config/path_planner.yaml"/>
   <arg name="calibration_required" default="false"/>
   <arg name="obstacle_topic" default="/dbscan_clusters"/>
+  <arg name="use_rddf_offset" default="true"/>
 
-  <node respawn="true" respawn_delay="3.0" pkg="path_planner"
+  <node unless="$(arg use_rddf_offset)" respawn="true" respawn_delay="3.0" pkg="path_planner"
         type="path_planner_node"
         name="path_planner"
         output="screen">
     <rosparam command="load" file="$(arg config_file)"/>
     <param name="calibration_required" value="$(arg calibration_required)"/>
     <param name="obstacles/topic" value="$(arg obstacle_topic)"/>
+  </node>
+  <node if="$(arg use_rddf_offset)" respawn="true" respawn_delay="3.0"
+        pkg="path_planner" type="rddf_offset_planner_node.py"
+        name="rddf_offset_planner" output="screen">
+    <rosparam command="load" file="$(find path_planner)/config/rddf_offset.yaml"/>
   </node>
 </launch>
