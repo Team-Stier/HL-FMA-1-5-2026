@@ -136,8 +136,7 @@ class MissionEngine:
             raise ValueError("hill_stop_mode must be speed or estop")
         self.rules = dict(RULE_DEFAULTS)
         self.rules.update(self.config.get("rules", {}))
-        # Configuration may be more conservative than the regulations; it may
-        # not shorten mandated stops or relax maximum rollback/deadline values.
+        # Hold and deadline bounds remain fixed.
         for name, value in self.rules.items():
             if name in RULE_DEFAULTS and (not _number(value) or value < 0):
                 if name not in ("front_bumper_offset_m", "rear_axle_offset_m") or not _number(value):

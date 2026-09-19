@@ -110,9 +110,14 @@ class CalibratedIMU:
             if not self.wait_for_rddf or request.transaction_id == 0:
                 return SetInitialHeadingResponse(False, 'DYNAMIC_INITIALIZATION_DISABLED', rospy.Time())
             if self.heading_transaction is not None:
-                okay = signature == self.heading_transaction and self.core.initialized
-                return SetInitialHeadingResponse(okay, 'ALREADY_INITIALIZED',
-                    rospy.Time.from_sec(self.core.initialization_stamp or 0.))
+                if signature == self.heading_transaction:
+                    return SetInitialHeadingResponse(self.core.initialized, 'ALREADY_INITIALIZED',
+                        rospy.Time.from_sec(self.core.initialization_stamp or 0.))
+                if not self._mount() or not self.core.force_body_yaw(request.yaw_rad, self.mount):
+                    return SetInitialHeadingResponse(False, 'WAITING_FOR_FRESH_IMU', rospy.Time())
+                self.heading_transaction = signature
+                return SetInitialHeadingResponse(True, 'RDDF_REINITIALIZED',
+                    rospy.Time.from_sec(self.core.initialization_stamp or now))
             if (self.last_imu_mono is None or time.monotonic()-self.last_imu_mono > self.p["max_imu_age_sec"]):
                 return SetInitialHeadingResponse(False, "WAITING_FOR_FRESH_IMU", rospy.Time())
             if not self._mount() or not self.core.select_initial_heading(
