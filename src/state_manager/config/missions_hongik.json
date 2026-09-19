@@ -37,6 +37,19 @@
     "t": "right",
     "parallel": "left"
   },
+  "t_parking_detection": {
+    "start_s": 58.0,
+    "end_s": 64.0,
+    "entry_s": {
+      "left": 9.26984567863797,
+      "right": 12.034026727058192
+    },
+    "length_m": 1.0,
+    "width_m": 0.6,
+    "blocked_min_points": 5,
+    "clear_max_points": 2,
+    "consecutive_frames": 5
+  },
   "parallel_parking_profiles": {
     "10_parallel-left-in": {
       "initial_direction": 1,

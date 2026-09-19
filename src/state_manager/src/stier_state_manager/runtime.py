@@ -3,6 +3,7 @@ import math
 
 from .geometry import Route, braking_distance, project
 from .mission import MissionEngine
+from .t_parking import TParkingSelector
 
 
 def fresh(stamp, now, timeout=2.0):
@@ -31,6 +32,7 @@ class MissionRuntime:
         self.config = config
         self.engine = MissionEngine(config)
         self.source_routes = dict(routes)
+        self.t_parking_selector = None
         self.routes = self._with_finish_runout(routes, self.engine.rules['finish_runout_m'])
         self.active_route_name = config.get('start_route', '1_right')
         if self.active_route_name not in self.routes:
@@ -338,6 +340,17 @@ class MissionRuntime:
                 distinct.append((b[0] + distance*math.cos(heading),
                                  b[1] + distance*math.sin(heading), b[2]))
         return distinct
+
+    def observe_t_parking(self, observation):
+        if 't_parking_detection' not in self.config or self.active_route.section != 4:
+            return
+        if self.t_parking_selector is None:
+            self.t_parking_selector = TParkingSelector(
+                self.source_routes, self.config['t_parking_detection'])
+        selected = self.t_parking_selector.observe(
+            4, self.progress_s, observation['clusters'] if observation['valid'] else [])
+        if selected is not None:
+            self.engine.branches['t'] = selected
 
     def step(self, now, data, selector_status=None):
         if selector_status is not None:
