@@ -43,9 +43,10 @@ def _best(items: Iterable[Detection]) -> Optional[Detection]:
 def decide_frame(detections: Sequence[Detection], image_width: int) -> FrameDecision:
     """Convert detections into the traffic message consumed by State Manager.
 
-    The highest-confidence traffic class wins. DOWN/X signs are assigned to
-    the left or right finish branch by bounding-box centre. Missing detections
-    remain UNKNOWN; absence is never interpreted as permission.
+    The highest-confidence traffic class wins. The three finish-signal cells
+    are ordered from left to right: DOWN in cell 1 selects the left branch and
+    DOWN in cell 2 selects the right branch. Incomplete detections remain
+    UNKNOWN; absence is never interpreted as permission.
     """
     traffic = _best(item for item in detections if item.class_name in TRAFFIC_CLASSES)
     if traffic is None:
@@ -54,14 +55,17 @@ def decide_frame(detections: Sequence[Detection], image_width: int) -> FrameDeci
         signal = TRAFFIC_CLASSES[traffic.class_name]
         signal_confidence = traffic.confidence
 
-    lane_candidates = [item for item in detections if item.class_name in LANE_CLASSES]
-    split_x = max(0, image_width) * 0.5
-    left = _best(item for item in lane_candidates if item.center_x < split_x)
-    right = _best(item for item in lane_candidates if item.center_x >= split_x)
-    lane_left = LANE_CLASSES[left.class_name] if left else 'UNKNOWN'
-    lane_right = LANE_CLASSES[right.class_name] if right else 'UNKNOWN'
-    observed = [item.confidence for item in (left, right) if item]
-    lane_confidence = min(observed) if observed else 0.0
+    lane_candidates = sorted(
+        (item for item in detections if item.class_name in LANE_CLASSES),
+        key=lambda item: item.center_x)
+    if len(lane_candidates) == 3:
+        left, right = lane_candidates[:2]
+        lane_left = LANE_CLASSES[left.class_name]
+        lane_right = LANE_CLASSES[right.class_name]
+        lane_confidence = min(item.confidence for item in lane_candidates)
+    else:
+        lane_left = lane_right = 'UNKNOWN'
+        lane_confidence = 0.0
 
     return FrameDecision(signal, signal_confidence,
                          lane_left, lane_right, lane_confidence)

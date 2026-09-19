@@ -249,6 +249,13 @@ class MissionTests(unittest.TestCase):
         self.assertFalse(result["stop_requested"])
         self.assertEqual(self.run_at(7, now=1, s=20, at_end=True)["next_route"], "8_dynamic-obstacle")
 
+    def test_traffic_stop_offset_moves_configured_stop(self):
+        snap = self.snap(7, s=8.0)
+        snap["landmarks"]["7"]["stop_offset_m"] = 0.3
+        result = self.engine.update(snap)
+        self.assertAlmostEqual(result["remaining_stop_m"], 1.7)
+        self.assertAlmostEqual(result["virtual_stop"]["stop_line_s"], 9.7)
+
     def test_intersection_stop_penalty_timers_never_force_motion(self):
         for index in range(81):
             now = index / 4.0

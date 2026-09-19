@@ -5,4 +5,4 @@ image_size: 640
 device: auto
 
 # Refuse to start if the tracked model file is changed or corrupted.
-model_sha256: b59bafce683edab9e5f52a28ac0ec0398017689b556db61c3c4415f4056cc540
+model_sha256: 7a26af170cdcf0e2a1dfd74d60d2b3c6d83aca3c0c1ce9d1591f55bba9d76d85

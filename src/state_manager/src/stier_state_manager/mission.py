@@ -19,7 +19,7 @@ RULE_DEFAULTS = {
     "sensor_timeout_s": 0.5,
     "max_update_gap_s": 0.5,
     "parking_stable_observations": 3,
-    "finish_sign_stable_observations": 3,
+    "finish_sign_stable_observations": 1,
     "stop_tolerance_m": 0.2,
     "traffic_tracking_stop_m": 0.5,
     "front_bumper_offset_m": 0.0,
@@ -536,14 +536,14 @@ class MissionEngine:
         entered = state.get("authorized") or "intersection:" + route in self.completed_missions
         permitted = self._fresh(signal, now, route) and signal.get("value") == required
         return {"valid": error is None, "active": not (entered or permitted) or error is not None,
-                "stop_line_s": marks["stop_line_s"] if marks else None,
+                "stop_line_s": (marks["stop_line_s"] - marks.get("stop_offset_m", 0.0)) if marks else None,
                 "required_signal": required,
                 "reason": error or ("CROSSING_AUTHORIZED" if entered else "SIGNAL_PERMITTED" if permitted else "WAIT_" + required)}
 
     def _traffic(self, snap, marks, state, out):
         now, s = snap["now"], snap["s"]
         front_s = s + self.rules["front_bumper_offset_m"]
-        stop = marks["stop_line_s"]
+        stop = marks["stop_line_s"] - marks.get("stop_offset_m", 0.0)
         required = "LEFT_ARROW" if snap["section"] == 7 else "GREEN"
         signal = snap.get("signal", {})
         permitted = self._fresh(signal, now, snap["route"]) and signal.get("value") == required

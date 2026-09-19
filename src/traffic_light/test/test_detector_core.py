@@ -14,17 +14,36 @@ class DetectorDecisionTest(unittest.TestCase):
         self.assertEqual('GREEN', decision.signal)
         self.assertAlmostEqual(0.91, decision.signal_confidence)
 
-    def test_finish_signs_are_assigned_by_image_side(self):
+    def test_first_cell_down_selects_left_branch(self):
         decision = decide_frame([
             Detection('down_arrow', 0.94, 10, 5, 30, 30),
-            Detection('x_sign', 0.88, 90, 5, 110, 30),
-            Detection('speed_20', 0.99, 50, 5, 70, 30),
+            Detection('x_sign', 0.88, 50, 5, 70, 30),
+            Detection('x_sign', 0.91, 90, 5, 110, 30),
         ], image_width=120)
         self.assertEqual('UNKNOWN', decision.signal)
         self.assertEqual(0.0, decision.signal_confidence)
         self.assertEqual('DOWN', decision.lane_left)
         self.assertEqual('X', decision.lane_right)
         self.assertAlmostEqual(0.88, decision.lane_confidence)
+
+    def test_second_cell_down_selects_right_branch(self):
+        decision = decide_frame([
+            Detection('x_sign', 0.92, 10, 5, 30, 30),
+            Detection('down_arrow', 0.95, 50, 5, 70, 30),
+            Detection('x_sign', 0.90, 90, 5, 110, 30),
+        ], image_width=120)
+        self.assertEqual('X', decision.lane_left)
+        self.assertEqual('DOWN', decision.lane_right)
+        self.assertAlmostEqual(0.90, decision.lane_confidence)
+
+    def test_incomplete_finish_sign_is_unknown(self):
+        decision = decide_frame([
+            Detection('down_arrow', 0.94, 10, 5, 30, 30),
+            Detection('x_sign', 0.88, 50, 5, 70, 30),
+        ], image_width=120)
+        self.assertEqual('UNKNOWN', decision.lane_left)
+        self.assertEqual('UNKNOWN', decision.lane_right)
+        self.assertEqual(0.0, decision.lane_confidence)
 
     def test_missing_detection_is_never_permission(self):
         decision = decide_frame([], image_width=640)
