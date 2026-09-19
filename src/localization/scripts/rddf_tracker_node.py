@@ -58,6 +58,7 @@ class RddfTrackerNode:
         self.tracker = RddfTracker(routes, rospy.get_param('~frames/map'), **config)
         self.lock = threading.Lock()
         self.pose_stamp = rospy.Time()
+        self.initialization_ready = False
         topics = rospy.get_param('~topics')
         self.publisher = rospy.Publisher(topics['current_rddf'], RddfMatch, queue_size=1, latch=False)
         self.subscribers = [
@@ -105,7 +106,14 @@ class RddfTrackerNode:
         if not isinstance(status, dict):
             return
         with self.lock:
-            # Only resolve initial acquisition; never pin later route transitions.
+            ready = status.get('ready') is True
+            if ready != self.initialization_ready:
+                self.tracker.active_source = None
+                self.tracker.active_progress = None
+                self.tracker.requested_successor = None
+                self.initialization_ready = ready
+            # Reacquire after initialization; ordinary READY heartbeats do not
+            # pin the route during subsequent driving.
             if self.tracker.active_source is None:
                 source = status.get('route') if status.get('ready') is True else None
                 self.tracker.initialized_source = (

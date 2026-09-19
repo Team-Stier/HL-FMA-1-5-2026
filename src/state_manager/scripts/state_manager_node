@@ -46,6 +46,8 @@ class StateManagerNode:
         self.data, self.routes = {}, {}
         self.runtime, self.map_fingerprint = None, None
         self.active_match_route = ''
+        self.initialization_ready = False
+        self.initialization_route = None
         self.rddf_match = None
         self.map_fault, self.configuration_fault = '', ''
         self.last_decision = None
@@ -77,6 +79,8 @@ class StateManagerNode:
         self.diagnostics_pub = rospy.Publisher('/mission/diagnostics', String, queue_size=1)
         self.successor_pub = rospy.Publisher('/mission/rddf_successor', String, queue_size=1)
         self.subscribers = [
+            rospy.Subscriber('/mando_localization/internal/initialization/status', String,
+                             self.on_initialization, queue_size=1),
             rospy.Subscriber('/route/map', RouteMap, self.on_route_map, queue_size=1),
             rospy.Subscriber('/molit/localization/odometry', Odometry, self.on_odom, queue_size=1),
             rospy.Subscriber('/molit/localization/valid', Bool, self.on_localization_valid, queue_size=1),
@@ -188,6 +192,23 @@ class StateManagerNode:
                 'stamp': self.clock_now(), 'state': str(msg.data).strip()
             }
 
+    def on_initialization(self, msg):
+        status = json.loads(msg.data)
+        with self.lock:
+            ready = status.get('ready') is True
+            if ready == self.initialization_ready:
+                return
+            self.initialization_ready = ready
+            self.runtime = None
+            self.active_match_route = ''
+            self.rddf_match = None
+            self.last_decision = None
+            for key in ('rddf_match', 'selector_status', 'prefetch_status'):
+                self.data.pop(key, None)
+            if ready:
+                self.start_route = status['route']
+                self.initialization_route = status['route']
+
     def on_current_rddf(self, msg):
         with self.lock:
             now = self.clock_now()
@@ -233,6 +254,9 @@ class StateManagerNode:
                 not 0 <= now - match.get('pose_stamp', 0) <= timeout):
             return
         route_name = match['route']
+        selected_route = getattr(self, 'initialization_route', None)
+        if selected_route is not None and route_name != selected_route:
+            return
         route = self.routes.get(route_name)
         segment_index = match['segment_index']
         if route is None or not 0 <= segment_index < len(route.points) - 1:
@@ -252,6 +276,7 @@ class StateManagerNode:
             # The first independently matched RDDF gets a new command epoch.
             self.runtime.decision_id = secrets.randbits(48) or 1
         self.runtime.activate_route(route_name, initial_s)
+        self.initialization_route = None
         self.runtime.active_source_routes = tuple(match.get('active_routes', ()))
         self.active_match_route = route_name
         self.last_decision = None
