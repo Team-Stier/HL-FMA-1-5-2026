@@ -334,6 +334,7 @@ class StateManagerNode:
             self.data['clusters'] = observation
             if self.runtime is not None:
                 self.runtime.observe_t_parking(observation)
+                self.runtime.observe_parallel_parking(observation)
 
     def confident(self, value):
         return math.isfinite(value) and self.config.get('min_confidence', .8) <= value <= 1.0

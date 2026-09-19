@@ -4,11 +4,12 @@ import math
 
 
 class TParkingSelector:
-    def __init__(self, routes, config):
+    def __init__(self, routes, config, section=4, route_prefix="5_T-"):
         self.config = config
+        self.section = section
         self.rois = {}
         for side, distance in config['entry_s'].items():
-            route = routes['5_T-' + side + '-in']
+            route = routes[route_prefix + side + '-in']
             x, y, _ = route.pose_at(distance)
             index = bisect.bisect_right(route.s, distance) - 1
             a, b = route.points[index:index + 2]
@@ -23,7 +24,7 @@ class TParkingSelector:
             return self.selected
         candidate = None
         config = self.config
-        if section == 4 and config['start_s'] <= distance <= config['end_s']:
+        if section == self.section and config['start_s'] <= distance <= config['end_s']:
             counts = {}
             for side, (x, y, cosine, sine) in self.rois.items():
                 counts[side] = sum(

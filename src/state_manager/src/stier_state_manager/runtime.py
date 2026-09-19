@@ -33,6 +33,7 @@ class MissionRuntime:
         self.engine = MissionEngine(config)
         self.source_routes = dict(routes)
         self.t_parking_selector = None
+        self.parallel_parking_selector = None
         self.routes = self._with_finish_runout(routes, self.engine.rules['finish_runout_m'])
         self.active_route_name = config.get('start_route', '1_right')
         if self.active_route_name not in self.routes:
@@ -351,6 +352,18 @@ class MissionRuntime:
             4, self.progress_s, observation['clusters'] if observation['valid'] else [])
         if selected is not None:
             self.engine.branches['t'] = selected
+
+    def observe_parallel_parking(self, observation):
+        if 'parallel_parking_detection' not in self.config or self.active_route.section != 9:
+            return
+        if self.parallel_parking_selector is None:
+            self.parallel_parking_selector = TParkingSelector(
+                self.source_routes, self.config['parallel_parking_detection'],
+                section=9, route_prefix='10_parallel-')
+        selected = self.parallel_parking_selector.observe(
+            9, self.progress_s, observation['clusters'] if observation['valid'] else [])
+        if selected is not None:
+            self.engine.branches['parallel'] = selected
 
     def step(self, now, data, selector_status=None):
         if selector_status is not None:
