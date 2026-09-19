@@ -11,6 +11,7 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from calibrated_imu_core import GnssSample, HeadingCalibration, quaternion
+from rddf_initialization_core import RddfRouteMap
 
 import rospy
 import tf2_ros
@@ -39,6 +40,18 @@ class CalibratedIMU:
                 '~rddf_heading_force_on_entry_routes', []))
         self.last_rddf_route = None
         self.forced_rddf_entry_routes = set()
+        self.rddf_heading_force_after_s = rospy.get_param('~rddf_heading_force_after_s', {})
+        self.rddf_progress_distances = {}
+        if self.rddf_heading_force_after_s:
+            directory = Path(rospy.get_param('~initialization/rddf_directory'))
+            root = Path(rospy.get_param('~package_directory'))
+            routes = RddfRouteMap(directory if directory.is_absolute() else root / directory)
+            for name in self.rddf_heading_force_after_s:
+                points = routes.routes[name]
+                distances = [0.0]
+                for a, b in zip(points, points[1:]):
+                    distances.append(distances[-1] + math.hypot(b[0]-a[0], b[1]-a[1]))
+                self.rddf_progress_distances[name] = distances
         self.topics = rospy.get_param('~topics')
         self.frames = rospy.get_param('~frames')
         for key in ('imu_normalized', 'imu_calibrated', 'gps_navpvt', 'encoder_twist', 'encoder_state'):
@@ -92,14 +105,23 @@ class CalibratedIMU:
                 return
             previous = self.last_rddf_route
             self.last_rddf_route = message.route_name
-            if (previous is not None and previous != message.route_name
-                    and message.route_name in self.rddf_heading_force_on_entry_routes
+            force_on_entry = (previous is not None and previous != message.route_name
+                              and message.route_name in self.rddf_heading_force_on_entry_routes)
+            force_after_distance = False
+            source = message.source_route_name
+            if source in self.rddf_heading_force_after_s:
+                distances = self.rddf_progress_distances[source]
+                index = message.segment_index
+                progress = distances[index] + message.nearest.segment_fraction * (
+                    distances[index + 1] - distances[index])
+                force_after_distance = progress > self.rddf_heading_force_after_s[source]
+            if ((force_on_entry or force_after_distance)
                     and message.route_name not in self.forced_rddf_entry_routes
                     and self._mount()):
                 if self.core.force_body_yaw(message.nearest.heading_rad, self.mount):
                     self.forced_rddf_entry_routes.add(message.route_name)
                     rospy.loginfo(
-                        'Forced yaw once on RDDF entry %s -> %s: %.3f deg',
+                        'Forced yaw once on RDDF %s -> %s: %.3f deg',
                         previous,
                         message.route_name, math.degrees(message.nearest.heading_rad))
 

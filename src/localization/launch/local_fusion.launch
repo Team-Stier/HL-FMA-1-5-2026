@@ -43,6 +43,8 @@
           name="$(arg calibrated_imu_node_name)" output="screen" clear_params="true">
       <rosparam command="load" file="$(arg interfaces_config)"/>
       <rosparam command="load" file="$(arg imu_heading_config)"/>
+      <rosparam command="load" file="$(arg rddf_initialization_config)"/>
+      <param name="package_directory" value="$(find mando_localization)"/>
       <param name="initialization/required" value="$(arg start_rddf_initialization)"/>
       <rosparam if="$(arg initialize_heading)" command="load" file="$(arg initial_heading_config)"/>
     </node>
