@@ -504,7 +504,9 @@ class StateManagerNode:
         diagnostics['traffic_wait_elapsed_s'] = decision.get('traffic_wait_elapsed_s', 0.0)
         diagnostics['traffic_force_departure_s'] = decision.get('traffic_force_departure_s')
         self.diagnostics_pub.publish(String(data=json.dumps(diagnostics, ensure_ascii=False, sort_keys=True, allow_nan=False)))
-        self.marker_pub.publish(to_marker_array(marker_specs(self.routes, decision, self.data.get('odom'), self.config), state.header.stamp))
+        self.marker_pub.publish(to_marker_array(marker_specs(
+            self.routes, decision, self.data.get('odom'), self.config,
+            self.data.get('clusters')), state.header.stamp))
 
     def tick(self, _event):
         with self.lock:

@@ -34,7 +34,7 @@
   "start_branch": "left",
   "finish_fallback_branch": "right",
   "parking_branches": {
-    "t": "right",
+    "t": "left",
     "parallel": "left"
   },
   "t_parking_detection": {

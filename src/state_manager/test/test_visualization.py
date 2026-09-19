@@ -65,6 +65,24 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual((hill_start['kind'], hill_start['color']), ('CUBE', (.95, .95, .95, 1)))
         self.assertEqual((hill_target['kind'], hill_target['color']), ('SPHERE', (1, .55, .05, 1)))
 
+    def test_t_parking_rois_show_cluster_counts_and_occupancy(self):
+        self.routes.update({
+            '5_T-left-in': Route('5_T-left-in', [(0, 0, 0), (10, 0, 0)]),
+            '5_T-right-in': Route('5_T-right-in', [(0, 3, 0), (10, 3, 0)]),
+        })
+        self.decision.update(route='4', section=4)
+        config = {'t_parking_detection': {
+            'entry_s': {'left': 5, 'right': 5}, 'length_m': 1, 'width_m': .6,
+            'blocked_min_points': 5, 'clear_max_points': 2}}
+        observation = {'valid': True, 'clusters': [[(5, 0)] * 5, [(5, 3)] * 2]}
+        specs = marker_specs(self.routes, self.decision, config=config,
+                             cluster_observation=observation)
+        labels = {m['key']: m['text'] for m in specs if m['ns'] == 't_parking_roi_labels'}
+        self.assertEqual(labels['left'], 'LEFT SPACE ROI | 5 pts | BLOCKED')
+        self.assertEqual(labels['right'], 'RIGHT SPACE ROI | 2 pts | CLEAR')
+        self.assertEqual(len(next(m for m in specs
+                                  if m['ns'] == 't_parking_clusters')['points']), 7)
+
 
 if __name__ == '__main__':
     unittest.main()

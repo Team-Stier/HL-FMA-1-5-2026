@@ -1,4 +1,5 @@
 """Inspectable RViz marker descriptions; geometry generation needs no ROS."""
+import bisect
 import math
 
 from .mission import hill_target
@@ -13,7 +14,55 @@ COLORS = (
 )
 
 
-def marker_specs(routes, decision, odom=None, config=None):
+def _t_parking_markers(routes, decision, config, cluster_observation):
+    detection = config.get("t_parking_detection")
+    if decision.get("section") != 4 or not detection:
+        return []
+    clusters = (cluster_observation.get("clusters", [])
+                if cluster_observation and cluster_observation.get("valid") else [])
+    points = [(x, y, .20) for cluster in clusters for x, y in cluster]
+    markers = []
+    if points:
+        markers.append({"kind": "POINTS", "ns": "t_parking_clusters", "key": "all",
+                        "points": points, "scale": (.10, .10, 0),
+                        "color": (.75, .75, .75, .85)})
+    for side in ("left", "right"):
+        route = routes["5_T-" + side + "-in"]
+        distance = detection["entry_s"][side]
+        x, y, _ = route.pose_at(distance)
+        index = bisect.bisect_right(route.s, distance) - 1
+        a, b = route.points[index:index + 2]
+        yaw = math.atan2(b[1] - a[1], b[0] - a[0])
+        cosine, sine = math.cos(yaw), math.sin(yaw)
+        length, width = detection["length_m"], detection["width_m"]
+        hits = [(px, py, .24) for px, py, _ in points
+                if abs(cosine * (px - x) + sine * (py - y)) <= length / 2
+                and abs(-sine * (px - x) + cosine * (py - y)) <= width / 2]
+        if len(hits) >= detection["blocked_min_points"]:
+            status, color = "BLOCKED", (1., .12, .12, .85)
+        elif len(hits) <= detection["clear_max_points"]:
+            status, color = "CLEAR", (.15, 1., .25, .75)
+        else:
+            status, color = "UNDECIDED", (1., .75, .1, .85)
+        corners = []
+        for longitudinal, lateral in ((-length/2, -width/2), (length/2, -width/2),
+                                      (length/2, width/2), (-length/2, width/2),
+                                      (-length/2, -width/2)):
+            corners.append((x + cosine*longitudinal - sine*lateral,
+                            y + sine*longitudinal + cosine*lateral, .18))
+        markers.append({"kind": "LINE_STRIP", "ns": "t_parking_roi", "key": side,
+                        "points": corners, "scale": (.08, 0, 0), "color": color})
+        markers.append({"kind": "TEXT_VIEW_FACING", "ns": "t_parking_roi_labels", "key": side,
+                        "position": (x, y, .85), "scale": (0, 0, .25), "color": color,
+                        "text": "%s SPACE ROI | %d pts | %s" %
+                                (side.upper(), len(hits), status)})
+        if hits:
+            markers.append({"kind": "POINTS", "ns": "t_parking_roi_hits", "key": side,
+                            "points": hits, "scale": (.16, .16, 0), "color": color})
+    return markers
+
+
+def marker_specs(routes, decision, odom=None, config=None, cluster_observation=None):
     """Return primitive dictionaries for route, progress, landmarks and state."""
     config, odom = config or {}, odom or {}
     active = decision.get("route", decision.get("route_name", ""))
@@ -125,6 +174,7 @@ def marker_specs(routes, decision, odom=None, config=None):
     markers.append({"kind": "TEXT_VIEW_FACING", "ns": "mission_status", "key": "status",
                     "position": anchor, "scale": (0, 0, .43), "text": text,
                     "color": (1, .35, .25, 1) if stop else (.3, 1, .45, 1)})
+    markers.extend(_t_parking_markers(routes, decision, config, cluster_observation))
     return markers
 
 

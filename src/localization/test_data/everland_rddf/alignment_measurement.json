@@ -1,0 +1,71 @@
+{
+  "gps_topic": "/molit/sensors/gps/fix",
+  "start": {
+    "stamp": 1789831565.6799352,
+    "latitude": 37.2874298,
+    "longitude": 127.218632,
+    "altitude": 106.31700000000001,
+    "status": 0,
+    "position_covariance": [
+      0.0324,
+      0.0,
+      0.0,
+      0.0,
+      0.0324,
+      0.0,
+      0.0,
+      0.0,
+      0.089401
+    ]
+  },
+  "anchor": {
+    "route": "4",
+    "index": 75,
+    "landmark": "signal_2"
+  },
+  "target_drive_distance_m": 10.0,
+  "end": {
+    "stamp": 1789831674.5618823,
+    "latitude": 37.2873656,
+    "longitude": 127.21874039999999,
+    "altitude": 105.534,
+    "status": 0
+  },
+  "alignment": {
+    "distance_m": 11.965195692145013,
+    "yaw_rad": -0.637870931658728,
+    "yaw_deg": -36.54731225812288,
+    "rotation_rad": -0.254973494858728,
+    "anchor_base_xy_m": [
+      29.49755636091454,
+      -24.996217235570054
+    ],
+    "lever_arm_m": [
+      0.65,
+      0.0
+    ],
+    "csv_count": 24,
+    "max_segment_length_error_m": 1.2661332084995536e-06
+  },
+  "parallel_approach_left_translation": {
+    "reference_route": "9",
+    "reference_yaw_rad": 0.9245342856,
+    "left_offset_m": 1.0,
+    "east_offset_m": -0.7983403935664674,
+    "north_offset_m": 0.6022064562923068
+  },
+  "start_route_backward_translation": {
+    "reference_route": "1_left",
+    "reference_yaw_rad": 2.5654206516,
+    "backward_offset_m": 40.0,
+    "east_offset_m": 33.54217403029275,
+    "north_offset_m": -21.792718080165095
+  },
+  "start_route_left_translation": {
+    "reference_route": "1_left",
+    "reference_yaw_rad": 2.5654206516,
+    "left_offset_m": 5.0,
+    "east_offset_m": -2.724089760020637,
+    "north_offset_m": -4.192771753786594
+  }
+}
