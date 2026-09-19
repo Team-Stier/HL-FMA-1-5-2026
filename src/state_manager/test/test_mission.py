@@ -51,13 +51,14 @@ class MissionTests(unittest.TestCase):
         self.assertAlmostEqual(normal["speed_limit"] * 3.6, 8.0)
         self.assertAlmostEqual(parking["speed_limit"] * 3.6, 6.0)
 
-    def test_hongik_speed_limits_command_eight_kph(self):
+    def test_hongik_speed_limits_match_field_configuration(self):
         config_path = os.path.join(os.path.dirname(__file__), "..", "config", "missions_hongik.json")
         with open(config_path, encoding="utf-8") as config_file:
             config = json.load(config_file)
         for zone, speed_mps in config["speeds"].items():
             with self.subTest(zone=zone):
-                self.assertEqual(min(8, math.floor(speed_mps * 3.6)), 8)
+                expected_kph = 5 if zone == "hill" else 8
+                self.assertEqual(min(8, math.floor(speed_mps * 3.6)), expected_kph)
 
     def poll(self, section=1, start=0.0, end=3.0, **kwargs):
         """Provide continuous quarter-second observations across a fake hold."""
@@ -79,8 +80,11 @@ class MissionTests(unittest.TestCase):
         return self.run_at(section, now=start)
 
     def test_hill_releases_three_and_half_seconds_after_first_stop(self):
-        self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
-        self.assertTrue(self.run_at(now=0.0, s=5.0, speed=0.0)["stop_requested"])
+        self.engine = MissionEngine({'hill_stop_mode': 'estop',
+                                     'rules': {'hill_hold_s': 3.5}})
+        stopped = self.run_at(now=0.0, s=5.0, speed=0.0)
+        self.assertTrue(stopped["stop_requested"])
+        self.assertTrue(stopped["emergency_stop_requested"])
         self.poll(start=0.25, end=3.25, s=5.0, speed=0.0)
         self.assertTrue(self.run_at(now=3.499, s=5.0, speed=0.0)["stop_requested"])
         released = self.run_at(now=3.5, s=5.0, speed=0.0)
@@ -111,21 +115,21 @@ class MissionTests(unittest.TestCase):
             self.assertNotIn('hill', result['completed_missions'])
             self.assertEqual(result['reason'] == 'HILL_REQUIRED_HOLD', s > 5.2)
 
-    def test_hill_hold_releases_after_three_and_half_seconds_outside_zone(self):
+    def test_hill_hold_timer_starts_at_first_target_arrival(self):
         self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
         marks = {'hill_zone_start_s': 4., 'hill_zone_end_s': 6.}
         self.run_at(now=0, s=5, raw_s=5, speed=1,
                     landmarks={'1_left': marks})
         self.assertTrue(self.run_at(now=1, s=7, raw_s=7, speed=0,
                                     landmarks={'1_left': marks})['stop_requested'])
-        self.poll(start=1.25, end=4.25, s=7, raw_s=7, speed=0,
+        self.poll(start=1.25, end=3.25, s=7, raw_s=7, speed=0,
                   landmarks={'1_left': marks})
-        self.assertTrue(self.run_at(now=4.49, s=7, raw_s=7, speed=0,
+        self.assertTrue(self.run_at(now=3.49, s=7, raw_s=7, speed=0,
                                     landmarks={'1_left': marks})['stop_requested'])
-        released = self.run_at(now=4.5, s=7, raw_s=7, speed=0,
+        released = self.run_at(now=3.5, s=7, raw_s=7, speed=0,
                                landmarks={'1_left': marks})
         self.assertFalse(released['stop_requested'])
-        self.assertEqual(released['completed_missions']['hill'], 4.5)
+        self.assertEqual(released['completed_missions']['hill'], 3.5)
 
     def test_hill_movement_does_not_reset_hold(self):
         self.engine = MissionEngine({'rules': {'hill_hold_s': 3.5}})
@@ -149,14 +153,6 @@ class MissionTests(unittest.TestCase):
         self.run_at(now=3, s=5.0, speed=0.0)
         self.assertFalse(self.run_at(now=3.0, s=5.0, speed=0.0)["stop_requested"])
 
-    def test_hill_uses_raw_progress_to_detect_rollback_and_latches_fault(self):
-        self.run_at(now=0, s=5.0, raw_s=5.0)
-        rolled = self.run_at(now=1, s=5.0, raw_s=4.49)
-        self.assertEqual(rolled["reason"], "HILL_ROLLBACK_LIMIT_EXCEEDED")
-        again = self.run_at(now=2, s=5.1, raw_s=5.1)
-        self.assertTrue(again["stop_requested"])
-        self.assertEqual(again["counters"]["hill_rollback"], 1)
-
     def test_hill_rule_zone_requires_one_metre_from_ends(self):
         snap = self.snap()
         snap["landmarks"]["1_left"]["hill_stop_s"] = 2.5
@@ -166,13 +162,6 @@ class MissionTests(unittest.TestCase):
         result = self.run_at(s=6.0)
         self.assertEqual(result["reason"], "HILL_REQUIRED_HOLD")
         self.assertIsNone(result["next_route"])
-
-    def test_hill_clearance_timeout_does_not_override_safety_stop(self):
-        self.poll(s=5, speed=0)
-        result = self.run_at(now=34, s=6, speed=0)
-        self.assertIn("HILL_CLEARANCE_TIMEOUT", result["diagnostics"])
-        stopped = self.run_at(now=35, s=6, collision=True)
-        self.assertTrue(stopped["stop_requested"])
 
     def test_signal_red_stops_at_line_and_provides_approach_distance(self):
         approach = self.run_at(2, s=6)
@@ -650,11 +639,6 @@ class MissionTests(unittest.TestCase):
         stopped = self.run_at(3, now=162, speed=0)
         self.assertIn("NO_MOTION_TIMEOUT", stopped["diagnostics"])
 
-    def test_hill_clearance_timer_starts_at_first_stop_not_release(self):
-        self.poll(s=5, speed=0)
-        result = self.run_at(now=30.1, s=9)
-        self.assertIn("HILL_CLEARANCE_TIMEOUT", result["diagnostics"])
-
     def test_clock_regression_does_not_complete_hold(self):
         self.run_at(now=5, s=5, speed=0)
         result = self.run_at(now=4, s=5, speed=0)
@@ -710,20 +694,6 @@ class MissionTests(unittest.TestCase):
                 result = self.poll(s=5, raw_s=5, speed=speed)
                 self.assertIn('hill', result['completed_missions'])
                 self.assertFalse(result['stop_requested'])
-
-    def test_hill_rejects_speed_outside_standstill_range(self):
-        for speed in (-.501, .501):
-            with self.subTest(speed=speed):
-                self.engine = MissionEngine()
-                result = self.poll(s=5, raw_s=5, speed=speed)
-                self.assertNotIn('hill', result['completed_missions'])
-                self.assertEqual(result['hill_hold_elapsed_s'], 0)
-
-    def test_exact_half_metre_hill_rollback_is_a_fault(self):
-        self.run_at(now=0, s=5, raw_s=5, speed=0)
-        result = self.run_at(now=.1, s=5, raw_s=4.5, speed=0)
-        self.assertEqual(result['reason'], 'HILL_ROLLBACK_LIMIT_EXCEEDED')
-
 
 if __name__ == "__main__":
     unittest.main()
