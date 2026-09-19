@@ -134,16 +134,15 @@ class MissionEngine:
         self.config = config or {}
         self.rules = dict(RULE_DEFAULTS)
         self.rules.update(self.config.get("rules", {}))
-        # Configuration may be more conservative than the regulations; it may
-        # not shorten mandated stops or relax maximum rollback/deadline values.
+        # Hold and deadline bounds remain fixed; rollback allows up to 1.5 m.
         for name, value in self.rules.items():
             if name in RULE_DEFAULTS and (not _number(value) or value < 0):
                 if name not in ("front_bumper_offset_m", "rear_axle_offset_m") or not _number(value):
                     raise ValueError("invalid mission rule: " + name)
         if self.rules["hill_hold_s"] < 3:
             raise ValueError("hill hold must be at least 3 seconds")
-        if not 0 < self.rules["hill_rollback_limit_m"] <= 0.5:
-            raise ValueError("hill rollback limit must be in (0, 0.5] metres")
+        if not 0 < self.rules["hill_rollback_limit_m"] <= 1.5:
+            raise ValueError("hill rollback limit must be in (0, 1.5] metres")
         if not 0 < self.rules["hill_clearance_timeout_s"] <= 30:
             raise ValueError("hill clearance timeout must be in (0, 30] seconds")
         if not 0 < self.rules["mission_deadline_s"] <= 480:

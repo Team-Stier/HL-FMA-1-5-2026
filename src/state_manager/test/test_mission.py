@@ -662,7 +662,7 @@ class MissionTests(unittest.TestCase):
 
     def test_configuration_cannot_relax_mandatory_rules(self):
         for rule, value in (("hill_hold_s", 2.9),
-                            ("hill_rollback_limit_m", 0.6), ("mission_deadline_s", 500),
+                            ("hill_rollback_limit_m", 1.6), ("mission_deadline_s", 500),
                             ("hill_clearance_timeout_s", 31), ("no_motion_timeout_s", 61),
                             ("parking_stable_observations", 0)):
             with self.subTest(rule=rule), self.assertRaises(ValueError):

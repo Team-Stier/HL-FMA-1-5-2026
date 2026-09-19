@@ -31,10 +31,10 @@
     "max_speed_mps": null
   },
   "start_branch": "left",
-  "finish_fallback_branch": "left",
+  "finish_fallback_branch": "right",
   "parking_branches": {
-    "t": "left",
-    "parallel": "left"
+    "t": "right",
+    "parallel": "right"
   },
   "parallel_parking_profiles": {
     "10_parallel-left-in": {
@@ -65,7 +65,7 @@
   },
   "rules": {
     "hill_hold_s": 3.5,
-    "standstill_speed_mps": 0.5,
+    "standstill_speed_mps": 1.0,
     "parking_hold_s": 1.0,
     "stop_tolerance_m": 0.2,
     "traffic_tracking_stop_m": 0.8,

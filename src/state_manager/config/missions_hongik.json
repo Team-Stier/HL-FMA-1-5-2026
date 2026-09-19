@@ -30,7 +30,7 @@
     "reaction_s": null,
     "max_speed_mps": null
   },
-  "start_branch": "right",
+  "start_branch": "left",
   "finish_fallback_branch": "right",
   "parking_branches": {
     "t": "right",
