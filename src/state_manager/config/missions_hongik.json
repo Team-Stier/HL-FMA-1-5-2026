@@ -90,7 +90,7 @@
     "finish_runout_m": 3.0,
     "traffic_force_departure_s": 20.0,
     "parking_stable_observations": 3,
-    "finish_sign_stable_observations": 3,
+    "finish_sign_stable_observations": 1,
     "hill_hold_position_tolerance_m": 0.02
   },
   "speeds": {
@@ -128,7 +128,8 @@
       "hill_zone_end_s": 35.9868936586
     },
     "2": {
-      "stop_line_s": 58.0297205375
+      "stop_line_s": 58.0297205375,
+      "stop_offset_m": 0.2
     },
     "3_s-static-obstacle": {},
     "4": {
@@ -149,7 +150,8 @@
       "parking_exit_s": null
     },
     "7": {
-      "stop_line_s": 93.4368413704
+      "stop_line_s": 93.4368413704,
+      "stop_offset_m": 0.3
     },
     "8_dynamic-obstacle": {},
     "9": {}
