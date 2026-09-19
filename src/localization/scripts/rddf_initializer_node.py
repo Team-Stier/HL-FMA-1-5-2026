@@ -121,7 +121,12 @@ class RddfInitializer:
 
     def manual_active_callback(self,m):
         with self.lock:
-            if self.ready or self.started is not None: return
+            if bool(m.data) and self.ready:
+                self.ready = False
+                self.selected = self.started = self.confirm_after = None
+                self.confirm = {'local': [], 'global': []}
+            elif self.started is not None:
+                return
             self.manual=bool(m.data); self.gps_candidates.clear()
             self.state='WAITING_FOR_MANUAL' if self.manual else 'WAITING_FOR_GPS'
             self.reason='RDDF 위에 포인터를 놓고 클릭' if self.manual else 'GPS 대기'
@@ -194,7 +199,7 @@ class RddfInitializer:
         return m
 
     def begin(self,candidate,now):
-        if not self.stationary(now):
+        if candidate.get('source') != 'MANUAL_RDDF' and not self.stationary(now):
             self.state,self.reason='WAITING_FOR_STATIONARY','fresh 엔코더 정지 확인 대기';return
         self.selected=dict(candidate);self.started=time.monotonic();self.state='INITIALIZING';self.reason='IMU와 Local/Global 초기화'
         self.transaction+=1;epoch=self.epoch;transaction=self.transaction
@@ -220,10 +225,13 @@ class RddfInitializer:
                             self.reason='초기화 서비스 준비 대기: '+service
 
             with self.lock:
-                if epoch!=self.epoch or not self.stationary(rospy.Time.now().to_sec()):raise ValueError('초기화 전 차량 상태 변경')
+                if (epoch!=self.epoch or
+                        target.get('source') != 'MANUAL_RDDF' and not self.stationary(rospy.Time.now().to_sec())):
+                    raise ValueError('초기화 전 차량 상태 변경')
             while True:
                 with self.lock:
-                    if epoch!=self.epoch or self.state=='FAULT' or not self.stationary(rospy.Time.now().to_sec()):
+                    if (epoch!=self.epoch or self.state=='FAULT' or
+                            target.get('source') != 'MANUAL_RDDF' and not self.stationary(rospy.Time.now().to_sec())):
                         raise ValueError('초기화 대기 중 정지/시간 조건 변경')
                 result=rospy.ServiceProxy(heading_name,SetInitialHeading)(transaction,target['yaw'],target['source']+':'+target['route']+':'+str(target['index']),self.p['heading_standard_deviation_deg'])
                 if result.accepted:break
@@ -236,7 +244,9 @@ class RddfInitializer:
 
             for name,frame in ((local_name,self.frames['odom']),(global_name,self.frames['map'])):
                 with self.lock:
-                    if epoch!=self.epoch or not self.stationary(rospy.Time.now().to_sec()):raise ValueError('초기화 중 차량 상태 변경')
+                    if (epoch!=self.epoch or
+                            target.get('source') != 'MANUAL_RDDF' and not self.stationary(rospy.Time.now().to_sec())):
+                        raise ValueError('초기화 중 차량 상태 변경')
                 rospy.ServiceProxy(name,SetPose)(self.pose(target,rospy.Time.now(),frame))
             with self.lock:
                 if epoch!=self.epoch:return
@@ -249,7 +259,8 @@ class RddfInitializer:
         with self.lock:
             if self.confirm_after is None or self.ready or self.state=='FAULT':return
             now=rospy.Time.now().to_sec();stamp=m.header.stamp.to_sec()
-            if not self.stationary(now):self.state,self.reason='FAULT','초기화 확인 중 차량 이동';return
+            if self.selected.get('source') != 'MANUAL_RDDF' and not self.stationary(now):
+                self.state,self.reason='FAULT','초기화 확인 중 차량 이동';return
             q=m.pose.pose.orientation;p=m.pose.pose.position
             values=[p.x,p.y,p.z,q.x,q.y,q.z,q.w]+list(m.pose.covariance)
             norm=q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w

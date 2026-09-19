@@ -620,7 +620,7 @@ def run_gui(model, seek, live=False, config=None):
             if status == self.initialization:
                 return
             self.initialization = status
-            locked = status['state'] in ('READY', 'INITIALIZING', 'FAULT')
+            locked = status['state'] in ('INITIALIZING', 'FAULT')
             self.select_button.setEnabled(not locked)
             self.route_choice.setEnabled(not locked and self.selection_active)
             if locked and self.selection_active:
@@ -629,7 +629,7 @@ def run_gui(model, seek, live=False, config=None):
             # here as well can queue stale scenes ahead of current odometry.
 
         def set_selection_active(self, active):
-            if active and self.initialization.get('state') in ('READY', 'INITIALIZING', 'FAULT'):
+            if active and self.initialization.get('state') in ('INITIALIZING', 'FAULT'):
                 self.select_button.setChecked(False)
                 return
             self.selection_active = bool(active)
@@ -737,7 +737,7 @@ def run_gui(model, seek, live=False, config=None):
 
         def submit_manual_pose(self):
             if (not self.selection_active or self.initialization.get('state') in
-                    ('READY', 'INITIALIZING', 'FAULT')):
+                    ('INITIALIZING', 'FAULT')):
                 return
             if not self.preview or not self.preview.get('accepted'):
                 self.selection_message = 'RDDF 선 가까이를 클릭하세요. 겹친 지점은 클릭 후 후보를 고르세요'
