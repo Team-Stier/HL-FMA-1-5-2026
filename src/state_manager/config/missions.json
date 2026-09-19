@@ -5,6 +5,7 @@
   },
   "input_timeout_s": 2.0,
   "min_confidence": 0.8,
+  "hill_stop_mode": "estop",
   "rate_hz": 10,
   "path_lookahead_m": 20.0,
   "dynamic_obstacle": {
@@ -79,7 +80,7 @@
   },
   "speeds": {
     "normal": 2.2222222222222223,
-    "hill": 2.2222222222222223,
+    "hill": 1.5,
     "static": 2.2222222222222223,
     "intersection": 2.2222222222222223,
     "parking": 1.6666666666666667

@@ -429,6 +429,18 @@ class ControlNode {
     // A mission E-Stop stays asserted even if its message later becomes stale.
     // Only a fresh MissionState with this bit cleared may release it.
     if (has_mission_ && latest_mission_->emergency_stop_requested) {
+      if (latest_mission_->mission == "HILL_STOP") {
+        erp42_msgs::DriveCmd command;
+        command.KPH = 0U;
+        command.Deg = 0;
+        command.brake = 0U;
+        command.Gear = erp42_msgs::DriveCmd::GEAR_FORWARD;
+        command.EStop = 1U;
+        command_publisher_.publish(command);
+        previous_steering_angle_rad_ = 0.0;
+        publishState("MISSION_HILL_HOLD");
+        return;
+      }
       publishSafe("MISSION_EMERGENCY_STOP_REQUESTED", true);
       return;
     }
@@ -478,7 +490,10 @@ class ControlNode {
       publishSafe("STALE_FEEDBACK");
       return;
     }
-    if (latest_feedback_->EStop != 0U) {
+    const bool hill_hold_released =
+        latest_mission_->mission == "HILL_STOP" &&
+        latest_mission_->phase == "CLIMBING";
+    if (latest_feedback_->EStop != 0U && !hill_hold_released) {
       // Do not echo feedback EStop back into the command. Otherwise a cleared
       // external request can latch itself through the Arduino feedback loop.
       // Keep the vehicle stopped while allowing the command-side EStop to

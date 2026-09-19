@@ -5,6 +5,7 @@
   },
   "input_timeout_s": 2.0,
   "min_confidence": 0.8,
+  "hill_stop_mode": "estop",
   "rate_hz": 10,
   "path_lookahead_m": 20.0,
   "dynamic_obstacle": {
@@ -30,11 +31,11 @@
     "reaction_s": null,
     "max_speed_mps": null
   },
-  "start_branch": "right",
+  "start_branch": "left",
   "finish_fallback_branch": "right",
   "parking_branches": {
-    "t": "right",
-    "parallel": "right"
+    "t": "leftw",
+    "parallel": "left"
   },
   "parallel_parking_profiles": {
     "10_parallel-left-in": {
@@ -94,7 +95,7 @@
   },
   "speeds": {
     "normal": 2.2222222222222223,
-    "hill": 2.2222222222222223,
+    "hill": 1.5,
     "static": 2.2222222222222223,
     "intersection": 2.2222222222222223,
     "parking": 2.2222222222222223

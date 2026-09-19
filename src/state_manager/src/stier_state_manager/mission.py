@@ -25,7 +25,6 @@ RULE_DEFAULTS = {
     "front_bumper_offset_m": 0.0,
     "rear_axle_offset_m": 0.0,
     "finish_runout_m": 3.0,
-    "hill_rollback_limit_m": 0.5,
     "hill_clearance_timeout_s": 30.0,
     "mission_deadline_s": 480.0,
     "no_motion_timeout_s": 60.0,
@@ -132,6 +131,9 @@ class MissionEngine:
 
     def __init__(self, config=None):
         self.config = config or {}
+        self.hill_stop_mode = self.config.get("hill_stop_mode", "speed")
+        if self.hill_stop_mode not in ("speed", "estop"):
+            raise ValueError("hill_stop_mode must be speed or estop")
         self.rules = dict(RULE_DEFAULTS)
         self.rules.update(self.config.get("rules", {}))
         # Configuration may be more conservative than the regulations; it may
@@ -142,8 +144,6 @@ class MissionEngine:
                     raise ValueError("invalid mission rule: " + name)
         if self.rules["hill_hold_s"] < 3:
             raise ValueError("hill hold must be at least 3 seconds")
-        if not 0 < self.rules["hill_rollback_limit_m"] <= 0.5:
-            raise ValueError("hill rollback limit must be in (0, 0.5] metres")
         if not 0 < self.rules["hill_clearance_timeout_s"] <= 30:
             raise ValueError("hill clearance timeout must be in (0, 30] seconds")
         if not 0 < self.rules["mission_deadline_s"] <= 480:
@@ -489,22 +489,8 @@ class MissionEngine:
         top = zone_end if paired else marks["hill_top_s"]
         out["hill_target_s"] = stop
         at_or_past_target = raw_s >= stop - self.rules["stop_tolerance_m"]
-        if standing and at_or_past_target:
+        if at_or_past_target:
             state.setdefault("first_stop_time", now)
-        if (not state.get("hill_cleared") and state.get("first_stop_time") is not None
-                and now - state["first_stop_time"] > self.rules["hill_clearance_timeout_s"]):
-            self._once("hill_clearance_timeout", out["route"])
-            out["diagnostics"].append("HILL_CLEARANCE_TIMEOUT")
-        if start <= raw_s <= top and state.get("hill_entered") is None:
-            state["hill_entered"] = now
-        if state.get("hill_entered") is not None and not state.get("hill_cleared"):
-            state["furthest_raw_s"] = max(state.get("furthest_raw_s", raw_s), raw_s)
-            if state["furthest_raw_s"] - raw_s >= self.rules["hill_rollback_limit_m"]:
-                state["rollback_fault"] = True
-                self._once("hill_rollback", out["route"])
-            if state.get("rollback_fault"):
-                self._stop(out, "HILL_ROLLBACK_LIMIT_EXCEEDED", "FAULT")
-                return
         if "hill" not in self.completed_missions:
             out["remaining_stop_m"] = max(0.0, stop - s)
             first_stop = state.get("first_stop_time")
@@ -518,6 +504,8 @@ class MissionEngine:
                 out["remaining_stop_m"] = None
             elif at_or_past_target:
                 self._stop(out, "HILL_REQUIRED_HOLD", "HOLD" if standing else "STOPPING")
+                if self.hill_stop_mode == "estop":
+                    out["emergency_stop_requested"] = True
                 return
         else:
             out["phase"] = "CLIMBING"
